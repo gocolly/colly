@@ -246,7 +246,8 @@ func (c *Collector) OnResponse(f ResponseCallback) {
 }
 
 // OnHTML registers a function. Function will be executed on every HTML
-// element matched by the `query` parameter
+// element matched by the `goquerySelector` parameter.
+// `goquerySelector` is a selector used by https://github.com/PuerkitoBio/goquery
 func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Lock()
 	c.htmlCallbacks[goquerySelector] = f
