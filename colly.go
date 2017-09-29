@@ -341,14 +341,14 @@ func (r *Request) Post(URL string, requestData map[string]string) error {
 // Put stores a value in Context
 func (c *Context) Put(key, value string) {
 	c.lock.Lock()
-	c.contextMap[k] = v
+	c.contextMap[key] = value
 	c.lock.Unlock()
 }
 
 // Get retrieves a value from Context. If no value found for `k`
 // Get returns an empty string if key not found
-func (c *Context) Get(k string) string {
-	if v, ok := c.contextMap[k]; ok {
+func (c *Context) Get(key string) string {
+	if v, ok := c.contextMap[key]; ok {
 		return v
 	}
 	return ""
