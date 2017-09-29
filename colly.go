@@ -130,7 +130,7 @@ func (c *Collector) Visit(URL string) error {
 
 // Post starts collecting job by creating a POST
 // request.
-// Visit also calls the previously provided OnRequest,
+// Post also calls the previously provided OnRequest,
 // OnResponse, OnHTML callbacks
 func (c *Collector) Post(URL string, requestData map[string]string) error {
 	return c.scrape(URL, "POST", 1, requestData)
@@ -332,13 +332,13 @@ func (r *Request) Visit(URL string) error {
 }
 
 // Post continues a collector job by creating a POST request.
-// Visit also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
+// Post also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, requestData)
 }
 
 // Put stores a value in Context
-func (c *Context) Put(k, v string) {
+func (c *Context) Put(key, value string) {
 	c.lock.Lock()
 	c.contextMap[k] = v
 	c.lock.Unlock()
