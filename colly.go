@@ -62,6 +62,7 @@ type Response struct {
 type HTMLElement struct {
 	// Name is the name of the tag
 	Name       string
+	Text       string
 	attributes []html.Attribute
 	// Request is the request object of the element's HTML document
 	Request *Request
@@ -242,12 +243,17 @@ func (c *Collector) handleOnHTML(body []byte, req *Request, resp *Response) {
 	for expr, f := range c.htmlCallbacks {
 		doc.Find(expr).Each(func(i int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
-				f(&HTMLElement{
+				e := &HTMLElement{
 					Name:       n.Data,
 					Request:    req,
 					Response:   resp,
+					Text:       goquery.NewDocumentFromNode(n).Text(),
 					attributes: n.Attr,
-				})
+				}
+				if e.Name == "" {
+					continue
+				}
+				f(e)
 			}
 		})
 	}
