@@ -191,7 +191,7 @@ func (c *Collector) scrape(u string, depth int) error {
 
 // Wait returns when the collector jobs are finished
 func (c *Collector) Wait() {
-	c.wg.Done()
+	c.wg.Wait()
 }
 
 // OnRequest registers a function. Function will be executed on every
