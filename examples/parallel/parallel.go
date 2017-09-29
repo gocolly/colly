@@ -10,7 +10,7 @@ func main() {
 
 	c.MaxDepth = 2
 
-	c.OnHTML("a", func(e *colly.HTMLElement) {
+	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 		fmt.Println(link)
 		go e.Request.Visit(link)
