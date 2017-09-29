@@ -3,13 +3,9 @@
 Scraping Framework for Gophers
 
 
-Example:
-```go
-import (
-	"fmt"
-	"github.com/asciimoo/colly"
-)
+## Example
 
+```go
 func main() {
 	c := colly.NewCollector()
 
