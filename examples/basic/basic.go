@@ -8,6 +8,8 @@ import (
 func main() {
 	c := colly.NewCollector()
 
+	c.AllowedDomains = []string{"hackerspaces.org", "wiki.hackerspaces.org"}
+
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 		fmt.Printf("Link found: %q -> %s\n", e.Text, link)

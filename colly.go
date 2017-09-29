@@ -21,7 +21,10 @@ type Collector struct {
 	UserAgent string
 	// MaxDepth limits the recursion depth of visited URLs.
 	// Set it to 0 for infinite recursion (default).
-	MaxDepth          int
+	MaxDepth int
+	// AllowedDomains is a domain whitelist.
+	// Leave it blank to allow any domains to be visited
+	AllowedDomains    []string
 	visitedURLs       []string
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
@@ -92,7 +95,7 @@ func NewCollector() *Collector {
 	return c
 }
 
-// NewCollector initializes a new Context instance
+// NewContext initializes a new Context instance
 func NewContext() *Context {
 	return &Context{
 		contextMap: make(map[string]string),
@@ -144,13 +147,27 @@ func (c *Collector) scrape(u string, depth int) error {
 	if visited {
 		return nil
 	}
-	c.lock.Lock()
-	c.visitedURLs = append(c.visitedURLs, u)
-	c.lock.Unlock()
 	parsedURL, err := url.Parse(u)
 	if err != nil {
 		return err
 	}
+	allowed := false
+	if c.AllowedDomains == nil || len(c.AllowedDomains) == 0 {
+		allowed = true
+	} else {
+		for _, d := range c.AllowedDomains {
+			if d == parsedURL.Host {
+				allowed = true
+				break
+			}
+		}
+	}
+	if !allowed {
+		return nil
+	}
+	c.lock.Lock()
+	c.visitedURLs = append(c.visitedURLs, u)
+	c.lock.Unlock()
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return err
@@ -203,7 +220,7 @@ func (c *Collector) OnRequest(f RequestCallback) {
 	c.lock.Unlock()
 }
 
-// OnRequest registers a function. Function will be executed on every response
+// OnResponse registers a function. Function will be executed on every response
 func (c *Collector) OnResponse(f ResponseCallback) {
 	c.lock.Lock()
 	c.responseCallbacks = append(c.responseCallbacks, f)
@@ -271,7 +288,7 @@ func (h *HTMLElement) Attr(k string) string {
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
-// AbsoluteURL retursn empty string if the URL chunk is a fragment or
+// AbsoluteURL returns empty string if the URL chunk is a fragment or
 // could not be parsed
 func (r *Request) AbsoluteURL(u string) string {
 	if strings.HasPrefix(u, "#") {
