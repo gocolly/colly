@@ -124,11 +124,19 @@ func (c *Collector) Init() {
 // request to the URL specified in parameter.
 // Visit also calls the previously provided OnRequest,
 // OnResponse, OnHTML callbacks
-func (c *Collector) Visit(u string) error {
-	return c.scrape(u, 1)
+func (c *Collector) Visit(URL string) error {
+	return c.scrape(URL, "GET", 1, nil)
 }
 
-func (c *Collector) scrape(u string, depth int) error {
+// Post starts collecting job by creating a POST
+// request.
+// Visit also calls the previously provided OnRequest,
+// OnResponse, OnHTML callbacks
+func (c *Collector) Post(URL string, requestData map[string]string) error {
+	return c.scrape(URL, "POST", 1, requestData)
+}
+
+func (c *Collector) scrape(u, method string, depth int, requestData map[string]string) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
 	if u == "" {
@@ -168,11 +176,21 @@ func (c *Collector) scrape(u string, depth int) error {
 	c.lock.Lock()
 	c.visitedURLs = append(c.visitedURLs, u)
 	c.lock.Unlock()
-	req, err := http.NewRequest("GET", u, nil)
+	var form url.Values
+	if method == "POST" {
+		form := url.Values{}
+		for k, v := range requestData {
+			form.Add(k, v)
+		}
+	}
+	req, err := http.NewRequest(method, u, strings.NewReader(form.Encode()))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("User-Agent", c.UserAgent)
+	if method == "POST" {
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	}
 	ctx := NewContext()
 	request := &Request{
 		URL:       parsedURL,
@@ -309,8 +327,14 @@ func (r *Request) AbsoluteURL(u string) string {
 // request to the URL specified in parameter.
 // Visit also calls the previously provided OnRequest,
 // OnResponse, OnHTML callbacks
-func (r *Request) Visit(u string) error {
-	return r.collector.scrape(r.AbsoluteURL(u), r.Depth+1)
+func (r *Request) Visit(URL string) error {
+	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil)
+}
+
+// Post continues a collector job by creating a POST request.
+// Visit also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
+func (r *Request) Post(URL string, requestData map[string]string) error {
+	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, requestData)
 }
 
 // Put stores a value in Context
