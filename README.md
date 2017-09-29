@@ -3,6 +3,14 @@
 Scraping Framework for Gophers
 
 
+## Features
+
+ * Clean API
+ * Cookies and session handling
+ * Sync/async/parallel scraping
+ * Fast (>1k request/sec on a single core)
+
+
 ## Example
 
 ```go
@@ -21,14 +29,6 @@ func main() {
 ```
 
 See [examples folder](https://github.com/asciimoo/colly/tree/master/examples) for more detailed examples.
-
-
-## Features
-
- * Clean API
- * Cookies and session handling
- * Sync/async/parallel scraping
- * Fast (>1k request/sec on a single core)
 
 
 ## Bugs
