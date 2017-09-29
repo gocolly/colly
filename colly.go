@@ -71,6 +71,9 @@ type HTMLElement struct {
 	Request *Request
 	// Response is the Response object of the element's HTML document
 	Response *Response
+	// DOM is the goquery parsed DOM object of the page. DOM is relative
+	// to the current HTMLElement
+	DOM *goquery.Selection
 }
 
 // Context provides a tiny layer for passing data between different methods
@@ -284,10 +287,8 @@ func (c *Collector) handleOnHTML(body []byte, req *Request, resp *Response) {
 					Request:    req,
 					Response:   resp,
 					Text:       goquery.NewDocumentFromNode(n).Text(),
+					DOM:        s,
 					attributes: n.Attr,
-				}
-				if e.Name == "" {
-					continue
 				}
 				f(e)
 			}
