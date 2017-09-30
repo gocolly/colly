@@ -22,9 +22,6 @@ func main() {
 		if !strings.HasPrefix(link, "/browse") || strings.Index(link, "=signup") > -1 || strings.Index(link, "=login") > -1 {
 			return
 		}
-		if strings.Count("link", "/") > 2 {
-			return
-		}
 		e.Request.Visit(link)
 	})
 
