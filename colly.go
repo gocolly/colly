@@ -3,9 +3,7 @@ package colly
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"sync"
@@ -29,7 +27,7 @@ type Collector struct {
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
-	client            *http.Client
+	backend           *httpBackend
 	wg                *sync.WaitGroup
 	lock              *sync.Mutex
 }
@@ -40,8 +38,6 @@ type Request struct {
 	URL *url.URL
 	// Headers contains the Request's HTTP headers
 	Headers *http.Header
-	// CookieJar contains the Request's cookies
-	CookieJar *cookiejar.Jar
 	// Ctx is a context between a Request and a Response
 	Ctx *Context
 	// Depth is the number of the parents of this request
@@ -59,6 +55,8 @@ type Response struct {
 	Ctx *Context
 	// Request is the Request object of the response
 	Request *Request
+	// Headers contains the Response's HTTP headers
+	Headers *http.Header
 }
 
 // HTMLElement is the representation of a HTML tag.
@@ -76,7 +74,7 @@ type HTMLElement struct {
 	DOM *goquery.Selection
 }
 
-// Context provides a tiny layer for passing data between different methods
+// Context provides a tiny layer for passing data between callbacks
 type Context struct {
 	contextMap map[string]string
 	lock       *sync.Mutex
@@ -115,10 +113,8 @@ func (c *Collector) Init() {
 	c.htmlCallbacks = make(map[string]HTMLCallback, 0)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
 	c.responseCallbacks = make([]ResponseCallback, 0, 8)
-	jar, _ := cookiejar.New(nil)
-	c.client = &http.Client{
-		Jar: jar,
-	}
+	c.backend = &httpBackend{}
+	c.backend.Init()
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.Mutex{}
 }
@@ -205,22 +201,15 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	if len(c.requestCallbacks) > 0 {
 		c.handleOnRequest(request)
 	}
-	res, err := c.client.Do(req)
+	response, err := c.backend.Do(req)
+	// TODO add OnError callback to handle these cases
 	if err != nil {
 		return err
 	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-	res.Body.Close()
-	response := &Response{
-		StatusCode: res.StatusCode,
-		Body:       body,
-		Ctx:        ctx,
-	}
-	if strings.Index(strings.ToLower(res.Header.Get("Content-Type")), "html") > -1 {
-		c.handleOnHTML(body, request, response)
+	response.Ctx = ctx
+	response.Request = request
+	if strings.Index(strings.ToLower(response.Headers.Get("Content-Type")), "html") > -1 {
+		c.handleOnHTML(response.Body, request, response)
 	}
 	if len(c.responseCallbacks) > 0 {
 		c.handleOnResponse(response)
@@ -259,7 +248,7 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 
 // DisableCookies turns off cookie handling for this collector
 func (c *Collector) DisableCookies() {
-	c.client.Jar = nil
+	c.backend.Client.Jar = nil
 }
 
 func (c *Collector) handleOnRequest(r *Request) {
@@ -294,6 +283,16 @@ func (c *Collector) handleOnHTML(body []byte, req *Request, resp *Response) {
 			}
 		})
 	}
+}
+
+// Limit adds a new `LimitRule` to the collector
+func (c *Collector) Limit(rule *LimitRule) error {
+	return c.backend.Limit(rule)
+}
+
+// Limits adds new `LimitRule`s to the collector
+func (c *Collector) Limits(rules []*LimitRule) error {
+	return c.backend.Limits(rules)
 }
 
 // Attr returns the selected attribute of a HTMLElement or empty string

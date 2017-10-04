@@ -2,15 +2,20 @@
 
 Scraping Framework for Gophers
 
+Colly provides a clean and fast interface to write any kind of crawler/scraper/spider.
+
+With Colly you can easily extract structured data from websites, which can be used for a wide range of applications, like data mining, data processing or archiving.
+
 
 [Documentation](https://godoc.org/github.com/asciimoo/colly)
 
 ## Features
 
  * Clean API
- * Cookies and session handling
- * Sync/async/parallel scraping
  * Fast (>1k request/sec on a single core)
+ * Manage request delays and maximum concurrency per domain
+ * Automatic cookie and session handling
+ * Sync/async/parallel scraping
 
 
 ## Example
