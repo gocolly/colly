@@ -105,7 +105,12 @@ func (h *httpBackend) Do(request *http.Request) (*Response, error) {
 			<-r.waitChan
 		}(r)
 	}
+
 	res, err := h.Client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
