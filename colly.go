@@ -246,6 +246,11 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Unlock()
 }
 
+// WithTransport allows you to set a custom http.Transport for this collector.
+func (c *Collector) WithTransport(transport *http.Transport) {
+	c.backend.Client.Transport = transport
+}
+
 // DisableCookies turns off cookie handling for this collector
 func (c *Collector) DisableCookies() {
 	c.backend.Client.Jar = nil
