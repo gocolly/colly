@@ -1,8 +1,8 @@
 # Colly
 
-Scraping Framework for Gophers
+Lightning Fast and Elegant Scraping Framework for Gophers
 
-Colly provides a clean and fast interface to write any kind of crawler/scraper/spider.
+Colly provides a clean interface to write any kind of crawler/scraper/spider.
 
 With Colly you can easily extract structured data from websites, which can be used for a wide range of applications, like data mining, data processing or archiving.
 
