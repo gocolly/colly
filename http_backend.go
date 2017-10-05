@@ -2,6 +2,7 @@ package colly
 
 import (
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
@@ -97,7 +98,7 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Do(request *http.Request) (*Response, error) {
+func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
 		r.waitChan <- true
@@ -112,7 +113,11 @@ func (h *httpBackend) Do(request *http.Request) (*Response, error) {
 		return nil, err
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	var bodyReader io.Reader = res.Body
+	if bodySize > 0 {
+		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
+	}
+	body, err := ioutil.ReadAll(bodyReader)
 	if err != nil {
 		return nil, err
 	}
