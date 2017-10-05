@@ -246,10 +246,9 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Unlock()
 }
 
-// OverrideClient allows you to set a custom http.Client for this collector.
-// If you wish to enable cookies, ensure you set a Jar for the passed http.Client
-func (c *Collector) OverrideClient(client *http.Client) {
-	c.backend.Client = client
+// WithTransport allows you to set a custom http.Transport for this collector.
+func (c *Collector) WithTransport(transport *http.Transport) {
+	c.backend.Client.Transport = transport
 }
 
 // DisableCookies turns off cookie handling for this collector
