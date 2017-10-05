@@ -268,8 +268,8 @@ func (c *Collector) DisableCookies() {
 	c.backend.Client.Jar = nil
 }
 
-// SetClientTimeout overrides the default timeout for this collector
-func (c *Collector) SetClientTimeout(timeout time.Duration) {
+// SetRequestTimeout overrides the default timeout (10 seconds) for this collector
+func (c *Collector) SetRequestTimeout(timeout time.Duration) {
 	c.backend.Client.Timeout = timeout
 }
 
