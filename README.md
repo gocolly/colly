@@ -13,7 +13,7 @@ With Colly you can easily extract structured data from websites, which can be us
 
  * Clean API
  * Fast (>1k request/sec on a single core)
- * Manage request delays and maximum concurrency per domain
+ * Manages request delays and maximum concurrency per domain
  * Automatic cookie and session handling
  * Sync/async/parallel scraping
 
