@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/html"
 
@@ -265,6 +266,11 @@ func (c *Collector) WithTransport(transport *http.Transport) {
 // DisableCookies turns off cookie handling for this collector
 func (c *Collector) DisableCookies() {
 	c.backend.Client.Jar = nil
+}
+
+// SetRequestTimeout overrides the default timeout (10 seconds) for this collector
+func (c *Collector) SetRequestTimeout(timeout time.Duration) {
+	c.backend.Client.Timeout = timeout
 }
 
 func (c *Collector) handleOnRequest(r *Request) {

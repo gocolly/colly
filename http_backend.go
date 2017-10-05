@@ -71,7 +71,8 @@ func (h *httpBackend) Init() {
 	h.LimitRules = make([]*LimitRule, 0, 8)
 	jar, _ := cookiejar.New(nil)
 	h.Client = &http.Client{
-		Jar: jar,
+		Jar:     jar,
+		Timeout: 10 * time.Second,
 	}
 	h.lock = &sync.Mutex{}
 }
@@ -106,7 +107,12 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 			<-r.waitChan
 		}(r)
 	}
+
 	res, err := h.Client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
 	var bodyReader io.Reader = res.Body
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
