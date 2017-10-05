@@ -3,6 +3,7 @@ package colly
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,7 +23,9 @@ type Collector struct {
 	MaxDepth int
 	// AllowedDomains is a domain whitelist.
 	// Leave it blank to allow any domains to be visited
-	AllowedDomains    []string
+	AllowedDomains []string
+	// AllowURLRevisit allows multiple downloads of the same URL
+	AllowURLRevisit   bool
 	visitedURLs       []string
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
@@ -139,20 +142,22 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	c.wg.Add(1)
 	defer c.wg.Done()
 	if u == "" {
-		return nil
+		return errors.New("Missing URL")
 	}
 	if c.MaxDepth > 0 && c.MaxDepth < depth {
-		return nil
+		return errors.New("Max depth limit reached")
 	}
-	visited := false
-	for _, u2 := range c.visitedURLs {
-		if u2 == u {
-			visited = true
-			break
+	if !c.AllowURLRevisit {
+		visited := false
+		for _, u2 := range c.visitedURLs {
+			if u2 == u {
+				visited = true
+				break
+			}
 		}
-	}
-	if visited {
-		return nil
+		if visited {
+			return errors.New("URL already visited")
+		}
 	}
 	parsedURL, err := url.Parse(u)
 	if err != nil {
@@ -170,11 +175,13 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 		}
 	}
 	if !allowed {
-		return nil
+		return errors.New("Forbidden domain")
 	}
-	c.lock.Lock()
-	c.visitedURLs = append(c.visitedURLs, u)
-	c.lock.Unlock()
+	if !c.AllowURLRevisit {
+		c.lock.Lock()
+		c.visitedURLs = append(c.visitedURLs, u)
+		c.lock.Unlock()
+	}
 	var form url.Values
 	if method == "POST" {
 		form := url.Values{}
