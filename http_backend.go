@@ -100,6 +100,10 @@ func (h *httpBackend) Do(request *http.Request) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
 		r.waitChan <- true
+		defer func(r *LimitRule) {
+			time.Sleep(r.Delay)
+			<-r.waitChan
+		}(r)
 	}
 	res, err := h.Client.Do(request)
 	body, err := ioutil.ReadAll(res.Body)
@@ -107,12 +111,6 @@ func (h *httpBackend) Do(request *http.Request) (*Response, error) {
 		return nil, err
 	}
 	res.Body.Close()
-	if r != nil {
-		go func(r *LimitRule) {
-			time.Sleep(r.Delay)
-			<-r.waitChan
-		}(r)
-	}
 	return &Response{
 		StatusCode: res.StatusCode,
 		Body:       body,
