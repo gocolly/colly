@@ -70,7 +70,8 @@ func (h *httpBackend) Init() {
 	h.LimitRules = make([]*LimitRule, 0, 8)
 	jar, _ := cookiejar.New(nil)
 	h.Client = &http.Client{
-		Jar: jar,
+		Jar:     jar,
+		Timeout: 10 * time.Second,
 	}
 	h.lock = &sync.Mutex{}
 }
