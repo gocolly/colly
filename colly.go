@@ -189,7 +189,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	}
 	var form url.Values
 	if method == "POST" {
-		form := url.Values{}
+		form = url.Values{}
 		for k, v := range requestData {
 			form.Add(k, v)
 		}
