@@ -189,7 +189,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	}
 	var form url.Values
 	if method == "POST" {
-		form := url.Values{}
+		form = url.Values{}
 		for k, v := range requestData {
 			form.Add(k, v)
 		}
@@ -357,7 +357,7 @@ func (r *Request) Visit(URL string) error {
 // Post continues a collector job by creating a POST request.
 // Post also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, requestData)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, requestData)
 }
 
 // Put stores a value in Context
