@@ -244,6 +244,7 @@ func (c *Collector) OnResponse(f ResponseCallback) {
 	c.lock.Unlock()
 }
 
+// OnError registers a function. Function will be executed on every error.
 func (c *Collector) OnError(f ErrorCallback) {
 	c.lock.Lock()
 	c.errorCallbacks = append(c.errorCallbacks, f)
