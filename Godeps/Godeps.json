@@ -1,0 +1,64 @@
+{
+	"ImportPath": "github.com/NafisFaysal/colly",
+	"GoVersion": "go1.8",
+	"GodepVersion": "v79",
+	"Deps": [
+		{
+			"ImportPath": "github.com/PuerkitoBio/goquery",
+			"Comment": "v1.1.0-9-g63e7f87",
+			"Rev": "63e7f870c2298e42bfc8b200db92e175a3e71120"
+		},
+		{
+			"ImportPath": "github.com/andybalholm/cascadia",
+			"Rev": "349dd0209470eabd9514242c688c403c0926d266"
+		},
+		{
+			"ImportPath": "github.com/gobwas/glob",
+			"Comment": "v0.2.2-2-g51eb1ee",
+			"Rev": "51eb1ee00b6d931c66d229ceeb7c31b985563420"
+		},
+		{
+			"ImportPath": "github.com/gobwas/glob/compiler",
+			"Comment": "v0.2.2-2-g51eb1ee",
+			"Rev": "51eb1ee00b6d931c66d229ceeb7c31b985563420"
+		},
+		{
+			"ImportPath": "github.com/gobwas/glob/match",
+			"Comment": "v0.2.2-2-g51eb1ee",
+			"Rev": "51eb1ee00b6d931c66d229ceeb7c31b985563420"
+		},
+		{
+			"ImportPath": "github.com/gobwas/glob/syntax",
+			"Comment": "v0.2.2-2-g51eb1ee",
+			"Rev": "51eb1ee00b6d931c66d229ceeb7c31b985563420"
+		},
+		{
+			"ImportPath": "github.com/gobwas/glob/syntax/ast",
+			"Comment": "v0.2.2-2-g51eb1ee",
+			"Rev": "51eb1ee00b6d931c66d229ceeb7c31b985563420"
+		},
+		{
+			"ImportPath": "github.com/gobwas/glob/syntax/lexer",
+			"Comment": "v0.2.2-2-g51eb1ee",
+			"Rev": "51eb1ee00b6d931c66d229ceeb7c31b985563420"
+		},
+		{
+			"ImportPath": "github.com/gobwas/glob/util/runes",
+			"Comment": "v0.2.2-2-g51eb1ee",
+			"Rev": "51eb1ee00b6d931c66d229ceeb7c31b985563420"
+		},
+		{
+			"ImportPath": "github.com/gobwas/glob/util/strings",
+			"Comment": "v0.2.2-2-g51eb1ee",
+			"Rev": "51eb1ee00b6d931c66d229ceeb7c31b985563420"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html",
+			"Rev": "a04bdaca5b32abe1c069418fb7088ae607de5bd0"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html/atom",
+			"Rev": "a04bdaca5b32abe1c069418fb7088ae607de5bd0"
+		}
+	]
+}
