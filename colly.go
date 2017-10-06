@@ -27,6 +27,7 @@ type Collector struct {
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
+	errorCallbacks    []ErrorCallback
 	backend           *httpBackend
 	wg                *sync.WaitGroup
 	lock              *sync.Mutex
@@ -88,6 +89,9 @@ type ResponseCallback func(*Response)
 
 // HTMLCallback is a type alias for OnHTML callback functions
 type HTMLCallback func(*HTMLElement)
+
+// ErrorCallback is a type alias for OnError callback functions
+type ErrorCallback func(*Request, *Response, error)
 
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector() *Collector {
@@ -202,8 +206,11 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 		c.handleOnRequest(request)
 	}
 	response, err := c.backend.Do(req)
-	// TODO add OnError callback to handle these cases
+
 	if err != nil {
+		if len(c.errorCallbacks) > 0 {
+			c.handleOnError(request, response, err)
+		}
 		return err
 	}
 	response.Ctx = ctx
@@ -237,6 +244,12 @@ func (c *Collector) OnResponse(f ResponseCallback) {
 	c.lock.Unlock()
 }
 
+func (c *Collector) OnError(f ErrorCallback) {
+	c.lock.Lock()
+	c.errorCallbacks = append(c.errorCallbacks, f)
+	c.lock.Unlock()
+}
+
 // OnHTML registers a function. Function will be executed on every HTML
 // element matched by the `goquerySelector` parameter.
 // `goquerySelector` is a selector used by https://github.com/PuerkitoBio/goquery
@@ -259,6 +272,12 @@ func (c *Collector) DisableCookies() {
 func (c *Collector) handleOnRequest(r *Request) {
 	for _, f := range c.requestCallbacks {
 		f(r)
+	}
+}
+
+func (c *Collector) handleOnError(req *Request, resp *Response, e error) {
+	for _, f := range c.errorCallbacks {
+		f(req, resp, e)
 	}
 }
 
