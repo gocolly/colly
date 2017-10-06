@@ -105,6 +105,7 @@ func (h *httpBackend) Do(request *http.Request) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return &Response{
@@ -112,7 +113,6 @@ func (h *httpBackend) Do(request *http.Request) (*Response, error) {
 			Headers:    &res.Header,
 		}, err
 	}
-	res.Body.Close()
 	if r != nil {
 		go func(r *LimitRule) {
 			time.Sleep(r.Delay)
