@@ -2,6 +2,7 @@ package colly
 
 import (
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
@@ -70,7 +71,8 @@ func (h *httpBackend) Init() {
 	h.LimitRules = make([]*LimitRule, 0, 8)
 	jar, _ := cookiejar.New(nil)
 	h.Client = &http.Client{
-		Jar: jar,
+		Jar:     jar,
+		Timeout: 10 * time.Second,
 	}
 	h.lock = &sync.Mutex{}
 }
@@ -96,29 +98,35 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Do(request *http.Request) (*Response, error) {
+func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
 		r.waitChan <- true
+		defer func(r *LimitRule) {
+			time.Sleep(r.Delay)
+			<-r.waitChan
+		}(r)
 	}
+
 	res, err := h.Client.Do(request)
 	if err != nil {
 		return nil, err
 	}
+
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	var bodyReader io.Reader = res.Body
+	if bodySize > 0 {
+		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
+	}
+	body, err := ioutil.ReadAll(bodyReader)
+
 	if err != nil {
 		return &Response{
 			StatusCode: res.StatusCode,
 			Headers:    &res.Header,
 		}, err
 	}
-	if r != nil {
-		go func(r *LimitRule) {
-			time.Sleep(r.Delay)
-			<-r.waitChan
-		}(r)
-	}
+
 	return &Response{
 		StatusCode: res.StatusCode,
 		Body:       body,

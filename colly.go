@@ -3,10 +3,12 @@ package colly
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/html"
 
@@ -22,7 +24,12 @@ type Collector struct {
 	MaxDepth int
 	// AllowedDomains is a domain whitelist.
 	// Leave it blank to allow any domains to be visited
-	AllowedDomains    []string
+	AllowedDomains []string
+	// AllowURLRevisit allows multiple downloads of the same URL
+	AllowURLRevisit bool
+	// MaxBodySize limits the retrieved response body. `0` means unlimited.
+	// The default value for MaxBodySize is 10240 (10MB)
+	MaxBodySize       int
 	visitedURLs       []string
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
@@ -117,6 +124,7 @@ func (c *Collector) Init() {
 	c.htmlCallbacks = make(map[string]HTMLCallback, 0)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
 	c.responseCallbacks = make([]ResponseCallback, 0, 8)
+	c.MaxBodySize = 10240
 	c.backend = &httpBackend{}
 	c.backend.Init()
 	c.wg = &sync.WaitGroup{}
@@ -143,20 +151,22 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	c.wg.Add(1)
 	defer c.wg.Done()
 	if u == "" {
-		return nil
+		return errors.New("Missing URL")
 	}
 	if c.MaxDepth > 0 && c.MaxDepth < depth {
-		return nil
+		return errors.New("Max depth limit reached")
 	}
-	visited := false
-	for _, u2 := range c.visitedURLs {
-		if u2 == u {
-			visited = true
-			break
+	if !c.AllowURLRevisit {
+		visited := false
+		for _, u2 := range c.visitedURLs {
+			if u2 == u {
+				visited = true
+				break
+			}
 		}
-	}
-	if visited {
-		return nil
+		if visited {
+			return errors.New("URL already visited")
+		}
 	}
 	parsedURL, err := url.Parse(u)
 	if err != nil {
@@ -174,14 +184,16 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 		}
 	}
 	if !allowed {
-		return nil
+		return errors.New("Forbidden domain")
 	}
-	c.lock.Lock()
-	c.visitedURLs = append(c.visitedURLs, u)
-	c.lock.Unlock()
+	if !c.AllowURLRevisit {
+		c.lock.Lock()
+		c.visitedURLs = append(c.visitedURLs, u)
+		c.lock.Unlock()
+	}
 	var form url.Values
 	if method == "POST" {
-		form := url.Values{}
+		form = url.Values{}
 		for k, v := range requestData {
 			form.Add(k, v)
 		}
@@ -205,8 +217,8 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	if len(c.requestCallbacks) > 0 {
 		c.handleOnRequest(request)
 	}
-	response, err := c.backend.Do(req)
 
+	response, err := c.backend.Do(req, c.MaxBodySize)
 	if err != nil {
 		if len(c.errorCallbacks) > 0 {
 			c.handleOnError(request, response, err)
@@ -268,6 +280,11 @@ func (c *Collector) WithTransport(transport *http.Transport) {
 // DisableCookies turns off cookie handling for this collector
 func (c *Collector) DisableCookies() {
 	c.backend.Client.Jar = nil
+}
+
+// SetRequestTimeout overrides the default timeout (10 seconds) for this collector
+func (c *Collector) SetRequestTimeout(timeout time.Duration) {
+	c.backend.Client.Timeout = timeout
 }
 
 func (c *Collector) handleOnRequest(r *Request) {
@@ -360,7 +377,7 @@ func (r *Request) Visit(URL string) error {
 // Post continues a collector job by creating a POST request.
 // Post also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, requestData)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, requestData)
 }
 
 // Put stores a value in Context

@@ -24,7 +24,7 @@ With Colly you can easily extract structured data from websites, which can be us
 func main() {
 	c := colly.NewCollector()
 
-    // Find and visit all links
+	// Find and visit all links
 	c.OnHTML("a", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 		fmt.Println(link)

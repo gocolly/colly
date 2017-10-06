@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	//"time"
+	"time"
 
 	"github.com/asciimoo/colly"
 )
