@@ -213,7 +213,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	if len(c.requestCallbacks) > 0 {
 		c.handleOnRequest(request)
 	}
-	response, err := c.backend.Do(req, c.MaxBodySize)
+	response, err := c.backend.Do(req, c.MaxBodySize * 1024)
 	// TODO add OnError callback to handle these cases
 	if err != nil {
 		return err
