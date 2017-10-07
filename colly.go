@@ -27,8 +27,9 @@ type Collector struct {
 	AllowedDomains []string
 	// AllowURLRevisit allows multiple downloads of the same URL
 	AllowURLRevisit bool
-	// MaxBodySize limits the retrieved response body. `0` means unlimited.
-	// The default value for MaxBodySize is 10240 (10MB)
+	// MaxBodySize is the limit of the retrieved response body in bytes.
+	// `0` means unlimited.
+	// The default value for MaxBodySize is 10MB (10 * 1024 * 1024 bytes).
 	MaxBodySize       int
 	visitedURLs       []string
 	htmlCallbacks     map[string]HTMLCallback
@@ -120,7 +121,7 @@ func (c *Collector) Init() {
 	c.htmlCallbacks = make(map[string]HTMLCallback, 0)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
 	c.responseCallbacks = make([]ResponseCallback, 0, 8)
-	c.MaxBodySize = 10240
+	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	c.backend.Init()
 	c.wg = &sync.WaitGroup{}
