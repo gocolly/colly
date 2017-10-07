@@ -1,11 +1,16 @@
 package colly
 
 import (
+	"crypto/sha1"
+	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
+	"os"
+	"path"
 	"regexp"
 	"sync"
 	"time"
@@ -96,6 +101,37 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 		}
 	}
 	return nil
+}
+
+func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string) (*Response, error) {
+	if cacheDir == "" || request.Method != "GET" {
+		return h.Do(request, bodySize)
+	}
+	sum := sha1.Sum([]byte(request.URL.String()))
+	hash := hex.EncodeToString(sum[:])
+	dir := path.Join(cacheDir, hash[:2])
+	filename := path.Join(dir, hash)
+	if file, err := os.Open(filename); err == nil {
+		resp := new(Response)
+		err := gob.NewDecoder(file).Decode(resp)
+		file.Close()
+		return resp, err
+	}
+	resp, err := h.Do(request, bodySize)
+	if err != nil {
+		return resp, err
+	}
+	if _, err := os.Stat(dir); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
+			return nil, err
+		}
+	}
+	file, err := os.Create(filename)
+	defer file.Close()
+	if err != nil {
+		return nil, err
+	}
+	return resp, gob.NewEncoder(file).Encode(resp)
 }
 
 func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {

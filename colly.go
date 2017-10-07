@@ -31,6 +31,7 @@ type Collector struct {
 	// `0` means unlimited.
 	// The default value for MaxBodySize is 10MB (10 * 1024 * 1024 bytes).
 	MaxBodySize       int
+	CacheDir          string
 	visitedURLs       []string
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
@@ -84,7 +85,7 @@ type HTMLElement struct {
 
 // Context provides a tiny layer for passing data between callbacks
 type Context struct {
-	contextMap map[string]string
+	ContextMap map[string]string
 	lock       *sync.Mutex
 }
 
@@ -107,7 +108,7 @@ func NewCollector() *Collector {
 // NewContext initializes a new Context instance
 func NewContext() *Context {
 	return &Context{
-		contextMap: make(map[string]string),
+		ContextMap: make(map[string]string),
 		lock:       &sync.Mutex{},
 	}
 }
@@ -214,7 +215,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	if len(c.requestCallbacks) > 0 {
 		c.handleOnRequest(request)
 	}
-	response, err := c.backend.Do(req, c.MaxBodySize)
+	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	// TODO add OnError callback to handle these cases
 	if err != nil {
 		return err
@@ -364,14 +365,14 @@ func (r *Request) Post(URL string, requestData map[string]string) error {
 // Put stores a value in Context
 func (c *Context) Put(key, value string) {
 	c.lock.Lock()
-	c.contextMap[key] = value
+	c.ContextMap[key] = value
 	c.lock.Unlock()
 }
 
 // Get retrieves a value from Context. If no value found for `k`
 // Get returns an empty string if key not found
 func (c *Context) Get(key string) string {
-	if v, ok := c.contextMap[key]; ok {
+	if v, ok := c.ContextMap[key]; ok {
 		return v
 	}
 	return ""
