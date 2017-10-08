@@ -113,15 +113,20 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		return nil, err
 	}
 
+	defer res.Body.Close()
 	var bodyReader io.Reader = res.Body
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
 	body, err := ioutil.ReadAll(bodyReader)
+
 	if err != nil {
-		return nil, err
+		return &Response{
+			StatusCode: res.StatusCode,
+			Headers:    &res.Header,
+		}, err
 	}
-	res.Body.Close()
+
 	return &Response{
 		StatusCode: res.StatusCode,
 		Body:       body,
