@@ -123,15 +123,18 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 	}
 	if _, err := os.Stat(dir); err != nil {
 		if err := os.MkdirAll(dir, 0750); err != nil {
-			return nil, err
+			return resp, err
 		}
 	}
-	file, err := os.Create(filename)
+	file, err := os.Create(filename + "~")
 	defer file.Close()
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
-	return resp, gob.NewEncoder(file).Encode(resp)
+	if err := gob.NewEncoder(file).Encode(resp); err != nil {
+		return resp, err
+	}
+	return resp, os.Rename(filename+"~", filename)
 }
 
 func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {
