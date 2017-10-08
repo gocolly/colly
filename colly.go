@@ -30,7 +30,9 @@ type Collector struct {
 	// MaxBodySize is the limit of the retrieved response body in bytes.
 	// `0` means unlimited.
 	// The default value for MaxBodySize is 10MB (10 * 1024 * 1024 bytes).
-	MaxBodySize       int
+	MaxBodySize int
+	// CacheDir specifies a location where GET requests are cached as files.
+	// When it's not defined, caching is disabled.
 	CacheDir          string
 	visitedURLs       []string
 	htmlCallbacks     map[string]HTMLCallback
