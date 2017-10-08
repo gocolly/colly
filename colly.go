@@ -30,7 +30,10 @@ type Collector struct {
 	// MaxBodySize is the limit of the retrieved response body in bytes.
 	// `0` means unlimited.
 	// The default value for MaxBodySize is 10MB (10 * 1024 * 1024 bytes).
-	MaxBodySize       int
+	MaxBodySize int
+	// CacheDir specifies a location where GET requests are cached as files.
+	// When it's not defined, caching is disabled.
+	CacheDir          string
 	visitedURLs       []string
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
@@ -216,7 +219,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	if len(c.requestCallbacks) > 0 {
 		c.handleOnRequest(request)
 	}
-	response, err := c.backend.Do(req, c.MaxBodySize)
+	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	// TODO add OnError callback to handle these cases
 	if err != nil {
 		return err
@@ -362,6 +365,14 @@ func (r *Request) Visit(URL string) error {
 // Post also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, requestData, r.Ctx)
+}
+
+func (c *Context) UnmarshalBinary(data []byte) error {
+	return nil
+}
+
+func (c *Context) MarshalBinary() (data []byte, err error) {
+	return nil, nil
 }
 
 // Put stores a value in Context
