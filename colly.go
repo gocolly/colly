@@ -87,7 +87,7 @@ type HTMLElement struct {
 
 // Context provides a tiny layer for passing data between callbacks
 type Context struct {
-	ContextMap map[string]string
+	contextMap map[string]string
 	lock       *sync.Mutex
 }
 
@@ -110,7 +110,7 @@ func NewCollector() *Collector {
 // NewContext initializes a new Context instance
 func NewContext() *Context {
 	return &Context{
-		ContextMap: make(map[string]string),
+		contextMap: make(map[string]string),
 		lock:       &sync.Mutex{},
 	}
 }
@@ -364,17 +364,25 @@ func (r *Request) Post(URL string, requestData map[string]string) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, requestData)
 }
 
+func (c *Context) UnmarshalBinary(data []byte) error {
+	return nil
+}
+
+func (c *Context) MarshalBinary() (data []byte, err error) {
+	return nil, nil
+}
+
 // Put stores a value in Context
 func (c *Context) Put(key, value string) {
 	c.lock.Lock()
-	c.ContextMap[key] = value
+	c.contextMap[key] = value
 	c.lock.Unlock()
 }
 
 // Get retrieves a value from Context. If no value found for `k`
 // Get returns an empty string if key not found
 func (c *Context) Get(key string) string {
-	if v, ok := c.ContextMap[key]; ok {
+	if v, ok := c.contextMap[key]; ok {
 		return v
 	}
 	return ""
