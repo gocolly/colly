@@ -221,11 +221,11 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 	}
 	response.Ctx = ctx
 	response.Request = request
-	if strings.Index(strings.ToLower(response.Headers.Get("Content-Type")), "html") > -1 {
-		c.handleOnHTML(response.Body, request, response)
-	}
 	if len(c.responseCallbacks) > 0 {
 		c.handleOnResponse(response)
+	}
+	if strings.Index(strings.ToLower(response.Headers.Get("Content-Type")), "html") > -1 {
+		c.handleOnHTML(response.Body, request, response)
 	}
 	return nil
 }
