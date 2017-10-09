@@ -398,11 +398,15 @@ func (r *Request) PostRaw(URL string, requestData []byte) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, bytes.NewReader(requestData), r.Ctx)
 }
 
-func (c *Context) UnmarshalBinary(data []byte) error {
+// UnmarshalBinary decodes Context value to nil
+// This function is used by request caching
+func (c *Context) UnmarshalBinary(_ []byte) error {
 	return nil
 }
 
-func (c *Context) MarshalBinary() (data []byte, err error) {
+// MarshalBinary encodes Context value
+// This function is used by request caching
+func (c *Context) MarshalBinary() (_ []byte, _ error) {
 	return nil, nil
 }
 
