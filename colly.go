@@ -322,6 +322,28 @@ func (c *Collector) Limits(rules []*LimitRule) error {
 	return c.backend.Limits(rules)
 }
 
+// SetCookies handles the receipt of the cookies in a reply for the given URL
+func (c *Collector) SetCookies(urlString string, cookies []*http.Cookie) error {
+	if c.backend.Client.Jar == nil {
+		return errors.New("Cookie jar is not available")
+	}
+	u, err := url.Parse(urlString)
+	if err != nil {
+		return err
+	}
+	c.backend.Client.Jar.SetCookies(u, cookies)
+	return nil
+}
+
+// Cookies returns the cookies to send in a request for the given URL.
+func (c *Collector) Cookies(urlString string) []*Cookie {
+	u, err := url.Parse(urlString)
+	if err != nil {
+		return nil
+	}
+	return c.backend.Client.Jar.Cookies(u)
+}
+
 // Attr returns the selected attribute of a HTMLElement or empty string
 // if no attribute found
 func (h *HTMLElement) Attr(k string) string {
