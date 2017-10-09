@@ -323,11 +323,11 @@ func (c *Collector) Limits(rules []*LimitRule) error {
 }
 
 // SetCookies handles the receipt of the cookies in a reply for the given URL
-func (c *Collector) SetCookies(urlString string, cookies []*http.Cookie) error {
+func (c *Collector) SetCookies(URL string, cookies []*http.Cookie) error {
 	if c.backend.Client.Jar == nil {
 		return errors.New("Cookie jar is not available")
 	}
-	u, err := url.Parse(urlString)
+	u, err := url.Parse(URL)
 	if err != nil {
 		return err
 	}
@@ -336,11 +336,11 @@ func (c *Collector) SetCookies(urlString string, cookies []*http.Cookie) error {
 }
 
 // Cookies returns the cookies to send in a request for the given URL.
-func (c *Collector) Cookies(urlString string) []*http.Cookie {
+func (c *Collector) Cookies(URL string) []*http.Cookie {
 	if c.backend.Client.Jar == nil {
 		return nil
 	}
-	u, err := url.Parse(urlString)
+	u, err := url.Parse(URL)
 	if err != nil {
 		return nil
 	}
