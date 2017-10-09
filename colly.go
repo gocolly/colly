@@ -336,7 +336,10 @@ func (c *Collector) SetCookies(urlString string, cookies []*http.Cookie) error {
 }
 
 // Cookies returns the cookies to send in a request for the given URL.
-func (c *Collector) Cookies(urlString string) []*Cookie {
+func (c *Collector) Cookies(urlString string) []*http.Cookie {
+	if c.backend.Client.Jar == nil {
+		return nil
+	}
 	u, err := url.Parse(urlString)
 	if err != nil {
 		return nil
