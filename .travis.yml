@@ -1,0 +1,18 @@
+language: go
+go:
+  - 1.7
+  - 1.8
+  - 1.9
+  - tip
+os:
+  - linux
+  # remove osx, getting vm from travis is extremely slow
+  # - osx
+#env:
+#  - "PATH=/home/travis/gopath/bin:$PATH"
+script:
+  - OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
+  - OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
+  - go vet -v ./...
+  - go test ./...
+  - go build
