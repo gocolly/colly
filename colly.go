@@ -4,6 +4,7 @@ package colly
 import (
 	"bytes"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -139,15 +140,20 @@ func (c *Collector) Visit(URL string) error {
 	return c.scrape(URL, "GET", 1, nil, nil)
 }
 
-// Post starts collecting job by creating a POST
-// request.
+// Post starts a collector job by creating a POST request.
 // Post also calls the previously provided OnRequest,
 // OnResponse, OnHTML callbacks
 func (c *Collector) Post(URL string, requestData map[string]string) error {
-	return c.scrape(URL, "POST", 1, requestData, nil)
+	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil)
 }
 
-func (c *Collector) scrape(u, method string, depth int, requestData map[string]string, ctx *Context) error {
+// PostRaw starts a collector job by creating a POST request with raw binary data.
+// Post also calls the previously provided callbacks
+func (c *Collector) PostRaw(URL string, requestData []byte) error {
+	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), nil)
+}
+
+func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
 	if u == "" {
@@ -191,14 +197,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData map[string]s
 		c.visitedURLs = append(c.visitedURLs, u)
 		c.lock.Unlock()
 	}
-	var form url.Values
-	if method == "POST" {
-		form = url.Values{}
-		for k, v := range requestData {
-			form.Add(k, v)
-		}
-	}
-	req, err := http.NewRequest(method, u, strings.NewReader(form.Encode()))
+	req, err := http.NewRequest(method, u, requestData)
 	if err != nil {
 		return err
 	}
@@ -364,7 +363,14 @@ func (r *Request) Visit(URL string) error {
 // of the previous request.
 // Post also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, requestData, r.Ctx)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), r.Ctx)
+}
+
+// PostRaw starts a collector job by creating a POST request with raw binary data.
+// PostRaw preserves the Context of the previous request
+// and calls the previously provided callbacks
+func (r *Request) PostRaw(URL string, requestData []byte) error {
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, bytes.NewReader(requestData), r.Ctx)
 }
 
 func (c *Context) UnmarshalBinary(data []byte) error {
@@ -389,4 +395,12 @@ func (c *Context) Get(key string) string {
 		return v
 	}
 	return ""
+}
+
+func createFormReader(data map[string]string) io.Reader {
+	form := url.Values{}
+	for k, v := range data {
+		form.Add(k, v)
+	}
+	return strings.NewReader(form.Encode())
 }
