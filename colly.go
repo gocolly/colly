@@ -89,7 +89,7 @@ type HTMLElement struct {
 // Context provides a tiny layer for passing data between callbacks
 type Context struct {
 	contextMap map[string]string
-	lock       *sync.Mutex
+	lock       *sync.RWMutex
 }
 
 // RequestCallback is a type alias for OnRequest callback functions
@@ -112,7 +112,7 @@ func NewCollector() *Collector {
 func NewContext() *Context {
 	return &Context{
 		contextMap: make(map[string]string),
-		lock:       &sync.Mutex{},
+		lock:       &sync.RWMutex{},
 	}
 }
 
@@ -420,9 +420,11 @@ func (c *Context) Put(key, value string) {
 // Get retrieves a value from Context. If no value found for `k`
 // Get returns an empty string if key not found
 func (c *Context) Get(key string) string {
+	c.lock.RLock()
 	if v, ok := c.contextMap[key]; ok {
 		return v
 	}
+	c.lock.RUnlock()
 	return ""
 }
 
