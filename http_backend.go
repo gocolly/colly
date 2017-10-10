@@ -21,7 +21,7 @@ import (
 type httpBackend struct {
 	LimitRules []*LimitRule
 	Client     *http.Client
-	lock       *sync.Mutex
+	lock       *sync.RWMutex
 }
 
 // LimitRule provides connection restrictions for domains.
@@ -79,7 +79,7 @@ func (h *httpBackend) Init() {
 		Jar:     jar,
 		Timeout: 10 * time.Second,
 	}
-	h.lock = &sync.Mutex{}
+	h.lock = &sync.RWMutex{}
 }
 
 // Match checks that the domain parameter triggers the rule
@@ -95,11 +95,13 @@ func (r *LimitRule) Match(domain string) bool {
 }
 
 func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
+	h.lock.RLock()
 	for _, r := range h.LimitRules {
 		if r.Match(domain) {
 			return r
 		}
 	}
+	h.lock.RUnlock()
 	return nil
 }
 
