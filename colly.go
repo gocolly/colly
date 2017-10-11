@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/charset"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -225,6 +227,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	response.Ctx = ctx
 	response.Request = request
+	response.fixCharset()
 	if len(c.responseCallbacks) > 0 {
 		c.handleOnResponse(response)
 	}
@@ -434,4 +437,23 @@ func createFormReader(data map[string]string) io.Reader {
 		form.Add(k, v)
 	}
 	return strings.NewReader(form.Encode())
+}
+
+func (r *Response) fixCharset() {
+	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
+	if strings.Index(contentType, "charset") == -1 {
+		return
+	}
+	if strings.Index(contentType, "utf-8") != -1 || strings.Index(contentType, "utf8") != -1 {
+		return
+	}
+	encodedBodyReader, err := charset.NewReader(bytes.NewReader(r.Body), contentType)
+	if err != nil {
+		return
+	}
+	tmpBody, err := ioutil.ReadAll(encodedBodyReader)
+	if err != nil {
+		return
+	}
+	r.Body = tmpBody
 }

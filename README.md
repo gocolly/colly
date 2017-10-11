@@ -17,6 +17,7 @@ With Colly you can easily extract structured data from websites, which can be us
  * Automatic cookie and session handling
  * Sync/async/parallel scraping
  * Caching
+ * Automatic encoding of non-unicode responses
 
 
 ## Example
