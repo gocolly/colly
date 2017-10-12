@@ -78,6 +78,16 @@ func (h *httpBackend) Init() {
 	h.Client = &http.Client{
 		Jar:     jar,
 		Timeout: 10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Honor golangs default of maximum of 10 redirects
+			if len(via) >= 10 {
+				return http.ErrUseLastResponse
+			}
+
+			// Copy the headers from last request
+			req.Header = via[len(via)-1].Header
+			return nil
+		},
 	}
 	h.lock = &sync.RWMutex{}
 }
