@@ -14,5 +14,5 @@ script:
   - OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - go vet -v ./...
-  - go test ./...
+  - go test ./
   - go build
