@@ -425,6 +425,7 @@ func (c *Context) Put(key, value string) {
 func (c *Context) Get(key string) string {
 	c.lock.RLock()
 	if v, ok := c.contextMap[key]; ok {
+		c.lock.RUnlock()
 		return v
 	}
 	c.lock.RUnlock()
