@@ -14,7 +14,7 @@ func main() {
 	c := colly.NewCollector()
 
 	// Limit the number of threads started by colly to two
-	// when visting links which domains' matches "*httpbin.*" glob
+	// when visiting links which domains' matches "*httpbin.*" glob
 	c.Limit(&colly.LimitRule{
 		DomainGlob:  "*httpbin.*",
 		Parallelism: 2,

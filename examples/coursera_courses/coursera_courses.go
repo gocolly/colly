@@ -18,7 +18,7 @@ func main() {
 
 	// On every a element which has href attribute call callback
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		// If attirbute class of a is this long string return from callback
+		// If attribute class of a is this long string return from callback
 		// As this a is irrelevant
 		if e.Attr("class") == "Button_1qxkboh-o_O-primary_cv02ee-o_O-md_28awn8-o_O-primaryLink_109aggg" {
 			return
