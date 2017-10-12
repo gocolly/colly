@@ -4,16 +4,22 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"testing"
 )
 
-var testServerAddr string = "127.0.0.1:31337"
+var testServerPort int = 31337
+var testServerAddr string = fmt.Sprintf("127.0.0.1:%d", testServerPort)
 var testServerRootURL string = fmt.Sprintf("http://%s/", testServerAddr)
 var serverIndexResponse []byte = []byte("hello world\n")
 
 func init() {
-	srv := &http.Server{Addr: testServerAddr}
+	srv := &http.Server{}
+	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: testServerPort})
+	if err != nil {
+		panic(err)
+	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(serverIndexResponse)
@@ -36,7 +42,7 @@ func init() {
 	})
 
 	go func() {
-		if err := srv.ListenAndServe(); err != nil {
+		if err := srv.Serve(listener); err != nil {
 			log.Printf("Httpserver: ListenAndServe() error: %s", err)
 		}
 	}()
