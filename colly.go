@@ -269,6 +269,13 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Unlock()
 }
 
+// OnHTML deregister a function. Function will not be execute after register
+func (c *Collector) OnHTMLDetach(goquerySelector string) {
+	c.lock.Lock()
+	delete(c.htmlCallbacks, goquerySelector)
+	c.lock.Unlock()
+}
+
 // WithTransport allows you to set a custom http.Transport for this collector.
 func (c *Collector) WithTransport(transport *http.Transport) {
 	c.backend.Client.Transport = transport
