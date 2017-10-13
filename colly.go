@@ -4,6 +4,7 @@ package colly
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -130,6 +131,7 @@ func (c *Collector) Init() {
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	c.backend.Init()
+	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.Mutex{}
 }
@@ -354,6 +356,23 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 		return nil
 	}
 	return c.backend.Client.Jar.Cookies(u)
+}
+
+func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		if !c.isDomainAllowed(req.URL.Host) {
+			return fmt.Errorf("Not following redirect to %s because its not in AllowedDomains", req.URL.Host)
+		}
+
+		// Honor golangs default of maximum of 10 redirects
+		if len(via) >= 10 {
+			return http.ErrUseLastResponse
+		}
+
+		// Copy the headers from last request
+		req.Header = via[len(via)-1].Header
+		return nil
+	}
 }
 
 // Attr returns the selected attribute of a HTMLElement or empty string
