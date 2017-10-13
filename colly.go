@@ -178,7 +178,6 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		return err
 	}
 	req.Header.Set("User-Agent", c.UserAgent)
-
 	if ctx == nil {
 		ctx = NewContext()
 	}
