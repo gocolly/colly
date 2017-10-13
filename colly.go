@@ -178,6 +178,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		return err
 	}
 	req.Header.Set("User-Agent", c.UserAgent)
+
 	if ctx == nil {
 		ctx = NewContext()
 	}
@@ -369,8 +370,16 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 			return http.ErrUseLastResponse
 		}
 
+		lastRequest := via[len(via)-1]
+
 		// Copy the headers from last request
-		req.Header = via[len(via)-1].Header
+		req.Header = lastRequest.Header
+
+		// If domain has changed, remove the Authorization-header if it exists
+		if req.URL.Host != lastRequest.URL.Host {
+			req.Header.Del("Authorization")
+		}
+
 		return nil
 	}
 }
