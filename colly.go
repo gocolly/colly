@@ -42,6 +42,7 @@ type Collector struct {
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
+	errorCallbacks    []ErrorCallback
 	backend           *httpBackend
 	wg                *sync.WaitGroup
 	lock              *sync.Mutex
@@ -104,6 +105,9 @@ type ResponseCallback func(*Response)
 // HTMLCallback is a type alias for OnHTML callback functions
 type HTMLCallback func(*HTMLElement)
 
+// ErrorCallback is a type alias for OnError callback functions
+type ErrorCallback func(*Response, error)
+
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector() *Collector {
 	c := &Collector{}
@@ -128,6 +132,7 @@ func (c *Collector) Init() {
 	c.htmlCallbacks = make(map[string]HTMLCallback, 0)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
 	c.responseCallbacks = make([]ResponseCallback, 0, 8)
+	c.errorCallbacks = make([]ErrorCallback, 0, 8)
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	c.backend.Init()
@@ -138,15 +143,13 @@ func (c *Collector) Init() {
 
 // Visit starts Collector's collecting job by creating a
 // request to the URL specified in parameter.
-// Visit also calls the previously provided OnRequest,
-// OnResponse, OnHTML callbacks
+// Visit also calls the previously provided callbacks
 func (c *Collector) Visit(URL string) error {
 	return c.scrape(URL, "GET", 1, nil, nil)
 }
 
 // Post starts a collector job by creating a POST request.
-// Post also calls the previously provided OnRequest,
-// OnResponse, OnHTML callbacks
+// Post also calls the previously provided callbacks
 func (c *Collector) Post(URL string, requestData map[string]string) error {
 	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil)
 }
@@ -196,7 +199,17 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	// TODO add OnError callback to handle these cases
-	if err != nil {
+	if err != nil || response.StatusCode > 202 {
+		if err == nil {
+			err = errors.New(http.StatusText(response.StatusCode))
+		}
+		if response == nil {
+			response = &Response{
+				Request: request,
+				Ctx:     ctx,
+			}
+		}
+		c.handleOnError(response, err)
 		return err
 	}
 	response.Ctx = ctx
@@ -271,6 +284,14 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Unlock()
 }
 
+// OnError registers a function. Function will be executed if an error
+// occurs during the HTTP request.
+func (c *Collector) OnError(f ErrorCallback) {
+	c.lock.Lock()
+	c.errorCallbacks = append(c.errorCallbacks, f)
+	c.lock.Unlock()
+}
+
 // WithTransport allows you to set a custom http.Transport for this collector.
 func (c *Collector) WithTransport(transport *http.Transport) {
 	c.backend.Client.Transport = transport
@@ -320,6 +341,12 @@ func (c *Collector) handleOnHTML(req *Request, resp *Response) {
 				f(e)
 			}
 		})
+	}
+}
+
+func (c *Collector) handleOnError(r *Response, err error) {
+	for _, f := range c.errorCallbacks {
+		f(r, err)
 	}
 }
 
@@ -414,15 +441,14 @@ func (r *Request) AbsoluteURL(u string) string {
 
 // Visit continues Collector's collecting job by creating a
 // request and preserves the Context of the previous request.
-// Visit also calls the previously provided OnRequest,
-// OnResponse, OnHTML callbacks
+// Visit also calls the previously provided callbacks
 func (r *Request) Visit(URL string) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx)
 }
 
 // Post continues a collector job by creating a POST request and preserves the Context
 // of the previous request.
-// Post also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
+// Post also calls the previously provided callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), r.Ctx)
 }
