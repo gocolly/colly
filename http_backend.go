@@ -1,11 +1,16 @@
 package colly
 
 import (
+	"crypto/sha1"
+	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
+	"os"
+	"path"
 	"regexp"
 	"sync"
 	"time"
@@ -16,7 +21,7 @@ import (
 type httpBackend struct {
 	LimitRules []*LimitRule
 	Client     *http.Client
-	lock       *sync.Mutex
+	lock       *sync.RWMutex
 }
 
 // LimitRule provides connection restrictions for domains.
@@ -74,7 +79,7 @@ func (h *httpBackend) Init() {
 		Jar:     jar,
 		Timeout: 10 * time.Second,
 	}
-	h.lock = &sync.Mutex{}
+	h.lock = &sync.RWMutex{}
 }
 
 // Match checks that the domain parameter triggers the rule
@@ -90,12 +95,48 @@ func (r *LimitRule) Match(domain string) bool {
 }
 
 func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
+	h.lock.RLock()
 	for _, r := range h.LimitRules {
 		if r.Match(domain) {
 			return r
 		}
 	}
+	h.lock.RUnlock()
 	return nil
+}
+
+func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string) (*Response, error) {
+	if cacheDir == "" || request.Method != "GET" {
+		return h.Do(request, bodySize)
+	}
+	sum := sha1.Sum([]byte(request.URL.String()))
+	hash := hex.EncodeToString(sum[:])
+	dir := path.Join(cacheDir, hash[:2])
+	filename := path.Join(dir, hash)
+	if file, err := os.Open(filename); err == nil {
+		resp := new(Response)
+		err := gob.NewDecoder(file).Decode(resp)
+		file.Close()
+		return resp, err
+	}
+	resp, err := h.Do(request, bodySize)
+	if err != nil {
+		return resp, err
+	}
+	if _, err := os.Stat(dir); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
+			return resp, err
+		}
+	}
+	file, err := os.Create(filename + "~")
+	defer file.Close()
+	if err != nil {
+		return resp, err
+	}
+	if err := gob.NewEncoder(file).Encode(resp); err != nil {
+		return resp, err
+	}
+	return resp, os.Rename(filename+"~", filename)
 }
 
 func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {
