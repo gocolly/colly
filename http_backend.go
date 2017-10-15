@@ -117,10 +117,12 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 		resp := new(Response)
 		err := gob.NewDecoder(file).Decode(resp)
 		file.Close()
-		return resp, err
+		if resp.StatusCode < 500 {
+			return resp, err
+		}
 	}
 	resp, err := h.Do(request, bodySize)
-	if err != nil {
+	if err != nil || resp.StatusCode >= 500 {
 		return resp, err
 	}
 	if _, err := os.Stat(dir); err != nil {
