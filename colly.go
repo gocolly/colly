@@ -43,6 +43,7 @@ type Collector struct {
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
+	errorCallbacks    []ErrorCallback
 	backend           *httpBackend
 	wg                *sync.WaitGroup
 	lock              *sync.Mutex
@@ -105,6 +106,9 @@ type ResponseCallback func(*Response)
 // HTMLCallback is a type alias for OnHTML callback functions
 type HTMLCallback func(*HTMLElement)
 
+// ErrorCallback is a type alias for OnError callback functions
+type ErrorCallback func(*Response, error)
+
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector() *Collector {
 	c := &Collector{}
@@ -129,24 +133,24 @@ func (c *Collector) Init() {
 	c.htmlCallbacks = make(map[string]HTMLCallback, 0)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
 	c.responseCallbacks = make([]ResponseCallback, 0, 8)
+	c.errorCallbacks = make([]ErrorCallback, 0, 8)
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	c.backend.Init()
+	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.Mutex{}
 }
 
 // Visit starts Collector's collecting job by creating a
 // request to the URL specified in parameter.
-// Visit also calls the previously provided OnRequest,
-// OnResponse, OnHTML callbacks
+// Visit also calls the previously provided callbacks
 func (c *Collector) Visit(URL string) error {
 	return c.scrape(URL, "GET", 1, nil, nil, nil)
 }
 
 // Post starts a collector job by creating a POST request.
-// Post also calls the previously provided OnRequest,
-// OnResponse, OnHTML callbacks
+// Post also calls the previously provided callbacks
 func (c *Collector) Post(URL string, requestData map[string]string) error {
 	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil, nil)
 }
@@ -170,52 +174,23 @@ func (c *Collector) PostMultipartRaw(URL string, requestData map[string][]byte) 
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	if u == "" {
-		return errors.New("Missing URL")
-	}
-	if c.MaxDepth > 0 && c.MaxDepth < depth {
-		return errors.New("Max depth limit reached")
-	}
-	if !c.AllowURLRevisit {
-		visited := false
-		for _, u2 := range c.visitedURLs {
-			if u2 == u {
-				visited = true
-				break
-			}
-		}
-		if visited {
-			return errors.New("URL already visited")
-		}
+	if err := c.requestCheck(u, depth); err != nil {
+		return err
 	}
 	parsedURL, err := url.Parse(u)
 	if err != nil {
 		return err
 	}
-	allowed := false
-	if c.AllowedDomains == nil || len(c.AllowedDomains) == 0 {
-		allowed = true
-	} else {
-		for _, d := range c.AllowedDomains {
-			if d == parsedURL.Host {
-				allowed = true
-				break
-			}
-		}
+	if parsedURL.Scheme == "" {
+		parsedURL.Scheme = "http"
 	}
-	if !allowed {
+	if !c.isDomainAllowed(parsedURL.Host) {
 		return errors.New("Forbidden domain")
 	}
-	if !c.AllowURLRevisit {
-		c.lock.Lock()
-		c.visitedURLs = append(c.visitedURLs, u)
-		c.lock.Unlock()
-	}
-	req, err := http.NewRequest(method, u, requestData)
+	req, err := http.NewRequest(method, parsedURL.String(), requestData)
 	if err != nil {
 		return err
 	}
-
 	if hdr == nil {
 		req.Header.Set("User-Agent", c.UserAgent)
 		if method == "POST" {
@@ -224,7 +199,6 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	} else {
 		req.Header = hdr
 	}
-
 	if ctx == nil {
 		ctx = NewContext()
 	}
@@ -235,24 +209,68 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Depth:     depth,
 		collector: c,
 	}
-	if len(c.requestCallbacks) > 0 {
-		c.handleOnRequest(request)
+
+	c.handleOnRequest(request)
+
+	if method == "POST" && req.Header.Get("Content-Type") == "" {
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	// TODO add OnError callback to handle these cases
-	if err != nil {
+	if err != nil || response.StatusCode > 202 {
+		if err == nil {
+			err = errors.New(http.StatusText(response.StatusCode))
+		}
+		if response == nil {
+			response = &Response{
+				Request: request,
+				Ctx:     ctx,
+			}
+		}
+		c.handleOnError(response, err)
 		return err
 	}
 	response.Ctx = ctx
 	response.Request = request
 	response.fixCharset()
-	if len(c.responseCallbacks) > 0 {
-		c.handleOnResponse(response)
+
+	c.handleOnResponse(response)
+
+	c.handleOnHTML(request, response)
+
+	return nil
+}
+
+func (c *Collector) requestCheck(u string, depth int) error {
+	if u == "" {
+		return errors.New("Missing URL")
 	}
-	if strings.Index(strings.ToLower(response.Headers.Get("Content-Type")), "html") > -1 {
-		c.handleOnHTML(request, response)
+	if c.MaxDepth > 0 && c.MaxDepth < depth {
+		return errors.New("Max depth limit reached")
+	}
+	if !c.AllowURLRevisit {
+		for _, u2 := range c.visitedURLs {
+			if u2 == u {
+				return errors.New("URL already visited")
+			}
+		}
+		c.lock.Lock()
+		c.visitedURLs = append(c.visitedURLs, u)
+		c.lock.Unlock()
 	}
 	return nil
+}
+
+func (c *Collector) isDomainAllowed(domain string) bool {
+	if c.AllowedDomains == nil || len(c.AllowedDomains) == 0 {
+		return true
+	}
+	for _, d2 := range c.AllowedDomains {
+		if d2 == domain {
+			return true
+		}
+	}
+	return false
 }
 
 // Wait returns when the collector jobs are finished
@@ -284,6 +302,14 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Unlock()
 }
 
+// OnError registers a function. Function will be executed if an error
+// occurs during the HTTP request.
+func (c *Collector) OnError(f ErrorCallback) {
+	c.lock.Lock()
+	c.errorCallbacks = append(c.errorCallbacks, f)
+	c.lock.Unlock()
+}
+
 // WithTransport allows you to set a custom http.Transport for this collector.
 func (c *Collector) WithTransport(transport *http.Transport) {
 	c.backend.Client.Transport = transport
@@ -312,6 +338,9 @@ func (c *Collector) handleOnResponse(r *Response) {
 }
 
 func (c *Collector) handleOnHTML(req *Request, resp *Response) {
+	if strings.Index(strings.ToLower(resp.Headers.Get("Content-Type")), "html") == -1 {
+		return
+	}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(resp.Body))
 	if err != nil {
 		return
@@ -330,6 +359,12 @@ func (c *Collector) handleOnHTML(req *Request, resp *Response) {
 				f(e)
 			}
 		})
+	}
+}
+
+func (c *Collector) handleOnError(r *Response, err error) {
+	for _, f := range c.errorCallbacks {
+		f(r, err)
 	}
 }
 
@@ -368,6 +403,31 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 	return c.backend.Client.Jar.Cookies(u)
 }
 
+func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		if !c.isDomainAllowed(req.URL.Host) {
+			return fmt.Errorf("Not following redirect to %s because its not in AllowedDomains", req.URL.Host)
+		}
+
+		// Honor golangs default of maximum of 10 redirects
+		if len(via) >= 10 {
+			return http.ErrUseLastResponse
+		}
+
+		lastRequest := via[len(via)-1]
+
+		// Copy the headers from last request
+		req.Header = lastRequest.Header
+
+		// If domain has changed, remove the Authorization-header if it exists
+		if req.URL.Host != lastRequest.URL.Host {
+			req.Header.Del("Authorization")
+		}
+
+		return nil
+	}
+}
+
 // Attr returns the selected attribute of a HTMLElement or empty string
 // if no attribute found
 func (h *HTMLElement) Attr(k string) string {
@@ -399,15 +459,14 @@ func (r *Request) AbsoluteURL(u string) string {
 
 // Visit continues Collector's collecting job by creating a
 // request and preserves the Context of the previous request.
-// Visit also calls the previously provided OnRequest,
-// OnResponse, OnHTML callbacks
+// Visit also calls the previously provided callbacks
 func (r *Request) Visit(URL string) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx, nil)
 }
 
 // Post continues a collector job by creating a POST request and preserves the Context
 // of the previous request.
-// Post also calls the previously provided OnRequest, OnResponse, OnHTML callbacks
+// Post also calls the previously provided callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), r.Ctx, nil)
 }
@@ -454,6 +513,7 @@ func (c *Context) Put(key, value string) {
 func (c *Context) Get(key string) string {
 	c.lock.RLock()
 	if v, ok := c.contextMap[key]; ok {
+		c.lock.RUnlock()
 		return v
 	}
 	c.lock.RUnlock()
