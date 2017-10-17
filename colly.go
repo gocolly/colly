@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,11 @@ type Collector struct {
 	AllowedDomains []string
 	// DisallowedDomains is a domain blacklist.
 	DisallowedDomains []string
+	// URLFilters is a list of regular expressions which restricts
+	// visiting URLs. If any of the rules matches to a URL the
+	// request won't be stopped.
+	// Leave it blank to allow any URLs to be visited
+	URLFilters []*regexp.Regexp
 	// AllowURLRevisit allows multiple downloads of the same URL
 	AllowURLRevisit bool
 	// MaxBodySize is the limit of the retrieved response body in bytes.
@@ -231,6 +237,18 @@ func (c *Collector) requestCheck(u string, depth int) error {
 	}
 	if c.MaxDepth > 0 && c.MaxDepth < depth {
 		return errors.New("Max depth limit reached")
+	}
+	if len(c.URLFilters) > 0 {
+		matched := false
+		for _, r := range c.URLFilters {
+			if r.Match([]byte(u)) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return errors.New("No URLFilters match")
+		}
 	}
 	if !c.AllowURLRevisit {
 		for _, u2 := range c.visitedURLs {
