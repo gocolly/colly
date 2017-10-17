@@ -29,6 +29,8 @@ type Collector struct {
 	// AllowedDomains is a domain whitelist.
 	// Leave it blank to allow any domains to be visited
 	AllowedDomains []string
+	// DisallowedDomains is a domain blacklist.
+	DisallowedDomains []string
 	// AllowURLRevisit allows multiple downloads of the same URL
 	AllowURLRevisit bool
 	// MaxBodySize is the limit of the retrieved response body in bytes.
@@ -244,6 +246,11 @@ func (c *Collector) requestCheck(u string, depth int) error {
 }
 
 func (c *Collector) isDomainAllowed(domain string) bool {
+	for _, d2 := range c.DisallowedDomains {
+		if d2 == domain {
+			return false
+		}
+	}
 	if c.AllowedDomains == nil || len(c.AllowedDomains) == 0 {
 		return true
 	}
