@@ -284,6 +284,13 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Unlock()
 }
 
+// OnHTMLDetach deregister a function. Function will not be execute after detached
+func (c *Collector) OnHTMLDetach(goquerySelector string) {
+	c.lock.Lock()
+	delete(c.htmlCallbacks, goquerySelector)
+	c.lock.Unlock()
+}
+
 // OnError registers a function. Function will be executed if an error
 // occurs during the HTTP request.
 func (c *Collector) OnError(f ErrorCallback) {
