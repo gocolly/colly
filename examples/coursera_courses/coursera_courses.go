@@ -10,6 +10,7 @@ import (
 	"github.com/asciimoo/colly"
 )
 
+// Course stores information about a coursera course
 type Course struct {
 	Title       string
 	Description string
