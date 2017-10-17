@@ -96,12 +96,12 @@ func (r *LimitRule) Match(domain string) bool {
 
 func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	h.lock.RLock()
+	defer h.lock.RUnlock()
 	for _, r := range h.LimitRules {
 		if r.Match(domain) {
 			return r
 		}
 	}
-	h.lock.RUnlock()
 	return nil
 }
 
