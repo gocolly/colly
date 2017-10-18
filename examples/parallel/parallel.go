@@ -10,6 +10,14 @@ func main() {
 	// Instantiate default collector
 	c := colly.NewCollector()
 
+	// Limit the maximum parallelism to 5
+	// This is necessary if the goroutines are dynamically
+	// created to control the limit of simultaneous requests.
+	//
+	// Parallelism can be controlled also by spawning fixed
+	// number of go routines.
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 5})
+
 	// MaxDepth is 2, so only the links on the scraped page
 	// and links on those pages are visited
 	c.MaxDepth = 2
