@@ -224,20 +224,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
-	if err != nil || response.StatusCode > 202 {
-		if err == nil {
-			err = errors.New(http.StatusText(response.StatusCode))
-		}
-		if response == nil {
-			response = &Response{
-				Request: request,
-				Ctx:     ctx,
-			}
-		}
-		if response.Request == nil {
-			response.Request = request
-		}
-		c.handleOnError(response, err)
+	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
 	response.Ctx = ctx
@@ -396,10 +383,26 @@ func (c *Collector) handleOnHTML(req *Request, resp *Response) {
 	}
 }
 
-func (c *Collector) handleOnError(r *Response, err error) {
-	for _, f := range c.errorCallbacks {
-		f(r, err)
+func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx *Context) error {
+	if err == nil && response.StatusCode < 203 {
+		return nil
 	}
+	if err == nil {
+		err = errors.New(http.StatusText(response.StatusCode))
+	}
+	if response == nil {
+		response = &Response{
+			Request: request,
+			Ctx:     ctx,
+		}
+	}
+	if response.Request == nil {
+		response.Request = request
+	}
+	for _, f := range c.errorCallbacks {
+		f(response, err)
+	}
+	return err
 }
 
 // Limit adds a new `LimitRule` to the collector
