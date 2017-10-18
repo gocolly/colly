@@ -54,7 +54,7 @@ func main() {
 	c.OnHTML("html", func(e *colly.HTMLElement) {
 		fmt.Println(e.Text)
 		time.Sleep(1 * time.Second)
-		e.Request.PostMultipartRaw("http://localhost:8080/", generateFormData())
+		e.Request.PostMultipart("http://localhost:8080/", generateFormData())
 	})
 
 	// Before making a request print "Visiting ..."
@@ -63,6 +63,6 @@ func main() {
 	})
 
 	// Start scraping
-	c.PostMultipartRaw("http://localhost:8080/", generateFormData())
+	c.PostMultipart("http://localhost:8080/", generateFormData())
 	c.Wait()
 }

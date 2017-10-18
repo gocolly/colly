@@ -157,9 +157,9 @@ func (c *Collector) PostRaw(URL string, requestData []byte) error {
 	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), nil, nil)
 }
 
-// PostMultipartRaw starts a collector job by creating a Multipart POST request
-// with raw binary data.  PostMultipartRaw also calls the previously provided callbacks
-func (c *Collector) PostMultipartRaw(URL string, requestData map[string][]byte) error {
+// PostMultipart starts a collector job by creating a Multipart POST request
+// with raw binary data.  PostMultipart also calls the previously provided callbacks
+func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) error {
 	boundary := randomBoundary()
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
@@ -419,10 +419,10 @@ func (r *Request) PostRaw(URL string, requestData []byte) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, bytes.NewReader(requestData), r.Ctx, nil)
 }
 
-// PostMultipartRaw starts a collector job by creating a Multipart POST request
-// with raw binary data.  PostMultipartRaw also calls the previously provided.
+// PostMultipart starts a collector job by creating a Multipart POST request
+// with raw binary data.  PostMultipart also calls the previously provided.
 // callbacks
-func (r *Request) PostMultipartRaw(URL string, requestData map[string][]byte) error {
+func (r *Request) PostMultipart(URL string, requestData map[string][]byte) error {
 	boundary := randomBoundary()
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
