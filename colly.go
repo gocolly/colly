@@ -224,7 +224,6 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
-	// TODO add OnError callback to handle these cases
 	if err != nil || response.StatusCode > 202 {
 		if err == nil {
 			err = errors.New(http.StatusText(response.StatusCode))
@@ -234,6 +233,9 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 				Request: request,
 				Ctx:     ctx,
 			}
+		}
+		if response.Request == nil {
+			response.Request = request
 		}
 		c.handleOnError(response, err)
 		return err
