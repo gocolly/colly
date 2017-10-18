@@ -93,7 +93,6 @@ func main() {
 			case "How To Pass":
 				course.HowToPass = s.Find("td:nth-child(2)").Text()
 			case "User Ratings":
-				log.Println("yo")
 				course.Rating = s.Find("td:nth-child(2) div:nth-of-type(2)").Text()
 			}
 		})
