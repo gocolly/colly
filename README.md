@@ -46,3 +46,12 @@ See [examples folder](https://github.com/asciimoo/colly/tree/master/examples) fo
 ## Bugs
 
 Bugs or suggestions? Visit the [issue tracker](https://github.com/asciimoo/colly/issues) or join `#colly` on freenode
+
+
+## Other Projects Using Colly
+
+Below is a list of public, open source projects that use Colly:
+
+ * [greenpeace/check-my-pages](https://github.com/greenpeace/check-my-pages) Scraping script to test the Spanish Greenpeace web archive
+
+If you are using Colly in a project please send a pull request to add it to the list.
