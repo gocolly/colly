@@ -41,6 +41,13 @@ func init() {
 		`))
 	})
 
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			w.Header().Set("Conent-Type", "text/html")
+			w.Write([]byte(r.FormValue("name")))
+		}
+	})
+
 	go func() {
 		if err := srv.Serve(listener); err != nil {
 			log.Printf("Httpserver: ListenAndServe() error: %s", err)
@@ -111,6 +118,21 @@ func TestCollectorOnHTML(t *testing.T) {
 	if paragraphCallbackCount != 2 {
 		t.Error("Failed to find all <p> tags")
 	}
+}
+
+func TestCollectorPost(t *testing.T) {
+	postValue := "hello"
+	c := NewCollector()
+
+	c.OnResponse(func(r *Response) {
+		if postValue != string(r.Body) {
+			t.Error("Failed to send data with POST")
+		}
+	})
+
+	c.Post(testServerRootURL+"login", map[string]string{
+		"name": postValue,
+	})
 }
 
 func BenchmarkVisit(b *testing.B) {
