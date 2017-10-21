@@ -454,7 +454,11 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 		lastRequest := via[len(via)-1]
 
 		// Copy the headers from last request
-		req.Header = lastRequest.Header
+		for hName, hValues := range lastRequest.Header {
+			for _, hValue := range hValues {
+				req.Header.Set(hName, hValue)
+			}
+		}
 
 		// If domain has changed, remove the Authorization-header if it exists
 		if req.URL.Host != lastRequest.URL.Host {
