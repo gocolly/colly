@@ -346,6 +346,20 @@ func (c *Collector) SetRequestTimeout(timeout time.Duration) {
 	c.backend.Client.Timeout = timeout
 }
 
+// SetProxy sets a proxy for the collector
+func (c *Collector) SetProxy(proxyURL string) error {
+	proxyParsed, err := url.Parse(proxyURL)
+	if err != nil {
+		return err
+	}
+
+	c.backend.Client.Transport = &http.Transport{
+		Proxy: http.ProxyURL(proxyParsed),
+	}
+
+	return nil
+}
+
 func (c *Collector) handleOnRequest(r *Request) {
 	for _, f := range c.requestCallbacks {
 		f(r)
