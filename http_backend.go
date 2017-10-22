@@ -161,10 +161,10 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
 	body, err := ioutil.ReadAll(bodyReader)
+	defer res.Body.Close()
 	if err != nil {
 		return nil, err
 	}
-	res.Body.Close()
 	return &Response{
 		StatusCode: res.StatusCode,
 		Body:       body,
