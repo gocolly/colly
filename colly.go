@@ -346,15 +346,21 @@ func (c *Collector) SetRequestTimeout(timeout time.Duration) {
 	c.backend.Client.Timeout = timeout
 }
 
-// SetProxy sets a proxy for the collector
+// SetProxy sets a proxy for the collector. This overrides the default RoundTripper
+// transport if no custom transport is set
 func (c *Collector) SetProxy(proxyURL string) error {
 	proxyParsed, err := url.Parse(proxyURL)
 	if err != nil {
 		return err
 	}
 
-	c.backend.Client.Transport = &http.Transport{
-		Proxy: http.ProxyURL(proxyParsed),
+	t, ok := c.backend.Client.Transport.(*http.Transport)
+	if c.backend.Client.Transport != nil && ok {
+		t.Proxy = http.ProxyURL(proxyParsed)
+	} else {
+		c.backend.Client.Transport = &http.Transport{
+			Proxy: http.ProxyURL(proxyParsed),
+		}
 	}
 
 	return nil
