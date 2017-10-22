@@ -331,8 +331,8 @@ func (c *Collector) OnError(f ErrorCallback) {
 	c.lock.Unlock()
 }
 
-// WithTransport allows you to set a custom http.Transport for this collector.
-func (c *Collector) WithTransport(transport *http.Transport) {
+// WithTransport allows you to set a custom http.RoundTripper (transport) for this collector.
+func (c *Collector) WithTransport(transport http.RoundTripper) {
 	c.backend.Client.Transport = transport
 }
 
