@@ -500,6 +500,12 @@ func (h *HTMLElement) Attr(k string) string {
 	return ""
 }
 
+// ChildText returns the concatenated and stripped text content of the matching
+// elements.
+func (h *HTMLElement) ChildText(goquerySelector string) string {
+	return strings.TrimSpace(h.DOM.Find(goquerySelector).Text())
+}
+
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
 // AbsoluteURL returns empty string if the URL chunk is a fragment or
 // could not be parsed
