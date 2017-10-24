@@ -32,7 +32,7 @@ func main() {
 
 	// Visit only domains: coursera.org, www.coursera.org
 	c.AllowedDomains = []string{"coursera.org", "www.coursera.org"}
-	c.CacheDir = "./t"
+	c.CacheDir = "./coursera_cache"
 	detailCollector.AllowedDomains = c.AllowedDomains
 	detailCollector.CacheDir = c.CacheDir
 	courses := make([]Course, 0, 200)
@@ -60,8 +60,7 @@ func main() {
 
 	// On every a HTML element which has name attribute call callback
 	c.OnHTML(`a[name]`, func(e *colly.HTMLElement) {
-		// Add to courses map where key is the absolute URL and the
-		// values is the name of the course
+		// Activate detailCollector if the link contains "coursera.org/learn"
 		courseURL := e.Request.AbsoluteURL(e.Attr("href"))
 		if strings.Index(courseURL, "coursera.org/learn") == -1 {
 			return
@@ -72,15 +71,15 @@ func main() {
 	// Extract details of the course
 	detailCollector.OnHTML(`div[id=rendered-content]`, func(e *colly.HTMLElement) {
 		log.Println("Course found", e.Request.URL)
-		title := e.DOM.Find(".course-title").Text()
+		title := e.ChildText(".course-title")
 		if title == "" {
 			log.Println("No title found", e.Request.URL)
 		}
 		course := Course{
 			Title:       title,
 			URL:         e.Request.URL.String(),
-			Description: e.DOM.Find("div.content").Text(),
-			Creator:     e.DOM.Find("div.creator-names > span").Text(),
+			Description: e.ChildText("div.content"),
+			Creator:     e.ChildText("div.creator-names > span"),
 		}
 		e.DOM.Find("table.basic-info-table tr").Each(func(_ int, s *goquery.Selection) {
 			switch s.Find("td:first-child").Text() {
