@@ -32,9 +32,13 @@ func main() {
 
 	// Visit only domains: coursera.org, www.coursera.org
 	c.AllowedDomains = []string{"coursera.org", "www.coursera.org"}
-	c.CacheDir = "./coursera_cache"
 	detailCollector.AllowedDomains = c.AllowedDomains
+
+	// Cache responses to prevent multiple download of pages
+	// even if the collector is restarted
+	c.CacheDir = "./coursera_cache"
 	detailCollector.CacheDir = c.CacheDir
+
 	courses := make([]Course, 0, 200)
 
 	// On every a element which has href attribute call callback
@@ -81,6 +85,8 @@ func main() {
 			Description: e.ChildText("div.content"),
 			Creator:     e.ChildText("div.creator-names > span"),
 		}
+		// Iterate over rows of the table which contains different information
+		// about the course
 		e.DOM.Find("table.basic-info-table tr").Each(func(_ int, s *goquery.Selection) {
 			switch s.Find("td:first-child").Text() {
 			case "Language":
@@ -101,9 +107,12 @@ func main() {
 	// Start scraping on http://coursera.com/browse
 	c.Visit("https://coursera.org/browse")
 
+	// Convert results to JSON data if the scraping job has finished
 	jsonData, err := json.MarshalIndent(courses, "", "  ")
 	if err != nil {
 		panic(err)
 	}
+
+	// Dump json to the standard output (can be redirected to a file)
 	fmt.Println(string(jsonData))
 }
