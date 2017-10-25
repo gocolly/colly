@@ -11,6 +11,7 @@ import (
 	"github.com/asciimoo/colly"
 )
 
+// Mail is the container of a single e-mail
 type Mail struct {
 	Title   string
 	Link    string
