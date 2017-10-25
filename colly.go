@@ -19,6 +19,7 @@ import (
 	"golang.org/x/net/html/charset"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/temoto/robotstxt"
 )
 
 // Collector provides the scraper instance for a scraping job
@@ -46,8 +47,13 @@ type Collector struct {
 	MaxBodySize int
 	// CacheDir specifies a location where GET requests are cached as files.
 	// When it's not defined, caching is disabled.
-	CacheDir          string
+	CacheDir string
+	// IgnoreRobotsTxt allows the Collector to ignore any restrictions set by
+	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
+	// information.
+	IgnoreRobotsTxt   bool
 	visitedURLs       []string
+	robotsMap         map[string]*robotstxt.RobotsData
 	htmlCallbacks     map[string]HTMLCallback
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
@@ -148,6 +154,7 @@ func (c *Collector) Init() {
 	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.Mutex{}
+	c.robotsMap = make(map[string]*robotstxt.RobotsData, 0)
 }
 
 // Visit starts Collector's collecting job by creating a
@@ -194,6 +201,11 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	if !c.isDomainAllowed(parsedURL.Host) {
 		return errors.New("Forbidden domain")
+	}
+	if !c.IgnoreRobotsTxt {
+		if err = c.checkRobots(parsedURL); err != nil {
+			return err
+		}
 	}
 	req, err := http.NewRequest(method, parsedURL.String(), requestData)
 	if err != nil {
@@ -285,6 +297,32 @@ func (c *Collector) isDomainAllowed(domain string) bool {
 		}
 	}
 	return false
+}
+
+func (c *Collector) checkRobots(u *url.URL) error {
+	var robot *robotstxt.RobotsData
+	var ok bool
+	var err error
+
+	if robot, ok = c.robotsMap[u.Hostname()]; !ok {
+		// no robots file cached
+		resp, _ := c.backend.Client.Get(u.Scheme + "://" + u.Hostname() + "/robots.txt")
+		robot, err = robotstxt.FromResponse(resp)
+		if err != nil {
+			return err
+		}
+		c.robotsMap[u.Hostname()] = robot
+	}
+
+	uaGroup := robot.FindGroup(c.UserAgent)
+	if uaGroup == nil {
+		return nil
+	}
+
+	if !uaGroup.Test(u.EscapedPath()) {
+		return errors.New("URL blocked by robots.txt")
+	}
+	return nil
 }
 
 // Wait returns when the collector jobs are finished

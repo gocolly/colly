@@ -143,3 +143,50 @@ func BenchmarkVisit(b *testing.B) {
 		c.Visit(fmt.Sprintf("%shtml?q=%d", testServerRootURL, n))
 	}
 }
+
+func TestRobotsWhenAllowed(t *testing.T) {
+	c := NewCollector()
+	c.OnResponse(func(resp *Response) {
+		if resp.StatusCode != 200 {
+			t.Fatalf("Wrong response code: %d", resp.StatusCode)
+		}
+	})
+
+	err := c.Visit("https://google.com/search/about")
+	c.Wait()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRobotsWhenDisallowed(t *testing.T) {
+	c := NewCollector()
+	c.OnResponse(func(resp *Response) {
+		t.Fatalf("Received response: %d", resp.StatusCode)
+	})
+
+	err := c.Visit("https://google.com/groups")
+	if err.Error() != "URL blocked by robots.txt" {
+		t.Fatalf("wrong error message: %v", err)
+	}
+	c.Wait()
+}
+
+func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
+	c := NewCollector()
+	c.IgnoreRobotsTxt = true
+
+	c.OnResponse(func(resp *Response) {
+		if resp.StatusCode != 200 {
+			t.Fatalf("Wrong response code: %d", resp.StatusCode)
+		}
+	})
+
+	err := c.Visit("https://google.com/groups")
+	c.Wait()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
