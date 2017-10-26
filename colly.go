@@ -155,6 +155,7 @@ func (c *Collector) Init() {
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.Mutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData, 0)
+	c.IgnoreRobotsTxt = true
 }
 
 // Visit starts Collector's collecting job by creating a
@@ -304,14 +305,16 @@ func (c *Collector) checkRobots(u *url.URL) error {
 	var ok bool
 	var err error
 
-	if robot, ok = c.robotsMap[u.Hostname()]; !ok {
+	if robot, ok = c.robotsMap[u.Host]; !ok {
 		// no robots file cached
-		resp, _ := c.backend.Client.Get(u.Scheme + "://" + u.Hostname() + "/robots.txt")
+		resp, _ := c.backend.Client.Get(u.Scheme + "://" + u.Host + "/robots.txt")
 		robot, err = robotstxt.FromResponse(resp)
 		if err != nil {
 			return err
 		}
-		c.robotsMap[u.Hostname()] = robot
+		c.lock.Lock()
+		c.robotsMap[u.Host] = robot
+		c.lock.Unlock()
 	}
 
 	uaGroup := robot.FindGroup(c.UserAgent)
