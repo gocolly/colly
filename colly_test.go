@@ -13,6 +13,11 @@ var testServerPort int = 31337
 var testServerAddr string = fmt.Sprintf("127.0.0.1:%d", testServerPort)
 var testServerRootURL string = fmt.Sprintf("http://%s/", testServerAddr)
 var serverIndexResponse []byte = []byte("hello world\n")
+var robotsFile string = `
+User-agent: *
+Allow: /allowed
+Disallow: /disallowed
+`
 
 func init() {
 	srv := &http.Server{}
@@ -46,6 +51,21 @@ func init() {
 			w.Header().Set("Conent-Type", "text/html")
 			w.Write([]byte(r.FormValue("name")))
 		}
+	})
+
+	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(robotsFile))
+	})
+
+	http.HandleFunc("/allowed", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("allowed"))
+	})
+
+	http.HandleFunc("/disallowed", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("disallowed"))
 	})
 
 	go func() {
@@ -142,4 +162,53 @@ func BenchmarkVisit(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		c.Visit(fmt.Sprintf("%shtml?q=%d", testServerRootURL, n))
 	}
+}
+
+func TestRobotsWhenAllowed(t *testing.T) {
+	c := NewCollector()
+	c.IgnoreRobotsTxt = false
+
+	c.OnResponse(func(resp *Response) {
+		if resp.StatusCode != 200 {
+			t.Fatalf("Wrong response code: %d", resp.StatusCode)
+		}
+	})
+
+	err := c.Visit(testServerRootURL + "allowed")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRobotsWhenDisallowed(t *testing.T) {
+	c := NewCollector()
+	c.IgnoreRobotsTxt = false
+
+	c.OnResponse(func(resp *Response) {
+		t.Fatalf("Received response: %d", resp.StatusCode)
+	})
+
+	err := c.Visit(testServerRootURL + "disallowed")
+	if err.Error() != "URL blocked by robots.txt" {
+		t.Fatalf("wrong error message: %v", err)
+	}
+}
+
+func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
+	c := NewCollector()
+	c.IgnoreRobotsTxt = true
+
+	c.OnResponse(func(resp *Response) {
+		if resp.StatusCode != 200 {
+			t.Fatalf("Wrong response code: %d", resp.StatusCode)
+		}
+	})
+
+	err := c.Visit(testServerRootURL + "disallowed")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
 }
