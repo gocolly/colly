@@ -13,6 +13,11 @@ var testServerPort int = 31337
 var testServerAddr string = fmt.Sprintf("127.0.0.1:%d", testServerPort)
 var testServerRootURL string = fmt.Sprintf("http://%s/", testServerAddr)
 var serverIndexResponse []byte = []byte("hello world\n")
+var robotsFile string = `
+User-agent: *
+Allow: /allowed
+Disallow: /disallowed
+`
 
 func init() {
 	srv := &http.Server{}
@@ -48,36 +53,26 @@ func init() {
 		}
 	})
 
+	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(robotsFile))
+	})
+
+	http.HandleFunc("/allowed", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("allowed"))
+	})
+
+	http.HandleFunc("/disallowed", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("disallowed"))
+	})
+
 	go func() {
 		if err := srv.Serve(listener); err != nil {
 			log.Printf("Httpserver: ListenAndServe() error: %s", err)
 		}
 	}()
-}
-
-func runRobotsServer() {
-	robotsFile := `
-User-agent: *
-Allow: /allowed
-Disallow: /disallowed
-`
-
-	var route http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.EscapedPath()
-		switch path {
-		case "/robots.txt":
-			w.WriteHeader(200)
-			w.Write([]byte(robotsFile))
-		case "/allowed":
-			w.WriteHeader(200)
-			w.Write([]byte("allowed"))
-		case "/disallowed":
-			w.WriteHeader(200)
-			w.Write([]byte("disallowed"))
-		}
-	}
-
-	http.ListenAndServe(":8080", route)
 }
 
 func TestCollectorVisit(t *testing.T) {
@@ -170,7 +165,6 @@ func BenchmarkVisit(b *testing.B) {
 }
 
 func TestRobotsWhenAllowed(t *testing.T) {
-	go runRobotsServer()
 	c := NewCollector()
 	c.IgnoreRobotsTxt = false
 
@@ -180,7 +174,7 @@ func TestRobotsWhenAllowed(t *testing.T) {
 		}
 	})
 
-	err := c.Visit("http://localhost:8080/allowed")
+	err := c.Visit(testServerRootURL + "allowed")
 
 	if err != nil {
 		t.Fatal(err)
@@ -188,7 +182,6 @@ func TestRobotsWhenAllowed(t *testing.T) {
 }
 
 func TestRobotsWhenDisallowed(t *testing.T) {
-	go runRobotsServer()
 	c := NewCollector()
 	c.IgnoreRobotsTxt = false
 
@@ -196,14 +189,13 @@ func TestRobotsWhenDisallowed(t *testing.T) {
 		t.Fatalf("Received response: %d", resp.StatusCode)
 	})
 
-	err := c.Visit("http://localhost:8080/disallowed")
+	err := c.Visit(testServerRootURL + "disallowed")
 	if err.Error() != "URL blocked by robots.txt" {
 		t.Fatalf("wrong error message: %v", err)
 	}
 }
 
 func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
-	go runRobotsServer()
 	c := NewCollector()
 	c.IgnoreRobotsTxt = true
 
@@ -213,7 +205,7 @@ func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 		}
 	})
 
-	err := c.Visit("http://localhost:8080/disallowed")
+	err := c.Visit(testServerRootURL + "disallowed")
 
 	if err != nil {
 		t.Fatal(err)

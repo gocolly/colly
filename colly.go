@@ -60,7 +60,7 @@ type Collector struct {
 	errorCallbacks    []ErrorCallback
 	backend           *httpBackend
 	wg                *sync.WaitGroup
-	lock              *sync.Mutex
+	lock              *sync.RWMutex
 }
 
 // Request is the representation of a HTTP request made by a Collector
@@ -153,7 +153,7 @@ func (c *Collector) Init() {
 	c.backend.Init()
 	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
 	c.wg = &sync.WaitGroup{}
-	c.lock = &sync.Mutex{}
+	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData, 0)
 	c.IgnoreRobotsTxt = true
 }
@@ -301,11 +301,15 @@ func (c *Collector) isDomainAllowed(domain string) bool {
 }
 
 func (c *Collector) checkRobots(u *url.URL) error {
-	var robot *robotstxt.RobotsData
-	var ok bool
+	// var robot *robotstxt.RobotsData
+	// var ok bool
 	var err error
 
-	if robot, ok = c.robotsMap[u.Host]; !ok {
+	c.lock.RLock()
+	robot, ok := c.robotsMap[u.Host]
+	c.lock.RUnlock()
+
+	if !ok {
 		// no robots file cached
 		resp, _ := c.backend.Client.Get(u.Scheme + "://" + u.Host + "/robots.txt")
 		robot, err = robotstxt.FromResponse(resp)
