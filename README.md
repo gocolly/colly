@@ -30,10 +30,12 @@ func main() {
 	c := colly.NewCollector()
 
 	// Find and visit all links
-	c.OnHTML("a", func(e *colly.HTMLElement) {
-		link := e.Attr("href")
-		fmt.Println(link)
-		c.Visit(e.Request.AbsoluteURL(link))
+	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+		e.Request.Visit(e.Attr("href"))
+	})
+
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting", r.URL)
 	})
 
 	c.Visit("https://en.wikipedia.org/")
