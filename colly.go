@@ -246,7 +246,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 
 	c.handleOnResponse(response)
 
-	c.handleOnHTML(request, response)
+	c.handleOnHTML(response)
 
 	return nil
 }
@@ -423,7 +423,7 @@ func (c *Collector) handleOnResponse(r *Response) {
 	}
 }
 
-func (c *Collector) handleOnHTML(req *Request, resp *Response) {
+func (c *Collector) handleOnHTML(resp *Response) {
 	if strings.Index(strings.ToLower(resp.Headers.Get("Content-Type")), "html") == -1 {
 		return
 	}
@@ -436,7 +436,7 @@ func (c *Collector) handleOnHTML(req *Request, resp *Response) {
 			for _, n := range s.Nodes {
 				e := &HTMLElement{
 					Name:       n.Data,
-					Request:    req,
+					Request:    resp.Request,
 					Response:   resp,
 					Text:       goquery.NewDocumentFromNode(n).Text(),
 					DOM:        s,
