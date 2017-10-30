@@ -553,6 +553,15 @@ func (h *HTMLElement) ChildText(goquerySelector string) string {
 	return strings.TrimSpace(h.DOM.Find(goquerySelector).Text())
 }
 
+// ChildAttr returns the stripped text content of the first matching
+// element's attribute.
+func (h *HTMLElement) ChildAttr(goquerySelector, attrName string) string {
+	if attr, ok := h.DOM.Find(goquerySelector).Attr(attrName); ok {
+		return strings.TrimSpace(attr)
+	}
+	return ""
+}
+
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
 // AbsoluteURL returns empty string if the URL chunk is a fragment or
 // could not be parsed
