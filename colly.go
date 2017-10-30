@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -19,6 +20,7 @@ import (
 	"golang.org/x/net/html/charset"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/kennygrant/sanitize"
 	"github.com/temoto/robotstxt"
 )
 
@@ -630,6 +632,24 @@ func (c *Context) Get(key string) string {
 	}
 	c.lock.RUnlock()
 	return ""
+}
+
+// Save writes response body to disk
+func (r *Response) Save(fileName string) error {
+	return ioutil.WriteFile(fileName, r.Body, 0644)
+}
+
+// FileName returns the sanitized file name parsed from "Content-Disposition"
+// header or from URL
+func (r *Response) FileName() string {
+	_, params, err := mime.ParseMediaType(r.Headers.Get("Content-Disposition"))
+	if fName, ok := params["filename"]; ok && err == nil {
+		return sanitize.BaseName(fName)
+	}
+	if r.Request.URL.RawQuery != "" {
+		return sanitize.BaseName(fmt.Sprintf("%s_%s", r.Request.URL.Path, r.Request.URL.RawQuery))
+	}
+	return sanitize.BaseName(r.Request.URL.Path)
 }
 
 func createFormReader(data map[string]string) io.Reader {
