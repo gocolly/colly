@@ -57,7 +57,7 @@ type Collector struct {
 	IgnoreRobotsTxt   bool
 	visitedURLs       []string
 	robotsMap         map[string]*robotstxt.RobotsData
-	htmlCallbacks     map[string]HTMLCallback
+	htmlCallbacks     []*htmlCallbackContainer
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
 	errorCallbacks    []ErrorCallback
@@ -128,6 +128,11 @@ type HTMLCallback func(*HTMLElement)
 // ErrorCallback is a type alias for OnError callback functions
 type ErrorCallback func(*Response, error)
 
+type htmlCallbackContainer struct {
+	Selector string
+	Function HTMLCallback
+}
+
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector() *Collector {
 	c := &Collector{}
@@ -149,7 +154,7 @@ func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/asciimoo/colly"
 	c.MaxDepth = 0
 	c.visitedURLs = make([]string, 0, 8)
-	c.htmlCallbacks = make(map[string]HTMLCallback, 0)
+	c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 8)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
 	c.responseCallbacks = make([]ResponseCallback, 0, 8)
 	c.errorCallbacks = make([]ErrorCallback, 0, 8)
@@ -378,14 +383,26 @@ func (c *Collector) OnResponse(f ResponseCallback) {
 // GoQuery Selector is a selector used by https://github.com/PuerkitoBio/goquery
 func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Lock()
-	c.htmlCallbacks[goquerySelector] = f
+	c.htmlCallbacks = append(c.htmlCallbacks, &htmlCallbackContainer{
+		Selector: goquerySelector,
+		Function: f,
+	})
 	c.lock.Unlock()
 }
 
 // OnHTMLDetach deregister a function. Function will not be execute after detached
 func (c *Collector) OnHTMLDetach(goquerySelector string) {
 	c.lock.Lock()
-	delete(c.htmlCallbacks, goquerySelector)
+	deleteIdx := -1
+	for i, cc := range c.htmlCallbacks {
+		if cc.Selector == goquerySelector {
+			deleteIdx = i
+			break
+		}
+	}
+	if deleteIdx != -1 {
+		c.htmlCallbacks = append(c.htmlCallbacks[:deleteIdx], c.htmlCallbacks[deleteIdx+1:]...)
+	}
 	c.lock.Unlock()
 }
 
@@ -452,8 +469,8 @@ func (c *Collector) handleOnHTML(resp *Response) {
 	if err != nil {
 		return
 	}
-	for expr, f := range c.htmlCallbacks {
-		doc.Find(expr).Each(func(i int, s *goquery.Selection) {
+	for _, cc := range c.htmlCallbacks {
+		doc.Find(cc.Selector).Each(func(i int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
 				e := &HTMLElement{
 					Name:       n.Data,
@@ -463,7 +480,7 @@ func (c *Collector) handleOnHTML(resp *Response) {
 					DOM:        s,
 					attributes: n.Attr,
 				}
-				f(e)
+				cc.Function(e)
 			}
 		})
 	}
