@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/html"
@@ -60,6 +61,8 @@ type Collector struct {
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
 	errorCallbacks    []ErrorCallback
+	requestCount      int64
+	responseCount     int64
 	backend           *httpBackend
 	wg                *sync.WaitGroup
 	lock              *sync.RWMutex
@@ -233,6 +236,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		collector: c,
 	}
 
+	atomic.AddInt64(&c.requestCount, 1)
 	c.handleOnRequest(request)
 
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
@@ -242,6 +246,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
+	atomic.AddInt64(&c.responseCount, 1)
 	response.Ctx = ctx
 	response.Request = request
 	response.fixCharset()
@@ -332,6 +337,20 @@ func (c *Collector) checkRobots(u *url.URL) error {
 		return errors.New("URL blocked by robots.txt")
 	}
 	return nil
+}
+
+// String is the text representation of the collector.
+// It contains useful debug information about the collector's internals
+func (c *Collector) String() string {
+	return fmt.Sprintf(
+		"Requests made: %d (%d responses) | Callbacks: OnRequest: %d, OnHTML: %d, OnResponse: %d, OnError: %d",
+		c.requestCount,
+		c.responseCount,
+		len(c.requestCallbacks),
+		len(c.htmlCallbacks),
+		len(c.responseCallbacks),
+		len(c.errorCallbacks),
+	)
 }
 
 // Wait returns when the collector jobs are finished

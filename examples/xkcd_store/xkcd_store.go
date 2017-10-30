@@ -44,4 +44,7 @@ func main() {
 	c.Visit("https://store.xkcd.com/collections/everything")
 
 	log.Printf("Scraping finished, check file %q for results\n", fName)
+
+	// Display collector's statistics
+	log.Println(c)
 }
