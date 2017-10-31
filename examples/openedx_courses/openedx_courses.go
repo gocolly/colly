@@ -9,6 +9,10 @@ import (
 	"github.com/asciimoo/colly"
 )
 
+// DATE_FORMAT default format date used in openedx
+const DATE_FORMAT = "Jan 02, 2006"
+
+// Course store openedx course data
 type Course struct {
 	CourseID  string
 	Run       string
@@ -46,17 +50,21 @@ func main() {
 			return
 		}
 		title := strings.Split(e.ChildText(".course-title"), "\n")[0]
-		//provider := e.DOM.Find(".course-title > a").First()
-		course_id := e.DOM.Find("input[name=course_id]").First().AttrOr("value", "")
+		course_id := e.ChildAttr("input[name=course_id]", "value")
+		start_date, _ := time.Parse(DATE_FORMAT, e.ChildText("span.start-date"))
+		end_date, _ := time.Parse(DATE_FORMAT, e.ChildText("span.final-date"))
 		var run string
 		if len(strings.Split(course_id, "_")) > 1 {
 			run = strings.Split(course_id, "_")[1]
 		}
 		course := Course{
-			CourseID: course_id,
-			Run:      run,
-			Name:     title,
-			URL:      fmt.Sprintf("/courses/%s/about", course_id),
+			CourseID:  course_id,
+			Run:       run,
+			Name:      title,
+			Number:    e.ChildText("span.course-number"),
+			StartDate: &start_date,
+			EndDate:   &end_date,
+			URL:       fmt.Sprintf("/courses/%s/about", course_id),
 		}
 		courses = append(courses, course)
 	})
