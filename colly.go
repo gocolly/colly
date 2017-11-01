@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -689,12 +690,24 @@ func (r *Response) Save(fileName string) error {
 func (r *Response) FileName() string {
 	_, params, err := mime.ParseMediaType(r.Headers.Get("Content-Disposition"))
 	if fName, ok := params["filename"]; ok && err == nil {
-		return sanitize.BaseName(fName)
+		return SanitizeFileName(fName)
 	}
 	if r.Request.URL.RawQuery != "" {
-		return sanitize.BaseName(fmt.Sprintf("%s_%s", r.Request.URL.Path, r.Request.URL.RawQuery))
+		return SanitizeFileName(fmt.Sprintf("%s_%s", r.Request.URL.Path, r.Request.URL.RawQuery))
 	}
-	return sanitize.BaseName(r.Request.URL.Path)
+	return SanitizeFileName(r.Request.URL.Path)
+}
+
+// SanitizeFileName replaces dangerous characters in a string
+// so the return value can be used as a safe file name.
+func SanitizeFileName(fileName string) string {
+	ext := filepath.Ext(fileName)
+	cleanExt := sanitize.BaseName(ext)
+	return fmt.Sprintf(
+		"%s.%s",
+		sanitize.BaseName(fileName[:len(fileName)-len(ext)]),
+		cleanExt,
+	)
 }
 
 func createFormReader(data map[string]string) io.Reader {
