@@ -46,6 +46,13 @@ func main() {
 See [examples folder](https://github.com/asciimoo/colly/tree/master/_examples) for more detailed examples.
 
 
+## Installation
+
+```
+go get -u github.com/asciimoo/colly/...
+```
+
+
 ## Bugs
 
 Bugs or suggestions? Visit the [issue tracker](https://github.com/asciimoo/colly/issues) or join `#colly` on freenode
