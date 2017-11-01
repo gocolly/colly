@@ -9,7 +9,7 @@ With Colly you can easily extract structured data from websites, which can be us
 [![GoDoc](https://godoc.org/github.com/asciimoo/colly?status.svg)](https://godoc.org/github.com/asciimoo/colly)
 [![build status](https://img.shields.io/travis/asciimoo/colly/master.svg?style=flat-square)](https://travis-ci.org/asciimoo/colly)
 [![report card](https://img.shields.io/badge/report%20card-a%2B-ff3333.svg?style=flat-square)](http://goreportcard.com/report/asciimoo/colly)
-[![view examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/asciimoo/colly/tree/master/examples)
+[![view examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/asciimoo/colly/tree/master/_examples)
 [![test coverage](https://cover.run/go/github.com/asciimoo/colly.svg)](https://cover.run/go/github.com/asciimoo/colly)
 
 ## Features
@@ -43,7 +43,7 @@ func main() {
 }
 ```
 
-See [examples folder](https://github.com/asciimoo/colly/tree/master/examples) for more detailed examples.
+See [examples folder](https://github.com/asciimoo/colly/tree/master/_examples) for more detailed examples.
 
 
 ## Bugs
