@@ -62,8 +62,8 @@ type Collector struct {
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
 	errorCallbacks    []ErrorCallback
-	requestCount      int64
-	responseCount     int64
+	requestCount      int32
+	responseCount     int32
 	backend           *httpBackend
 	wg                *sync.WaitGroup
 	lock              *sync.RWMutex
@@ -256,7 +256,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		collector: c,
 	}
 
-	atomic.AddInt64(&c.requestCount, 1)
+	atomic.AddInt32(&c.requestCount, 1)
 	c.handleOnRequest(request)
 
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
@@ -266,7 +266,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
-	atomic.AddInt64(&c.responseCount, 1)
+	atomic.AddInt32(&c.responseCount, 1)
 	response.Ctx = ctx
 	response.Request = request
 	response.fixCharset()
