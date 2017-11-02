@@ -198,6 +198,20 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) err
 	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, requestData), nil, hdr)
 }
 
+// Request starts a collector job by creating a custom HTTP request
+// where method, context, headers and request data can be specified.
+// Set requestData, ctx, hdr parameters to nil if you don't want to use them.
+// Valid methods:
+//   - "GET"
+//   - "POST"
+//   - "PUT"
+//   - "DELETE"
+//   - "PATCH"
+//   - "OPTIONS"
+func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Context, hdr http.Header) error {
+	return c.scrape(URL, method, 1, requestData, ctx, hdr)
+}
+
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
