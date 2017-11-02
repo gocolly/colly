@@ -27,17 +27,15 @@ func main() {
 	// Instantiate default collector
 	c := colly.NewCollector()
 
-	// Create another collector to scrape course details
-	detailCollector := colly.NewCollector()
-
 	// Visit only domains: coursera.org, www.coursera.org
 	c.AllowedDomains = []string{"coursera.org", "www.coursera.org"}
-	detailCollector.AllowedDomains = c.AllowedDomains
 
 	// Cache responses to prevent multiple download of pages
 	// even if the collector is restarted
 	c.CacheDir = "./coursera_cache"
-	detailCollector.CacheDir = c.CacheDir
+
+	// Create another collector to scrape course details
+	detailCollector := c.Clone()
 
 	courses := make([]Course, 0, 200)
 
