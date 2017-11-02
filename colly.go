@@ -55,7 +55,9 @@ type Collector struct {
 	// IgnoreRobotsTxt allows the Collector to ignore any restrictions set by
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
 	// information.
-	IgnoreRobotsTxt   bool
+	IgnoreRobotsTxt bool
+	// Use this to identify the same request if AllowURLRevisit is not enabled.
+	RequestIdentifier func(*Request) string
 	visitedURLs       []string
 	robotsMap         map[string]*robotstxt.RobotsData
 	htmlCallbacks     []*htmlCallbackContainer
@@ -154,6 +156,9 @@ func NewContext() *Context {
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/asciimoo/colly"
 	c.MaxDepth = 0
+	c.RequestIdentifier = func(r *Request) string {
+		return r.URL.String()
+	}
 	c.visitedURLs = make([]string, 0, 8)
 	c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 8)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
@@ -255,7 +260,9 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Depth:     depth,
 		collector: c,
 	}
-
+	if err := c.revisitCheck(request); err != nil {
+		return err
+	}
 	atomic.AddInt32(&c.requestCount, 1)
 	c.handleOnRequest(request)
 
@@ -278,6 +285,21 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	return nil
 }
 
+func (c *Collector) revisitCheck(r *Request) error {
+	if !c.AllowURLRevisit {
+		u := c.RequestIdentifier(r)
+		for _, u2 := range c.visitedURLs {
+			if u2 == u {
+				return errors.New("URL already visited")
+			}
+		}
+		c.lock.Lock()
+		c.visitedURLs = append(c.visitedURLs, u)
+		c.lock.Unlock()
+	}
+	return nil
+}
+
 func (c *Collector) requestCheck(u string, depth int) error {
 	if u == "" {
 		return errors.New("Missing URL")
@@ -296,16 +318,6 @@ func (c *Collector) requestCheck(u string, depth int) error {
 		if !matched {
 			return errors.New("No URLFilters match")
 		}
-	}
-	if !c.AllowURLRevisit {
-		for _, u2 := range c.visitedURLs {
-			if u2 == u {
-				return errors.New("URL already visited")
-			}
-		}
-		c.lock.Lock()
-		c.visitedURLs = append(c.visitedURLs, u)
-		c.lock.Unlock()
 	}
 	return nil
 }
