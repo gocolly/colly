@@ -10,7 +10,7 @@ import (
 	"github.com/jawher/mow.cli"
 )
 
-var scraper_head_template string = `package main
+var scraperHeadTemplate string = `package main
 
 import (
 	"log"
@@ -22,30 +22,30 @@ func main() {
 	c := colly.NewCollector()
 `
 
-var scraper_end_template string = `
+var scraperEndTemplate string = `
 	c.Visit("https://yourdomain.com/")
 }
 `
 
-var html_callback_template string = `
+var htmlCallbackTemplate string = `
 	c.OnHTML("element-selector", func(e *colly.HTMLElement) {
 		log.Println(e.Text)
 	})
 `
 
-var request_callback_template string = `
+var requestCallbackTemplate string = `
 	c.OnRequest("element-selector", func(r *colly.Request) {
 		log.Println("Visiting", r.URL)
 	})
 `
 
-var response_callback_template string = `
+var responseCallbackTemplate string = `
 	c.OnResponse("element-selector", func(r *colly.Response) {
 		log.Println("Visited", r.Request.URL, r.StatusCode)
 	})
 `
 
-var error_callback_template string = `
+var errorCallbackTemplate string = `
 	c.OnError("element-selector", func(r *colly.Response, err error) {
 		log.Printf("Error on %s: %s", r.Request.URL, err)
 	})
@@ -64,7 +64,7 @@ func main() {
 		cmd.Spec = "[--callbacks] [--hosts] [PATH]"
 
 		cmd.Action = func() {
-			scraper := bytes.NewBufferString(scraper_head_template)
+			scraper := bytes.NewBufferString(scraperHeadTemplate)
 			outfile := os.Stdout
 			if *path != "" {
 				var err error
@@ -88,17 +88,17 @@ func main() {
 				for _, c := range strings.Split(*callbacks, ",") {
 					switch c {
 					case "html":
-						scraper.WriteString(html_callback_template)
+						scraper.WriteString(htmlCallbackTemplate)
 					case "request":
-						scraper.WriteString(request_callback_template)
+						scraper.WriteString(requestCallbackTemplate)
 					case "response":
-						scraper.WriteString(response_callback_template)
+						scraper.WriteString(responseCallbackTemplate)
 					case "error":
-						scraper.WriteString(error_callback_template)
+						scraper.WriteString(errorCallbackTemplate)
 					}
 				}
 			}
-			scraper.WriteString(scraper_end_template)
+			scraper.WriteString(scraperEndTemplate)
 			outfile.Write(scraper.Bytes())
 		}
 	})
