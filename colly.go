@@ -544,6 +544,28 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 	return c.backend.Client.Jar.Cookies(u)
 }
 
+// Clone creates an exact copy of a Collector without callbacks.
+// HTTP backend, robots.txt cache and cookie jar are shared
+// between collectors.
+func (c *Collector) Clone() *Collector {
+	return &Collector{
+		UserAgent:         c.UserAgent,
+		MaxDepth:          c.MaxDepth,
+		visitedURLs:       make([]string, 0, 8),
+		htmlCallbacks:     make([]*htmlCallbackContainer, 0, 8),
+		requestCallbacks:  make([]RequestCallback, 0, 8),
+		responseCallbacks: make([]ResponseCallback, 0, 8),
+		errorCallbacks:    make([]ErrorCallback, 0, 8),
+		CacheDir:          c.CacheDir,
+		MaxBodySize:       c.MaxBodySize,
+		backend:           c.backend,
+		wg:                c.wg,
+		lock:              c.lock,
+		robotsMap:         c.robotsMap,
+		IgnoreRobotsTxt:   c.IgnoreRobotsTxt,
+	}
+}
+
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
 		if !c.isDomainAllowed(req.URL.Host) {
