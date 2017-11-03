@@ -215,7 +215,7 @@ func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Cont
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	if err := c.requestCheck(u, depth); err != nil {
+	if err := c.requestCheck(u, method, depth); err != nil {
 		return err
 	}
 	parsedURL, err := url.Parse(u)
@@ -278,7 +278,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	return nil
 }
 
-func (c *Collector) requestCheck(u string, depth int) error {
+func (c *Collector) requestCheck(u, method string, depth int) error {
 	if u == "" {
 		return errors.New("Missing URL")
 	}
@@ -297,7 +297,7 @@ func (c *Collector) requestCheck(u string, depth int) error {
 			return errors.New("No URLFilters match")
 		}
 	}
-	if !c.AllowURLRevisit {
+	if !c.AllowURLRevisit && method == "GET" {
 		for _, u2 := range c.visitedURLs {
 			if u2 == u {
 				return errors.New("URL already visited")
