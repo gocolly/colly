@@ -113,7 +113,7 @@ type HTMLElement struct {
 
 // Context provides a tiny layer for passing data between callbacks
 type Context struct {
-	contextMap map[string]string
+	contextMap map[string]interface{}
 	lock       *sync.RWMutex
 }
 
@@ -144,7 +144,7 @@ func NewCollector() *Collector {
 // NewContext initializes a new Context instance
 func NewContext() *Context {
 	return &Context{
-		contextMap: make(map[string]string),
+		contextMap: make(map[string]interface{}),
 		lock:       &sync.RWMutex{},
 	}
 }
@@ -697,23 +697,33 @@ func (c *Context) MarshalBinary() (_ []byte, _ error) {
 	return nil, nil
 }
 
-// Put stores a value in Context
-func (c *Context) Put(key, value string) {
+// Put stores a value of any type in Context
+func (c *Context) Put(key string, value interface{}) {
 	c.lock.Lock()
 	c.contextMap[key] = value
 	c.lock.Unlock()
 }
 
-// Get retrieves a value from Context.
+// Get retrieves a string value from Context.
 // Get returns an empty string if key not found
 func (c *Context) Get(key string) string {
 	c.lock.RLock()
+	defer c.lock.RUnlock()
 	if v, ok := c.contextMap[key]; ok {
-		c.lock.RUnlock()
+		return v.(string)
+	}
+	return ""
+}
+
+// GetAny retrieves a value from Context.
+// GetAny returns nil if key not found
+func (c *Context) GetAny(key string) interface{} {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	if v, ok := c.contextMap[key]; ok {
 		return v
 	}
-	c.lock.RUnlock()
-	return ""
+	return nil
 }
 
 // Save writes response body to disk
