@@ -741,7 +741,7 @@ func (r *Response) FileName() string {
 	if r.Request.URL.RawQuery != "" {
 		return SanitizeFileName(fmt.Sprintf("%s_%s", r.Request.URL.Path, r.Request.URL.RawQuery))
 	}
-	return SanitizeFileName(r.Request.URL.Path)
+	return SanitizeFileName(r.Request.URL.Path[1:])
 }
 
 // SanitizeFileName replaces dangerous characters in a string
@@ -749,11 +749,14 @@ func (r *Response) FileName() string {
 func SanitizeFileName(fileName string) string {
 	ext := filepath.Ext(fileName)
 	cleanExt := sanitize.BaseName(ext)
-	return fmt.Sprintf(
+	if cleanExt == "" {
+		cleanExt = ".unknown"
+	}
+	return strings.Replace(fmt.Sprintf(
 		"%s.%s",
 		sanitize.BaseName(fileName[:len(fileName)-len(ext)]),
-		cleanExt,
-	)
+		cleanExt[1:],
+	), "-", "_", -1)
 }
 
 func createFormReader(data map[string]string) io.Reader {
