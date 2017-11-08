@@ -33,7 +33,7 @@ func main() {
 	outputDir := fmt.Sprintf("./instagram_%s/", instagramAccount)
 
 	c := colly.NewCollector()
-	c.CacheDir = "./instagram_cache/"
+	c.CacheDir = "./_instagram_cache/"
 	c.UserAgent = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
 
 	c.OnHTML("body > script:first-of-type", func(e *colly.HTMLElement) {
