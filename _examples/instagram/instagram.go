@@ -25,6 +25,7 @@ type pageInfo struct {
 func main() {
 	if len(os.Args) != 2 {
 		log.Println("Missing account name argument")
+		os.Exit(1)
 	}
 
 	var actualUserId string
