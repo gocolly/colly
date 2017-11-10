@@ -3,6 +3,7 @@ package colly
 import (
 	"errors"
 	"reflect"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -133,7 +134,7 @@ func unmarshalSlice(s *goquery.Selection, selector, htmlAttr string, attrV refle
 
 func getDOMValue(s *goquery.Selection, attr string) string {
 	if attr == "" {
-		return s.First().Text()
+		return strings.TrimSpace(s.First().Text())
 	}
 	attrV, _ := s.Attr(attr)
 	return attrV
