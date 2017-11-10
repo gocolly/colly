@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/asciimoo/colly"
 )
@@ -51,6 +52,7 @@ func main() {
 			Replies: make([]*comment, 0),
 			depth:   depth,
 		}
+		c.Comment = strings.TrimSpace(c.Comment[:len(c.Comment)-5])
 		if depth == 0 {
 			comments = append(comments, c)
 			return
