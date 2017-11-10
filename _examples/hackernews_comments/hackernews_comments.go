@@ -13,9 +13,9 @@ import (
 )
 
 type comment struct {
-	Author  string
-	URL     string
-	Comment string
+	Author  string `selector:"a.hnuser"`
+	URL     string `selector:".age a[href]" attr:"href"`
+	Comment string `selector:".comment"`
 	Replies []*comment
 	depth   int
 }
@@ -46,12 +46,10 @@ func main() {
 		// of the comment
 		depth := width / 40
 		c := &comment{
-			Author:  e.ChildText("a.hnuser"),
-			URL:     e.ChildAttr(".age a[href]", "href"),
-			Comment: e.ChildText(".comment"),
 			Replies: make([]*comment, 0),
 			depth:   depth,
 		}
+		e.Unmarshal(c)
 		c.Comment = strings.TrimSpace(c.Comment[:len(c.Comment)-5])
 		if depth == 0 {
 			comments = append(comments, c)
