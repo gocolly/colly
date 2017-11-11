@@ -25,9 +25,11 @@ type httpBackend struct {
 }
 
 // LimitRule provides connection restrictions for domains.
+// Both DomainRegexp and DomainGlob can be used to specify
+// the included domains patterns, but at least one is required.
 // There can be two kind of limitations:
-//  - Parallelism: Set limit for the number of concurrent requests to a domain
-//  - Delay: Set rate limit for a domain (this means no parallelism on the matching domains)
+//  - Parallelism: Set limit for the number of concurrent requests to matching domains
+//  - Delay: Wait specified amount of time between requests (parallelism is 1 in this case)
 type LimitRule struct {
 	// DomainRegexp is a regular expression to match against domains
 	DomainRegexp string
