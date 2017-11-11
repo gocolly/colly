@@ -7,11 +7,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/asciimoo/colly"
+	"github.com/gocolly/colly"
 )
 
 func generateFormData() map[string][]byte {
-	f, _ := os.Open("asciimoo.jpg")
+	f, _ := os.Open("gocolly.jpg")
 	defer f.Close()
 
 	imgData, _ := ioutil.ReadAll(f)
@@ -59,7 +59,7 @@ func main() {
 
 	// Before making a request print "Visiting ..."
 	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Posting asciimoo.jpg to", r.URL.String())
+		fmt.Println("Posting gocolly.jpg to", r.URL.String())
 	})
 
 	// Start scraping

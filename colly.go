@@ -153,7 +153,7 @@ func NewContext() *Context {
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
-	c.UserAgent = "colly - https://github.com/asciimoo/colly"
+	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
 	c.visitedURLs = make([]string, 0, 8)
 	c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 8)

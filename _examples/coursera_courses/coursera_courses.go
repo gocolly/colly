@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/asciimoo/colly"
+	"github.com/gocolly/colly"
 )
 
 // Course stores information about a coursera course

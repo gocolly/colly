@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/asciimoo/colly"
+	"github.com/gocolly/colly"
 )
 
 // found in https://www.instagram.com/static/bundles/en_US_Commons.js/68e7390c5938.js
