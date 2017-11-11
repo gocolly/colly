@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -429,14 +430,19 @@ func (c *Collector) OnError(f ErrorCallback) {
 	c.lock.Unlock()
 }
 
-// WithTransport allows you to set a custom http.RoundTripper (transport) for this collector.
+// WithTransport allows you to set a custom http.RoundTripper (transport)
 func (c *Collector) WithTransport(transport http.RoundTripper) {
 	c.backend.Client.Transport = transport
 }
 
-// DisableCookies turns off cookie handling for this collector
+// DisableCookies turns off cookie handling
 func (c *Collector) DisableCookies() {
 	c.backend.Client.Jar = nil
+}
+
+// SetCookieJar overrides the previously set cookie jar
+func (c *Collector) SetCookieJar(j *cookiejar.Jar) {
+	c.backend.Client.Jar = j
 }
 
 // SetRequestTimeout overrides the default timeout (10 seconds) for this collector
