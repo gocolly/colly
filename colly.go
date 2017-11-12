@@ -19,6 +19,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/urlfetch"
+
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
 
@@ -168,6 +171,20 @@ func (c *Collector) Init() {
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData, 0)
 	c.IgnoreRobotsTxt = true
+}
+
+// Appengine will replace the Collector's backend http.Client
+// With an Http.Client that is provided by appengine/urlfetch
+// This function should be used when the scraper is initiated
+// by a http.Request to Google App Engine
+func (c *Collector) Appengine(req *http.Request) {
+	ctx := appengine.NewContext(req)
+	client := urlfetch.Client(ctx)
+	client.Jar = c.backend.Client.Jar
+	client.CheckRedirect = c.backend.Client.CheckRedirect
+	client.Timeout = c.backend.Client.Timeout
+
+	c.backend.Client = client
 }
 
 // Visit starts Collector's collecting job by creating a
