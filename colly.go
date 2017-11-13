@@ -658,6 +658,18 @@ func (h *HTMLElement) ChildAttr(goquerySelector, attrName string) string {
 	return ""
 }
 
+// ChildAttrs returns the stripped text content of all the matching
+// element's attributes.
+func (h *HTMLElement) ChildAttrs(goquerySelector, attrName string) []string {
+	res := make([]string, 0)
+	h.DOM.Find(goquerySelector).Each(func(_ int, s *goquery.Selection) {
+		if attr, ok := s.Attr(attrName); ok {
+			res = append(res, strings.TrimSpace(attr))
+		}
+	})
+	return res
+}
+
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
 // AbsoluteURL returns empty string if the URL chunk is a fragment or
 // could not be parsed
