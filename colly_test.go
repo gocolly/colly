@@ -129,6 +129,16 @@ func TestCollectorOnHTML(t *testing.T) {
 		}
 	})
 
+	c.OnHTML("body", func(e *HTMLElement) {
+		if e.ChildAttr("p", "class") != "description" {
+			t.Error("Invalid class value")
+		}
+		classes := e.ChildAttrs("p", "class")
+		if len(classes) != 2 {
+			t.Error("Invalid class values")
+		}
+	})
+
 	c.Visit(testServerRootURL + "/html")
 
 	if !titleCallbackCalled {
