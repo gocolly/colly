@@ -6,12 +6,17 @@ import (
 	"time"
 )
 
+type Event struct {
+	Type   string
+	Values map[string]string
+}
+
 // Debugger is an interface for different type of debugging backends
 type Debugger interface {
 	// Init initializes the backend
 	Init() error
-	// Event receives a new event and returns a channel which triggers the end of the event
-	Event(eventType string, eventValues map[string]string)
+	// Event receives a new collector event.
+	Event(e *Event)
 }
 
 // LogDebugger is the simplest debugger which prints log messages to the STDERR
@@ -28,7 +33,7 @@ func (l *LogDebugger) Init() error {
 }
 
 // Event handles Collector events and prints them to STDERR
-func (l *LogDebugger) Event(eventType string, eventValues map[string]string) {
+func (l *LogDebugger) Event(e *Event) {
 	i := atomic.AddInt32(&l.counter, 1)
-	log.Printf("[%6d] [%s] %q (%s)\n", i, eventType, eventValues, time.Since(l.start))
+	log.Printf("[%6d] [%s] %q (%s)\n", i, e.Type, e.Values, time.Since(l.start))
 }

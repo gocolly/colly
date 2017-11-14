@@ -498,8 +498,11 @@ func (c *Collector) SetProxy(proxyURL string) error {
 
 func (c *Collector) handleOnRequest(r *Request) {
 	if c.debugger != nil {
-		c.debugger.Event("Request", map[string]string{
-			"url": r.URL.String(),
+		c.debugger.Event(&debug.Event{
+			Type: "request",
+			Values: map[string]string{
+				"url": r.URL.String(),
+			},
 		})
 	}
 	for _, f := range c.requestCallbacks {
@@ -509,9 +512,12 @@ func (c *Collector) handleOnRequest(r *Request) {
 
 func (c *Collector) handleOnResponse(r *Response) {
 	if c.debugger != nil {
-		c.debugger.Event("Response", map[string]string{
-			"url":    r.Request.URL.String(),
-			"status": http.StatusText(r.StatusCode),
+		c.debugger.Event(&debug.Event{
+			Type: "response",
+			Values: map[string]string{
+				"url":    r.Request.URL.String(),
+				"status": http.StatusText(r.StatusCode),
+			},
 		})
 	}
 	for _, f := range c.responseCallbacks {
@@ -539,9 +545,12 @@ func (c *Collector) handleOnHTML(resp *Response) {
 					attributes: n.Attr,
 				}
 				if c.debugger != nil {
-					c.debugger.Event("HTML", map[string]string{
-						"selector": cc.Selector,
-						"url":      resp.Request.URL.String(),
+					c.debugger.Event(&debug.Event{
+						Type: "html",
+						Values: map[string]string{
+							"selector": cc.Selector,
+							"url":      resp.Request.URL.String(),
+						},
 					})
 				}
 				cc.Function(e)
@@ -555,9 +564,12 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 		return nil
 	}
 	if c.debugger != nil {
-		c.debugger.Event("Error", map[string]string{
-			"url":    request.URL.String(),
-			"status": http.StatusText(response.StatusCode),
+		c.debugger.Event(&debug.Event{
+			Type: "error",
+			Values: map[string]string{
+				"url":    request.URL.String(),
+				"status": http.StatusText(response.StatusCode),
+			},
 		})
 	}
 	if err == nil {
