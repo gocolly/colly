@@ -568,6 +568,15 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	if err == nil && response.StatusCode < 203 {
 		return nil
 	}
+	if err == nil {
+		err = errors.New(http.StatusText(response.StatusCode))
+	}
+	if response == nil {
+		response = &Response{
+			Request: request,
+			Ctx:     ctx,
+		}
+	}
 	if c.debugger != nil {
 		c.debugger.Event(&debug.Event{
 			Type:      "error",
@@ -577,15 +586,6 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 				"status": http.StatusText(response.StatusCode),
 			},
 		})
-	}
-	if err == nil {
-		err = errors.New(http.StatusText(response.StatusCode))
-	}
-	if response == nil {
-		response = &Response{
-			Request: request,
-			Ctx:     ctx,
-		}
 	}
 	if response.Request == nil {
 		response.Request = request
