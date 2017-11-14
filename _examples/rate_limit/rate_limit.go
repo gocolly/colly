@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/debug"
 )
 
 func main() {
@@ -13,22 +13,15 @@ func main() {
 	// Instantiate default collector
 	c := colly.NewCollector()
 
+	// Attach a debugger to the collector
+	c.SetDebugger(&debug.LogDebugger{})
+
 	// Limit the number of threads started by colly to two
 	// when visiting links which domains' matches "*httpbin.*" glob
 	c.Limit(&colly.LimitRule{
 		DomainGlob:  "*httpbin.*",
 		Parallelism: 2,
 		//Delay:      5 * time.Second,
-	})
-
-	// Before making a request print "Starting ..."
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Starting", r.URL, time.Now())
-	})
-
-	// After making a request print "Finished ..."
-	c.OnResponse(func(r *colly.Response) {
-		fmt.Println("Finished", r.Request.URL, time.Now())
 	})
 
 	// Start scraping in four threads on https://httpbin.org/delay/2
