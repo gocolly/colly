@@ -85,7 +85,9 @@ type Request struct {
 	// Ctx is a context between a Request and a Response
 	Ctx *Context
 	// Depth is the number of the parents of this request
-	Depth     int
+	Depth int
+	// Unique identifier of the request
+	Id        int32
 	collector *Collector
 }
 
@@ -281,9 +283,9 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Ctx:       ctx,
 		Depth:     depth,
 		collector: c,
+		Id:        atomic.AddInt32(&c.requestCount, 1),
 	}
 
-	atomic.AddInt32(&c.requestCount, 1)
 	c.handleOnRequest(request)
 
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
@@ -499,7 +501,8 @@ func (c *Collector) SetProxy(proxyURL string) error {
 func (c *Collector) handleOnRequest(r *Request) {
 	if c.debugger != nil {
 		c.debugger.Event(&debug.Event{
-			Type: "request",
+			Type:      "request",
+			RequestId: r.Id,
 			Values: map[string]string{
 				"url": r.URL.String(),
 			},
@@ -513,7 +516,8 @@ func (c *Collector) handleOnRequest(r *Request) {
 func (c *Collector) handleOnResponse(r *Response) {
 	if c.debugger != nil {
 		c.debugger.Event(&debug.Event{
-			Type: "response",
+			Type:      "response",
+			RequestId: r.Request.Id,
 			Values: map[string]string{
 				"url":    r.Request.URL.String(),
 				"status": http.StatusText(r.StatusCode),
@@ -546,7 +550,8 @@ func (c *Collector) handleOnHTML(resp *Response) {
 				}
 				if c.debugger != nil {
 					c.debugger.Event(&debug.Event{
-						Type: "html",
+						Type:      "html",
+						RequestId: resp.Request.Id,
 						Values: map[string]string{
 							"selector": cc.Selector,
 							"url":      resp.Request.URL.String(),
@@ -565,7 +570,8 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	}
 	if c.debugger != nil {
 		c.debugger.Event(&debug.Event{
-			Type: "error",
+			Type:      "error",
+			RequestId: request.Id,
 			Values: map[string]string{
 				"url":    request.URL.String(),
 				"status": http.StatusText(response.StatusCode),
