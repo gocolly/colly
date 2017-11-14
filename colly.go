@@ -19,6 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gocolly/colly/debug"
+
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
 
@@ -60,6 +62,7 @@ type Collector struct {
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
 	// information.
 	IgnoreRobotsTxt   bool
+	debugger          debug.Debugger
 	visitedURLs       []string
 	robotsMap         map[string]*robotstxt.RobotsData
 	htmlCallbacks     []*htmlCallbackContainer
@@ -228,6 +231,12 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) err
 //   - "OPTIONS"
 func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Context, hdr http.Header) error {
 	return c.scrape(URL, method, 1, requestData, ctx, hdr)
+}
+
+// SetDebugger attaches a debugger to the collector
+func (c *Collector) SetDebugger(d debug.Debugger) {
+	d.Init()
+	c.debugger = d
 }
 
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header) error {
@@ -488,12 +497,23 @@ func (c *Collector) SetProxy(proxyURL string) error {
 }
 
 func (c *Collector) handleOnRequest(r *Request) {
+	if c.debugger != nil {
+		c.debugger.Event("Request", map[string]string{
+			"url": r.URL.String(),
+		})
+	}
 	for _, f := range c.requestCallbacks {
 		f(r)
 	}
 }
 
 func (c *Collector) handleOnResponse(r *Response) {
+	if c.debugger != nil {
+		c.debugger.Event("Response", map[string]string{
+			"url":    r.Request.URL.String(),
+			"status": http.StatusText(r.StatusCode),
+		})
+	}
 	for _, f := range c.responseCallbacks {
 		f(r)
 	}
@@ -518,6 +538,12 @@ func (c *Collector) handleOnHTML(resp *Response) {
 					DOM:        s,
 					attributes: n.Attr,
 				}
+				if c.debugger != nil {
+					c.debugger.Event("HTML", map[string]string{
+						"selector": cc.Selector,
+						"url":      resp.Request.URL.String(),
+					})
+				}
 				cc.Function(e)
 			}
 		})
@@ -527,6 +553,12 @@ func (c *Collector) handleOnHTML(resp *Response) {
 func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx *Context) error {
 	if err == nil && response.StatusCode < 203 {
 		return nil
+	}
+	if c.debugger != nil {
+		c.debugger.Event("Error", map[string]string{
+			"url":    request.URL.String(),
+			"status": http.StatusText(response.StatusCode),
+		})
 	}
 	if err == nil {
 		err = errors.New(http.StatusText(response.StatusCode))
