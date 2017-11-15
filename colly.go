@@ -503,15 +503,20 @@ func (c *Collector) SetProxy(proxyURL string) error {
 	return nil
 }
 
+func createEvent(eventType string, requestId, collectorId int32, kvargs map[string]string) *debug.Event {
+	return &debug.Event{
+		CollectorId: collectorId,
+		RequestId:   requestId,
+		Type:        eventType,
+		Values:      kvargs,
+	}
+}
+
 func (c *Collector) handleOnRequest(r *Request) {
 	if c.debugger != nil {
-		c.debugger.Event(&debug.Event{
-			Type:      "request",
-			RequestId: r.Id,
-			Values: map[string]string{
-				"url": r.URL.String(),
-			},
-		})
+		c.debugger.Event(createEvent("request", r.Id, c.Id, map[string]string{
+			"url": r.URL.String(),
+		}))
 	}
 	for _, f := range c.requestCallbacks {
 		f(r)
@@ -520,14 +525,10 @@ func (c *Collector) handleOnRequest(r *Request) {
 
 func (c *Collector) handleOnResponse(r *Response) {
 	if c.debugger != nil {
-		c.debugger.Event(&debug.Event{
-			Type:      "response",
-			RequestId: r.Request.Id,
-			Values: map[string]string{
-				"url":    r.Request.URL.String(),
-				"status": http.StatusText(r.StatusCode),
-			},
-		})
+		c.debugger.Event(createEvent("response", r.Request.Id, c.Id, map[string]string{
+			"url":    r.Request.URL.String(),
+			"status": http.StatusText(r.StatusCode),
+		}))
 	}
 	for _, f := range c.responseCallbacks {
 		f(r)
@@ -554,14 +555,10 @@ func (c *Collector) handleOnHTML(resp *Response) {
 					attributes: n.Attr,
 				}
 				if c.debugger != nil {
-					c.debugger.Event(&debug.Event{
-						Type:      "html",
-						RequestId: resp.Request.Id,
-						Values: map[string]string{
-							"selector": cc.Selector,
-							"url":      resp.Request.URL.String(),
-						},
-					})
+					c.debugger.Event(createEvent("html", resp.Request.Id, c.Id, map[string]string{
+						"selector": cc.Selector,
+						"url":      resp.Request.URL.String(),
+					}))
 				}
 				cc.Function(e)
 			}
@@ -583,14 +580,10 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 		}
 	}
 	if c.debugger != nil {
-		c.debugger.Event(&debug.Event{
-			Type:      "error",
-			RequestId: request.Id,
-			Values: map[string]string{
-				"url":    request.URL.String(),
-				"status": http.StatusText(response.StatusCode),
-			},
-		})
+		c.debugger.Event(createEvent("error", request.Id, c.Id, map[string]string{
+			"url":    request.URL.String(),
+			"status": http.StatusText(response.StatusCode),
+		}))
 	}
 	if response.Request == nil {
 		response.Request = request
