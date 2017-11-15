@@ -61,7 +61,9 @@ type Collector struct {
 	// IgnoreRobotsTxt allows the Collector to ignore any restrictions set by
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
 	// information.
-	IgnoreRobotsTxt   bool
+	IgnoreRobotsTxt bool
+	// Id is the unique identifier of a collector
+	Id                int32
 	debugger          debug.Debugger
 	visitedURLs       []string
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -143,6 +145,8 @@ type htmlCallbackContainer struct {
 	Function HTMLCallback
 }
 
+var collectorCounter int32 = 0
+
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector() *Collector {
 	c := &Collector{}
@@ -176,6 +180,7 @@ func (c *Collector) Init() {
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData, 0)
 	c.IgnoreRobotsTxt = true
+	c.Id = atomic.AddInt32(&collectorCounter, 1)
 }
 
 // Appengine will replace the Collector's backend http.Client
@@ -650,6 +655,7 @@ func (c *Collector) Clone() *Collector {
 		lock:              c.lock,
 		robotsMap:         c.robotsMap,
 		IgnoreRobotsTxt:   c.IgnoreRobotsTxt,
+		Id:                atomic.AddInt32(&collectorCounter, 1),
 		debugger:          c.debugger,
 	}
 }
