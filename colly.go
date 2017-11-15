@@ -650,6 +650,7 @@ func (c *Collector) Clone() *Collector {
 		lock:              c.lock,
 		robotsMap:         c.robotsMap,
 		IgnoreRobotsTxt:   c.IgnoreRobotsTxt,
+		debugger:          c.debugger,
 	}
 }
 
