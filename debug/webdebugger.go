@@ -21,6 +21,8 @@ type requestInfo struct {
 	Started        time.Time
 	Duration       time.Duration
 	ResponseStatus string
+	Id             int32
+	CollectorId    int32
 }
 
 // Init initializes the WebDebugger
@@ -35,7 +37,7 @@ func (w *WebDebugger) Init() error {
 		w.Address = "127.0.0.1:7676"
 	}
 	w.RequestLog = make([]requestInfo, 0)
-	w.CurrentRequests = make(map[int32]requestInfo, 0)
+	w.CurrentRequests = make(map[int32]requestInfo)
 	http.HandleFunc("/", w.indexHandler)
 	http.HandleFunc("/status", w.statusHandler)
 	log.Println("Starting debug webserver on", w.Address)
@@ -47,7 +49,12 @@ func (w *WebDebugger) Init() error {
 func (w *WebDebugger) Event(e *Event) {
 	switch e.Type {
 	case "request":
-		w.CurrentRequests[e.RequestId] = requestInfo{Url: e.Values["url"], Started: time.Now()}
+		w.CurrentRequests[e.RequestId] = requestInfo{
+			Url:         e.Values["url"],
+			Started:     time.Now(),
+			Id:          e.RequestId,
+			CollectorId: e.CollectorId,
+		}
 	case "response", "error":
 		r := w.CurrentRequests[e.RequestId]
 		r.Duration = time.Since(r.Started)
@@ -84,6 +91,12 @@ func (w *WebDebugger) indexHandler(wr http.ResponseWriter, r *http.Request) {
  </div>
 </div>
 <script>
+function curRequestTpl(url, started, collectorId) {
+  return '<div class="event"><div class="content"><div class="summary">' + url + '</div><div class="meta">Collector #' + collectorId + ' - ' + started + "</div></div></div>";
+}
+function requestLogTpl(url, duration, collectorId) {
+  return '<div class="event"><div class="content"><div class="summary">' + url + '</div><div class="meta">Collector #' + collectorId + ' - ' + (duration/1000000000) + "s</div></div></div>";
+}
 function fetchStatus() {
   $.getJSON("/status", function(data) {
     $("#current_requests").html("");
@@ -92,11 +105,11 @@ function fetchStatus() {
     $("#request_log_count").text('(' + data.RequestLog.length + ')');
     for(var i in data.CurrentRequests) {
       var r = data.CurrentRequests[i];
-      $("#current_requests").append('<div class="event"><div class="content"><div class="summary">' + r.Url + '</div><div class="meta">' + r.Started + "</div></div></div>")
+      $("#current_requests").append(curRequestTpl(r.Url, r.Started, r.CollectorId));
     }
     for(var i in data.RequestLog.reverse()) {
       var r = data.RequestLog[i];
-      $("#request_log").append('<div class="event"><div class="content"><div class="summary">' + r.Url + '</div><div class="meta">' + (r.Duration/1000000000) + "s</div></div></div>")
+      $("#request_log").append(requestLogTpl(r.Url, r.Duration, r.CollectorId));
     }
     setTimeout(fetchStatus, 1000);
   });
