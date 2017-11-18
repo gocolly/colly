@@ -639,6 +639,9 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 // between collectors.
 func (c *Collector) Clone() *Collector {
 	return &Collector{
+		AllowedDomains:    c.AllowedDomains,
+		DisallowedDomains: c.DisallowedDomains,
+		URLFilters:        c.URLFilters,
 		UserAgent:         c.UserAgent,
 		MaxDepth:          c.MaxDepth,
 		visitedURLs:       make(map[uint64]bool, 0),
