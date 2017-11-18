@@ -146,7 +146,7 @@ type htmlCallbackContainer struct {
 	Function HTMLCallback
 }
 
-var collectorCounter int32 = 0
+var collectorCounter int32
 
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector() *Collector {
