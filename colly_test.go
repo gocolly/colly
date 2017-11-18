@@ -150,6 +150,32 @@ func TestCollectorOnHTML(t *testing.T) {
 	}
 }
 
+func TestCollectorURLRevisit(t *testing.T) {
+	c := NewCollector()
+
+	visitCount := 0
+
+	c.OnRequest(func(r *Request) {
+		visitCount += 1
+	})
+
+	c.Visit(testServerRootURL)
+	c.Visit(testServerRootURL)
+
+	if visitCount != 1 {
+		t.Error("URL revisited")
+	}
+
+	c.AllowURLRevisit = true
+
+	c.Visit(testServerRootURL)
+	c.Visit(testServerRootURL)
+
+	if visitCount != 3 {
+		t.Error("URL not revisited")
+	}
+}
+
 func TestCollectorPost(t *testing.T) {
 	postValue := "hello"
 	c := NewCollector()

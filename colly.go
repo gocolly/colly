@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -65,7 +66,7 @@ type Collector struct {
 	// Id is the unique identifier of a collector
 	Id                int32
 	debugger          debug.Debugger
-	visitedURLs       map[string]bool
+	visitedURLs       map[uint64]bool
 	robotsMap         map[string]*robotstxt.RobotsData
 	htmlCallbacks     []*htmlCallbackContainer
 	requestCallbacks  []RequestCallback
@@ -167,7 +168,7 @@ func NewContext() *Context {
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
-	c.visitedURLs = make(map[string]bool, 0)
+	c.visitedURLs = make(map[uint64]bool, 0)
 	c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 8)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
 	c.responseCallbacks = make([]ResponseCallback, 0, 8)
@@ -332,11 +333,17 @@ func (c *Collector) requestCheck(u, method string, depth int) error {
 		}
 	}
 	if !c.AllowURLRevisit && method == "GET" {
-		if c.visitedURLs[u] {
+		h := fnv.New64a()
+		h.Write([]byte(u))
+		uHash := h.Sum64()
+		c.lock.RLock()
+		visited := c.visitedURLs[uHash]
+		c.lock.RUnlock()
+		if visited {
 			return errors.New("URL already visited")
 		}
 		c.lock.Lock()
-		c.visitedURLs[u] = true
+		c.visitedURLs[uHash] = true
 		c.lock.Unlock()
 	}
 	return nil
@@ -634,7 +641,7 @@ func (c *Collector) Clone() *Collector {
 	return &Collector{
 		UserAgent:         c.UserAgent,
 		MaxDepth:          c.MaxDepth,
-		visitedURLs:       make(map[string]bool, 0),
+		visitedURLs:       make(map[uint64]bool, 0),
 		htmlCallbacks:     make([]*htmlCallbackContainer, 0, 8),
 		requestCallbacks:  make([]RequestCallback, 0, 8),
 		responseCallbacks: make([]ResponseCallback, 0, 8),
