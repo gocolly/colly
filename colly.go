@@ -65,7 +65,7 @@ type Collector struct {
 	// Id is the unique identifier of a collector
 	Id                int32
 	debugger          debug.Debugger
-	visitedURLs       []string
+	visitedURLs       map[string]bool
 	robotsMap         map[string]*robotstxt.RobotsData
 	htmlCallbacks     []*htmlCallbackContainer
 	requestCallbacks  []RequestCallback
@@ -167,7 +167,7 @@ func NewContext() *Context {
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
-	c.visitedURLs = make([]string, 0, 8)
+	c.visitedURLs = make(map[string]bool, 0)
 	c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 8)
 	c.requestCallbacks = make([]RequestCallback, 0, 8)
 	c.responseCallbacks = make([]ResponseCallback, 0, 8)
@@ -332,13 +332,11 @@ func (c *Collector) requestCheck(u, method string, depth int) error {
 		}
 	}
 	if !c.AllowURLRevisit && method == "GET" {
-		for _, u2 := range c.visitedURLs {
-			if u2 == u {
-				return errors.New("URL already visited")
-			}
+		if c.visitedURLs[u] {
+			return errors.New("URL already visited")
 		}
 		c.lock.Lock()
-		c.visitedURLs = append(c.visitedURLs, u)
+		c.visitedURLs[u] = true
 		c.lock.Unlock()
 	}
 	return nil
@@ -636,7 +634,7 @@ func (c *Collector) Clone() *Collector {
 	return &Collector{
 		UserAgent:         c.UserAgent,
 		MaxDepth:          c.MaxDepth,
-		visitedURLs:       make([]string, 0, 8),
+		visitedURLs:       make(map[string]bool, 0),
 		htmlCallbacks:     make([]*htmlCallbackContainer, 0, 8),
 		requestCallbacks:  make([]RequestCallback, 0, 8),
 		responseCallbacks: make([]ResponseCallback, 0, 8),
