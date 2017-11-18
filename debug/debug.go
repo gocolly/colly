@@ -5,9 +5,9 @@ type Event struct {
 	// Type is the type of the event
 	Type string
 	// RequestId identifies the HTTP request of the Event
-	RequestId int32
+	RequestId uint32
 	// CollectorId identifies the collector of the Event
-	CollectorId int32
+	CollectorId uint32
 	// Values contains the event's key-value pairs. Different type of events
 	// can return different key-value pairs
 	Values map[string]string

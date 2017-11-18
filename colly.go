@@ -64,7 +64,7 @@ type Collector struct {
 	// information.
 	IgnoreRobotsTxt bool
 	// Id is the unique identifier of a collector
-	Id                int32
+	Id                uint32
 	debugger          debug.Debugger
 	visitedURLs       map[uint64]bool
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -72,8 +72,8 @@ type Collector struct {
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
 	errorCallbacks    []ErrorCallback
-	requestCount      int32
-	responseCount     int32
+	requestCount      uint32
+	responseCount     uint32
 	backend           *httpBackend
 	wg                *sync.WaitGroup
 	lock              *sync.RWMutex
@@ -90,7 +90,7 @@ type Request struct {
 	// Depth is the number of the parents of this request
 	Depth int
 	// Unique identifier of the request
-	Id        int32
+	Id        uint32
 	collector *Collector
 }
 
@@ -181,7 +181,7 @@ func (c *Collector) Init() {
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData, 0)
 	c.IgnoreRobotsTxt = true
-	c.Id = atomic.AddInt32(&collectorCounter, 1)
+	c.Id = atomic.AddUint32(&collectorCounter, 1)
 }
 
 // Appengine will replace the Collector's backend http.Client
@@ -289,7 +289,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Ctx:       ctx,
 		Depth:     depth,
 		collector: c,
-		Id:        atomic.AddInt32(&c.requestCount, 1),
+		Id:        atomic.AddUint32(&c.requestCount, 1),
 	}
 
 	c.handleOnRequest(request)
@@ -301,7 +301,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
-	atomic.AddInt32(&c.responseCount, 1)
+	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx
 	response.Request = request
 	response.fixCharset()
@@ -508,7 +508,7 @@ func (c *Collector) SetProxy(proxyURL string) error {
 	return nil
 }
 
-func createEvent(eventType string, requestId, collectorId int32, kvargs map[string]string) *debug.Event {
+func createEvent(eventType string, requestId, collectorId uint32, kvargs map[string]string) *debug.Event {
 	return &debug.Event{
 		CollectorId: collectorId,
 		RequestId:   requestId,
@@ -653,7 +653,7 @@ func (c *Collector) Clone() *Collector {
 		lock:              c.lock,
 		robotsMap:         c.robotsMap,
 		IgnoreRobotsTxt:   c.IgnoreRobotsTxt,
-		Id:                atomic.AddInt32(&collectorCounter, 1),
+		Id:                atomic.AddUint32(&collectorCounter, 1),
 		debugger:          c.debugger,
 	}
 }

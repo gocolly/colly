@@ -12,7 +12,7 @@ type WebDebugger struct {
 	// Address is the address of the web server. It is 127.0.0.1:7676 by default.
 	Address         string
 	initialized     bool
-	CurrentRequests map[int32]requestInfo
+	CurrentRequests map[uint32]requestInfo
 	RequestLog      []requestInfo
 }
 
@@ -21,8 +21,8 @@ type requestInfo struct {
 	Started        time.Time
 	Duration       time.Duration
 	ResponseStatus string
-	Id             int32
-	CollectorId    int32
+	Id             uint32
+	CollectorId    uint32
 }
 
 // Init initializes the WebDebugger
@@ -37,7 +37,7 @@ func (w *WebDebugger) Init() error {
 		w.Address = "127.0.0.1:7676"
 	}
 	w.RequestLog = make([]requestInfo, 0)
-	w.CurrentRequests = make(map[int32]requestInfo)
+	w.CurrentRequests = make(map[uint32]requestInfo)
 	http.HandleFunc("/", w.indexHandler)
 	http.HandleFunc("/status", w.statusHandler)
 	log.Println("Starting debug webserver on", w.Address)
