@@ -19,6 +19,10 @@ Allow: /allowed
 Disallow: /disallowed
 `
 
+type Z struct {
+	Test string
+}
+
 func init() {
 	srv := &http.Server{}
 	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: testServerPort})
@@ -84,6 +88,7 @@ func TestCollectorVisit(t *testing.T) {
 	c.OnRequest(func(r *Request) {
 		onRequestCalled = true
 		r.Ctx.Put("x", "y")
+		r.Ctx.Put("z", &Z{Test: "xyz"})
 	})
 
 	c.OnResponse(func(r *Response) {
@@ -91,6 +96,15 @@ func TestCollectorVisit(t *testing.T) {
 
 		if r.Ctx.Get("x") != "y" {
 			t.Error("Failed to retrieve context value for key 'x'")
+		}
+
+		z := r.Ctx.Get("z")
+		if r.Ctx.Get("z") == nil {
+			t.Error("Failed to retrieve context interface value for key 'z'")
+		}
+
+		if z.(*Z).Test != "xyz" {
+			t.Error("Failed to retrieve context value for key 'z'")
 		}
 
 		if !bytes.Equal(r.Body, serverIndexResponse) {
