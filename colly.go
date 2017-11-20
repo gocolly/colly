@@ -799,13 +799,13 @@ func (c *Context) Put(key string, value interface{}) {
 
 // Get retrieves a string value from Context.
 // Get returns an empty string if key not found
-func (c *Context) Get(key string) string {
+func (c *Context) Get(key string) interface{} {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	if v, ok := c.contextMap[key]; ok {
-		return v.(string)
+		return v
 	}
-	return ""
+	return nil
 }
 
 // GetAny retrieves a value from Context.
