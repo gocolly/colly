@@ -68,6 +68,24 @@ func init() {
 		w.Write([]byte("disallowed"))
 	})
 
+	http.HandleFunc("/set_cookie", func(w http.ResponseWriter, r *http.Request) {
+		c := &http.Cookie{Name: "test", Value: "testv", HttpOnly: false}
+		http.SetCookie(w, c)
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	})
+
+	http.HandleFunc("/check_cookie", func(w http.ResponseWriter, r *http.Request) {
+		cs := r.Cookies()
+		if len(cs) != 1 || r.Cookies()[0].Value != "testv" {
+			w.WriteHeader(500)
+			w.Write([]byte("nok"))
+			return
+		}
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	})
+
 	go func() {
 		if err := srv.Serve(listener); err != nil {
 			log.Printf("Httpserver: ListenAndServe() error: %s", err)
@@ -189,6 +207,18 @@ func TestCollectorPost(t *testing.T) {
 	c.Post(testServerRootURL+"login", map[string]string{
 		"name": postValue,
 	})
+}
+
+func TestCollectorCookies(t *testing.T) {
+	c := NewCollector()
+
+	if err := c.Visit(testServerRootURL + "set_cookie"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Visit(testServerRootURL + "check_cookie"); err != nil {
+		t.Fatalf("Failed to use previously set cookies: %s", err)
+	}
 }
 
 func BenchmarkVisit(b *testing.B) {
