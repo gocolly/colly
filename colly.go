@@ -169,10 +169,6 @@ func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
 	c.visitedURLs = make(map[uint64]bool, 0)
-	c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 8)
-	c.requestCallbacks = make([]RequestCallback, 0, 8)
-	c.responseCallbacks = make([]ResponseCallback, 0, 8)
-	c.errorCallbacks = make([]ErrorCallback, 0, 8)
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	c.backend.Init()
@@ -421,6 +417,9 @@ func (c *Collector) Wait() {
 // request made by the Collector
 func (c *Collector) OnRequest(f RequestCallback) {
 	c.lock.Lock()
+	if c.requestCallbacks == nil {
+		c.requestCallbacks = make([]RequestCallback, 0, 4)
+	}
 	c.requestCallbacks = append(c.requestCallbacks, f)
 	c.lock.Unlock()
 }
@@ -428,6 +427,9 @@ func (c *Collector) OnRequest(f RequestCallback) {
 // OnResponse registers a function. Function will be executed on every response
 func (c *Collector) OnResponse(f ResponseCallback) {
 	c.lock.Lock()
+	if c.responseCallbacks == nil {
+		c.responseCallbacks = make([]ResponseCallback, 0, 4)
+	}
 	c.responseCallbacks = append(c.responseCallbacks, f)
 	c.lock.Unlock()
 }
@@ -437,6 +439,9 @@ func (c *Collector) OnResponse(f ResponseCallback) {
 // GoQuery Selector is a selector used by https://github.com/PuerkitoBio/goquery
 func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Lock()
+	if c.htmlCallbacks == nil {
+		c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 4)
+	}
 	c.htmlCallbacks = append(c.htmlCallbacks, &htmlCallbackContainer{
 		Selector: goquerySelector,
 		Function: f,
@@ -464,6 +469,9 @@ func (c *Collector) OnHTMLDetach(goquerySelector string) {
 // occurs during the HTTP request.
 func (c *Collector) OnError(f ErrorCallback) {
 	c.lock.Lock()
+	if c.errorCallbacks == nil {
+		c.errorCallbacks = make([]ErrorCallback, 0, 4)
+	}
 	c.errorCallbacks = append(c.errorCallbacks, f)
 	c.lock.Unlock()
 }
@@ -541,7 +549,7 @@ func (c *Collector) handleOnResponse(r *Response) {
 }
 
 func (c *Collector) handleOnHTML(resp *Response) {
-	if strings.Index(strings.ToLower(resp.Headers.Get("Content-Type")), "html") == -1 {
+	if strings.Index(strings.ToLower(resp.Headers.Get("Content-Type")), "html") == -1 || len(c.htmlCallbacks) == 0 {
 		return
 	}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(resp.Body))
