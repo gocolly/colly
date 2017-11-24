@@ -141,6 +141,9 @@ type HTMLCallback func(*HTMLElement)
 // ErrorCallback is a type alias for OnError callback functions
 type ErrorCallback func(*Response, error)
 
+// ProxyFunc is a type alias for proxy setter functions.
+type ProxyFunc func(*http.Request) (*url.URL, error)
+
 type htmlCallbackContainer struct {
 	Selector string
 	Function HTMLCallback
@@ -496,24 +499,38 @@ func (c *Collector) SetRequestTimeout(timeout time.Duration) {
 	c.backend.Client.Timeout = timeout
 }
 
-// SetProxy sets a proxy for the collector. This overrides the previously
-// used http.Transport if the type of the transport is not http.RoundTripper
+// SetProxy sets a proxy for the collector. This method overrides the previously
+// used http.Transport if the type of the transport is not http.RoundTripper.
+// The proxy type is determined by the URL scheme. "http"
+// and "socks5" are supported. If the scheme is empty,
+// "http" is assumed.
 func (c *Collector) SetProxy(proxyURL string) error {
 	proxyParsed, err := url.Parse(proxyURL)
 	if err != nil {
 		return err
 	}
 
-	t, ok := c.backend.Client.Transport.(*http.Transport)
-	if c.backend.Client.Transport != nil && ok {
-		t.Proxy = http.ProxyURL(proxyParsed)
-	} else {
-		c.backend.Client.Transport = &http.Transport{
-			Proxy: http.ProxyURL(proxyParsed),
-		}
-	}
+	c.SetProxyFunc(http.ProxyURL(proxyParsed))
 
 	return nil
+}
+
+// SetProxyFunc sets a custom proxy setter/switcher function.
+// See built-in ProxyFuncs for more details.
+// This method overrides the previously used http.Transport
+// if the type of the transport is not http.RoundTripper.
+// The proxy type is determined by the URL scheme. "http"
+// and "socks5" are supported. If the scheme is empty,
+// "http" is assumed.
+func (c *Collector) SetProxyFunc(p ProxyFunc) {
+	t, ok := c.backend.Client.Transport.(*http.Transport)
+	if c.backend.Client.Transport != nil && ok {
+		t.Proxy = p
+	} else {
+		c.backend.Client.Transport = &http.Transport{
+			Proxy: p,
+		}
+	}
 }
 
 func createEvent(eventType string, requestId, collectorId uint32, kvargs map[string]string) *debug.Event {
