@@ -87,8 +87,12 @@ type Request struct {
 	Headers *http.Header
 	// Ctx is a context between a Request and a Response
 	Ctx *Context
-	// Depth is the number of the parents of this request
+	// Depth is the number of the parents of the request
 	Depth int
+	// Method is the HTTP method of the request
+	Method string
+	// Body is the request body which is used on POST/PUT requests
+	Body io.Reader
 	// Unique identifier of the request
 	Id        uint32
 	collector *Collector
@@ -201,19 +205,19 @@ func (c *Collector) Appengine(req *http.Request) {
 // request to the URL specified in parameter.
 // Visit also calls the previously provided callbacks
 func (c *Collector) Visit(URL string) error {
-	return c.scrape(URL, "GET", 1, nil, nil, nil)
+	return c.scrape(URL, "GET", 1, nil, nil, nil, true)
 }
 
 // Post starts a collector job by creating a POST request.
 // Post also calls the previously provided callbacks
 func (c *Collector) Post(URL string, requestData map[string]string) error {
-	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil, nil)
+	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil, nil, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
 // Post also calls the previously provided callbacks
 func (c *Collector) PostRaw(URL string, requestData []byte) error {
-	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), nil, nil)
+	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), nil, nil, true)
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
@@ -223,7 +227,7 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) err
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", c.UserAgent)
-	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, requestData), nil, hdr)
+	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, requestData), nil, hdr, true)
 }
 
 // Request starts a collector job by creating a custom HTTP request
@@ -237,7 +241,7 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) err
 //   - "PATCH"
 //   - "OPTIONS"
 func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Context, hdr http.Header) error {
-	return c.scrape(URL, method, 1, requestData, ctx, hdr)
+	return c.scrape(URL, method, 1, requestData, ctx, hdr, true)
 }
 
 // SetDebugger attaches a debugger to the collector
@@ -246,10 +250,10 @@ func (c *Collector) SetDebugger(d debug.Debugger) {
 	c.debugger = d
 }
 
-func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header) error {
+func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	if err := c.requestCheck(u, method, depth); err != nil {
+	if err := c.requestCheck(u, method, depth, checkRevisit); err != nil {
 		return err
 	}
 	parsedURL, err := url.Parse(u)
@@ -287,6 +291,8 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Headers:   &req.Header,
 		Ctx:       ctx,
 		Depth:     depth,
+		Method:    method,
+		Body:      requestData,
 		collector: c,
 		Id:        atomic.AddUint32(&c.requestCount, 1),
 	}
@@ -312,7 +318,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	return nil
 }
 
-func (c *Collector) requestCheck(u, method string, depth int) error {
+func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool) error {
 	if u == "" {
 		return errors.New("Missing URL")
 	}
@@ -331,7 +337,7 @@ func (c *Collector) requestCheck(u, method string, depth int) error {
 			return errors.New("No URLFilters match")
 		}
 	}
-	if !c.AllowURLRevisit && method == "GET" {
+	if checkRevisit && !c.AllowURLRevisit && method == "GET" {
 		h := fnv.New64a()
 		h.Write([]byte(u))
 		uHash := h.Sum64()
@@ -775,21 +781,21 @@ func (r *Request) AbsoluteURL(u string) string {
 // request and preserves the Context of the previous request.
 // Visit also calls the previously provided callbacks
 func (r *Request) Visit(URL string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx, nil)
+	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx, nil, true)
 }
 
 // Post continues a collector job by creating a POST request and preserves the Context
 // of the previous request.
 // Post also calls the previously provided callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), r.Ctx, nil)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), r.Ctx, nil, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
 // PostRaw preserves the Context of the previous request
 // and calls the previously provided callbacks
 func (r *Request) PostRaw(URL string, requestData []byte) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, bytes.NewReader(requestData), r.Ctx, nil)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, bytes.NewReader(requestData), r.Ctx, nil, true)
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
@@ -800,7 +806,12 @@ func (r *Request) PostMultipart(URL string, requestData map[string][]byte) error
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", r.collector.UserAgent)
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, requestData), r.Ctx, hdr)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, requestData), r.Ctx, hdr, true)
+}
+
+// Retry submits HTTP request again with the same parameters
+func (r *Request) Retry() error {
+	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, false)
 }
 
 // UnmarshalBinary decodes Context value to nil
