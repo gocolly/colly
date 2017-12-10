@@ -175,14 +175,14 @@ func NewContext() *Context {
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
-	c.visitedURLs = make(map[uint64]bool, 0)
+	c.visitedURLs = make(map[uint64]bool)
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	c.backend.Init()
 	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
-	c.robotsMap = make(map[string]*robotstxt.RobotsData, 0)
+	c.robotsMap = make(map[string]*robotstxt.RobotsData)
 	c.IgnoreRobotsTxt = true
 	c.Id = atomic.AddUint32(&collectorCounter, 1)
 }
@@ -572,7 +572,7 @@ func (c *Collector) handleOnResponse(r *Response) {
 }
 
 func (c *Collector) handleOnHTML(resp *Response) {
-	if strings.Index(strings.ToLower(resp.Headers.Get("Content-Type")), "html") == -1 || len(c.htmlCallbacks) == 0 {
+	if !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") || len(c.htmlCallbacks) == 0 {
 		return
 	}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(resp.Body))
@@ -687,7 +687,7 @@ func (c *Collector) Clone() *Collector {
 		requestCallbacks:  make([]RequestCallback, 0, 8),
 		responseCallbacks: make([]ResponseCallback, 0, 8),
 		robotsMap:         c.robotsMap,
-		visitedURLs:       make(map[uint64]bool, 0),
+		visitedURLs:       make(map[uint64]bool),
 		wg:                c.wg,
 	}
 }
@@ -927,10 +927,10 @@ func randomBoundary() string {
 
 func (r *Response) fixCharset() {
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
-	if strings.Index(contentType, "charset") == -1 {
+	if !strings.Contains(contentType, "charset") {
 		return
 	}
-	if strings.Index(contentType, "utf-8") != -1 || strings.Index(contentType, "utf8") != -1 {
+	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
 		return
 	}
 	encodedBodyReader, err := charset.NewReader(bytes.NewReader(r.Body), contentType)
