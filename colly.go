@@ -72,6 +72,7 @@ type Collector struct {
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
 	errorCallbacks    []ErrorCallback
+	scrapedCallbacks  []ScrapedCallback
 	requestCount      uint32
 	responseCount     uint32
 	backend           *httpBackend
@@ -144,6 +145,9 @@ type HTMLCallback func(*HTMLElement)
 
 // ErrorCallback is a type alias for OnError callback functions
 type ErrorCallback func(*Response, error)
+
+// ScrapedCallback is a type alias for OnScraped callback functions
+type ScrapedCallback func(*Response)
 
 // ProxyFunc is a type alias for proxy setter functions.
 type ProxyFunc func(*http.Request) (*url.URL, error)
@@ -315,6 +319,8 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 
 	c.handleOnHTML(response)
 
+	c.handleOnScraped(response)
+
 	return nil
 }
 
@@ -485,6 +491,17 @@ func (c *Collector) OnError(f ErrorCallback) {
 	c.lock.Unlock()
 }
 
+// OnScraped registers a function. Function will be executed at the end
+// of a scraping.
+func (c *Collector) OnScraped(f ScrapedCallback) {
+	c.lock.Lock()
+	if c.scrapedCallbacks == nil {
+		c.scrapedCallbacks = make([]ScrapedCallback, 0, 4)
+	}
+	c.scrapedCallbacks = append(c.scrapedCallbacks, f)
+	c.lock.Unlock()
+}
+
 // WithTransport allows you to set a custom http.RoundTripper (transport)
 func (c *Collector) WithTransport(transport http.RoundTripper) {
 	c.backend.Client.Transport = transport
@@ -628,6 +645,17 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 		f(response, err)
 	}
 	return err
+}
+
+func (c *Collector) handleOnScraped(r *Response) {
+	if c.debugger != nil {
+		c.debugger.Event(createEvent("scraped", r.Request.Id, c.Id, map[string]string{
+			"url": r.Request.URL.String(),
+		}))
+	}
+	for _, f := range c.scrapedCallbacks {
+		f(r)
+	}
 }
 
 // Limit adds a new LimitRule to the collector

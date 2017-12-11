@@ -98,6 +98,7 @@ func TestCollectorVisit(t *testing.T) {
 
 	onRequestCalled := false
 	onResponseCalled := false
+	onScrapedCalled := false
 
 	c.OnRequest(func(r *Request) {
 		onRequestCalled = true
@@ -116,6 +117,18 @@ func TestCollectorVisit(t *testing.T) {
 		}
 	})
 
+	c.OnScraped(func(r *Response) {
+		if onResponseCalled == false {
+			t.Error("OnScraped called before OnResponse")
+		}
+
+		if onRequestCalled == false {
+			t.Error("OnScraped called before OnRequest")
+		}
+
+		onScrapedCalled = true
+	})
+
 	c.Visit(testServerRootURL)
 
 	if !onRequestCalled {
@@ -124,6 +137,10 @@ func TestCollectorVisit(t *testing.T) {
 
 	if !onResponseCalled {
 		t.Error("Failed to call OnResponse callback")
+	}
+
+	if !onResponseCalled {
+		t.Error("Failed to call OnScraped callback")
 	}
 }
 
