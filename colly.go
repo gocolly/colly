@@ -128,6 +128,18 @@ type HTMLElement struct {
 	DOM *goquery.Selection
 }
 
+// NewHTMLElementFromSelectionNode creates a HTMLElement from a goquery.Selection Node.
+func NewHTMLElementFromSelectionNode(resp *Response, s *goquery.Selection, n *html.Node) *HTMLElement {
+	return &HTMLElement{
+		Name:       n.Data,
+		Request:    resp.Request,
+		Response:   resp,
+		Text:       goquery.NewDocumentFromNode(n).Text(),
+		DOM:        s,
+		attributes: n.Attr,
+	}
+}
+
 // Context provides a tiny layer for passing data between callbacks
 type Context struct {
 	contextMap map[string]interface{}
@@ -599,14 +611,7 @@ func (c *Collector) handleOnHTML(resp *Response) {
 	for _, cc := range c.htmlCallbacks {
 		doc.Find(cc.Selector).Each(func(i int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
-				e := &HTMLElement{
-					Name:       n.Data,
-					Request:    resp.Request,
-					Response:   resp,
-					Text:       goquery.NewDocumentFromNode(n).Text(),
-					DOM:        s,
-					attributes: n.Attr,
-				}
+				e := NewHTMLElementFromSelectionNode(resp, s, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("html", resp.Request.Id, c.Id, map[string]string{
 						"selector": cc.Selector,
