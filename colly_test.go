@@ -141,7 +141,7 @@ func TestCollectorVisit(t *testing.T) {
 		t.Error("Failed to call OnResponse callback")
 	}
 
-	if !onResponseCalled {
+	if !onScrapedCalled {
 		t.Error("Failed to call OnScraped callback")
 	}
 }
