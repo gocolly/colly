@@ -69,7 +69,7 @@ If you are using Colly in a project please send a pull request to add it to the 
 ## Contributors
 
 This project exists thanks to all the people who contribute. [[Contribute]](CONTRIBUTING.md).
-<a href="graphs/contributors"><img src="https://opencollective.com/colly/contributors.svg?width=890" /></a>
+<a href="https://github.com/gocolly/colly/graphs/contributors"><img src="https://opencollective.com/colly/contributors.svg?width=890" /></a>
 
 
 ## Backers
