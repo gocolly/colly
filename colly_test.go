@@ -321,7 +321,7 @@ func TestHTMLElement(t *testing.T) {
 	})
 	len_elements := len(elements)
 	if len_elements != 1 {
-		t.Errorf("element lenght mismatch. got %d, expected %d.\n", len_elements, 1)
+		t.Errorf("element length mismatch. got %d, expected %d.\n", len_elements, 1)
 	}
 	v := elements[0]
 	if v.Name != "a" {
