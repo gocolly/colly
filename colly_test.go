@@ -319,9 +319,9 @@ func TestHTMLElement(t *testing.T) {
 			elements = append(elements, NewHTMLElementFromSelectionNode(resp, s, n))
 		}
 	})
-	len_elements := len(elements)
-	if len_elements != 1 {
-		t.Errorf("element length mismatch. got %d, expected %d.\n", len_elements, 1)
+	elementsLen := len(elements)
+	if elementsLen != 1 {
+		t.Errorf("element length mismatch. got %d, expected %d.\n", elementsLen, 1)
 	}
 	v := elements[0]
 	if v.Name != "a" {
