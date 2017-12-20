@@ -78,6 +78,7 @@ func (r *LimitRule) Init() error {
 }
 
 func (h *httpBackend) Init() {
+	rand.Seed(time.Now().UnixNano())
 	h.LimitRules = make([]*LimitRule, 0, 8)
 	jar, _ := cookiejar.New(nil)
 	h.Client = &http.Client{
@@ -152,7 +153,6 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		r.waitChan <- true
 		defer func(r *LimitRule) {
 			randomDelay := time.Duration(0)
-			rand.Seed(time.Now().UnixNano())
 			if r.RandomDelay != 0 {
 				randomDelay = time.Duration(rand.Intn(int(r.RandomDelay)))
 			}
