@@ -19,7 +19,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
 	"github.com/gocolly/colly/debug"
 
 	"google.golang.org/appengine"
@@ -71,6 +70,7 @@ type Collector struct {
 	htmlCallbacks     []*htmlCallbackContainer
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
+	pipelines         []Pipeline
 	errorCallbacks    []ErrorCallback
 	scrapedCallbacks  []ScrapedCallback
 	requestCount      uint32
@@ -152,6 +152,9 @@ type RequestCallback func(*Request)
 // ResponseCallback is a type alias for OnResponse callback functions
 type ResponseCallback func(*Response)
 
+// Pipeline is a type alias for AddPipeline callback functions
+type Pipeline func(item interface{}) (interface{})
+
 // HTMLCallback is a type alias for OnHTML callback functions
 type HTMLCallback func(*HTMLElement)
 
@@ -223,7 +226,12 @@ func (c *Collector) Appengine(req *http.Request) {
 func (c *Collector) Visit(URL string) error {
 	return c.scrape(URL, "GET", 1, nil, nil, nil, true)
 }
-
+//Add scraped items to go through a pipeline
+func (c *Collector) ItemScraped(item interface{}) {
+	for _, f := range c.pipelines {
+		item = f(item)
+	}
+}
 // Post starts a collector job by creating a POST request.
 // Post also calls the previously provided callbacks
 func (c *Collector) Post(URL string, requestData map[string]string) error {
@@ -476,6 +484,7 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Unlock()
 }
 
+
 // OnHTMLDetach deregister a function. Function will not be execute after detached
 func (c *Collector) OnHTMLDetach(goquerySelector string) {
 	c.lock.Lock()
@@ -549,7 +558,15 @@ func (c *Collector) SetProxy(proxyURL string) error {
 
 	return nil
 }
-
+// Add pipelines to process scraped items
+func (c *Collector) AddPipeline(f Pipeline){
+	c.lock.Lock()
+	if c.pipelines == nil {
+		c.pipelines = make([]Pipeline, 0, 4)
+	}
+	c.pipelines = append(c.pipelines, f)
+	c.lock.Unlock()
+}
 // SetProxyFunc sets a custom proxy setter/switcher function.
 // See built-in ProxyFuncs for more details.
 // This method overrides the previously used http.Transport
