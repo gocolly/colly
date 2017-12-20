@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
@@ -37,6 +38,8 @@ type LimitRule struct {
 	DomainGlob string
 	// Delay is the duration to wait before creating a new request to the matching domains
 	Delay time.Duration
+	// RandomDelay is the extra randomized duration to wait added to Delay before creating a new request
+	RandomDelay time.Duration
 	// Parallelism is the number of the maximum allowed concurrent requests of the matching domains
 	Parallelism    int
 	waitChan       chan bool
@@ -75,6 +78,7 @@ func (r *LimitRule) Init() error {
 }
 
 func (h *httpBackend) Init() {
+	rand.Seed(time.Now().UnixNano())
 	h.LimitRules = make([]*LimitRule, 0, 8)
 	jar, _ := cookiejar.New(nil)
 	h.Client = &http.Client{
@@ -148,7 +152,11 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if r != nil {
 		r.waitChan <- true
 		defer func(r *LimitRule) {
-			time.Sleep(r.Delay)
+			randomDelay := time.Duration(0)
+			if r.RandomDelay != 0 {
+				randomDelay = time.Duration(rand.Intn(int(r.RandomDelay)))
+			}
+			time.Sleep(r.Delay + randomDelay)
 			<-r.waitChan
 		}(r)
 	}
