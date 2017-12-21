@@ -120,11 +120,11 @@ func TestCollectorVisit(t *testing.T) {
 	})
 
 	c.OnScraped(func(r *Response) {
-		if onResponseCalled == false {
+		if !onResponseCalled {
 			t.Error("OnScraped called before OnResponse")
 		}
 
-		if onRequestCalled == false {
+		if !onRequestCalled {
 			t.Error("OnScraped called before OnRequest")
 		}
 
