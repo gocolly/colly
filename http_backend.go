@@ -137,10 +137,10 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 		}
 	}
 	file, err := os.Create(filename + "~")
-	defer file.Close()
 	if err != nil {
 		return resp, err
 	}
+	defer file.Close()
 	if err := gob.NewEncoder(file).Encode(resp); err != nil {
 		return resp, err
 	}
