@@ -12,7 +12,7 @@ import (
 
 // found in https://www.instagram.com/static/bundles/en_US_Commons.js/68e7390c5938.js
 // included from profile page
-const instagramQueryId string = "17888483320059182"
+const instagramQueryId = "17888483320059182"
 
 // "id": user id, "after": end cursor
 const nextPageURLTemplate string = `https://www.instagram.com/graphql/query/?query_id=17888483320059182&variables={"id":"%s","first":12,"after":"%s"}`
