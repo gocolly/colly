@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/saintfish/chardet"
 	"golang.org/x/net/html/charset"
 )
 
@@ -43,10 +44,18 @@ func (r *Response) FileName() string {
 	return SanitizeFileName(r.Request.URL.Path[1:])
 }
 
-func (r *Response) fixCharset() {
+func (r *Response) fixCharset(detectCharset bool) {
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
 	if !strings.Contains(contentType, "charset") {
-		return
+		if !detectCharset {
+			return
+		}
+		d := chardet.NewTextDetector()
+		r, err := d.DetectBest(r.Body)
+		if err != nil {
+			return
+		}
+		contentType = r.Charset
 	}
 	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
 		return
