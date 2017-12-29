@@ -322,6 +322,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
+	if req.URL.String() != parsedURL.String() {
+		request.URL = req.URL
+		request.Headers = &req.Header
+	}
 	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx
 	response.Request = request

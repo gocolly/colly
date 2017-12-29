@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
@@ -69,6 +70,14 @@ func init() {
 		w.WriteHeader(200)
 		w.Write([]byte("disallowed"))
 	})
+
+	http.Handle("/redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/redirected/", http.StatusSeeOther)
+
+	}))
+	http.Handle("/redirected/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `<a href="test">test</a>`)
+	}))
 
 	http.HandleFunc("/set_cookie", func(w http.ResponseWriter, r *http.Request) {
 		c := &http.Cookie{Name: "test", Value: "testv", HttpOnly: false}
@@ -226,6 +235,17 @@ func TestCollectorPost(t *testing.T) {
 	c.Post(testServerRootURL+"login", map[string]string{
 		"name": postValue,
 	})
+}
+
+func TestRedirect(t *testing.T) {
+	c := NewCollector()
+	c.OnHTML("a[href]", func(e *HTMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		if !strings.HasSuffix(u, "/redirected/test") {
+			t.Error("Invalid URL after redirect: " + u)
+		}
+	})
+	c.Visit(testServerRootURL + "redirect")
 }
 
 func TestCollectorCookies(t *testing.T) {

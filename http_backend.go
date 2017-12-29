@@ -165,6 +165,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if err != nil {
 		return nil, err
 	}
+	*request = *res.Request
 
 	var bodyReader io.Reader = res.Body
 	if bodySize > 0 {
