@@ -185,7 +185,7 @@ func TestCollectorOnHTML(t *testing.T) {
 		}
 	})
 
-	c.Visit(testServerRootURL + "/html")
+	c.Visit(testServerRootURL + "html")
 
 	if !titleCallbackCalled {
 		t.Error("Failed to call OnHTML callback for <title> tag")
