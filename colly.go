@@ -171,6 +171,27 @@ type htmlCallbackContainer struct {
 
 var collectorCounter uint32
 
+var (
+	// ErrForbiddenDomain is the error thrown if visiting
+	// a domain which is not allowed in AllowedDomains
+	ErrForbiddenDomain = errors.New("Forbidden domain")
+	// ErrMissingURL is the error type for missing URL errors
+	ErrMissingURL = errors.New("Missing URL")
+	// ErrMaxDepth is the error type for exceeding max depth
+	ErrMaxDepth = errors.New("Max depth limit reached")
+	// ErrNoURLFiltersMatch is the error thrown if visiting
+	// a URL which is not allowed by URLFilters
+	ErrNoURLFiltersMatch = errors.New("No URLFilters match")
+	// ErrAlreadyVisited is the error type for already visited URLs
+	ErrAlreadyVisited = errors.New("URL already visited")
+	// ErrRobotsTxtBlocked is the error type for robots.txt errors
+	ErrRobotsTxtBlocked = errors.New("URL blocked by robots.txt")
+	// ErrNoCookieJar is the error type for missing cookie jar
+	ErrNoCookieJar = errors.New("Cookie jar is not available")
+	// ErrNoPattern is the error type for LimitRules without patterns
+	ErrNoPattern = errors.New("No pattern defined in LimitRule")
+)
+
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector() *Collector {
 	c := &Collector{}
@@ -280,7 +301,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		parsedURL.Scheme = "http"
 	}
 	if !c.isDomainAllowed(parsedURL.Host) {
-		return errors.New("Forbidden domain")
+		return ErrForbiddenDomain
 	}
 	if !c.IgnoreRobotsTxt {
 		if err = c.checkRobots(parsedURL); err != nil {
@@ -342,10 +363,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 
 func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool) error {
 	if u == "" {
-		return errors.New("Missing URL")
+		return ErrMissingURL
 	}
 	if c.MaxDepth > 0 && c.MaxDepth < depth {
-		return errors.New("Max depth limit reached")
+		return ErrMaxDepth
 	}
 	if len(c.URLFilters) > 0 {
 		matched := false
@@ -356,7 +377,7 @@ func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool)
 			}
 		}
 		if !matched {
-			return errors.New("No URLFilters match")
+			return ErrNoURLFiltersMatch
 		}
 	}
 	if checkRevisit && !c.AllowURLRevisit && method == "GET" {
@@ -367,7 +388,7 @@ func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool)
 		visited := c.visitedURLs[uHash]
 		c.lock.RUnlock()
 		if visited {
-			return errors.New("URL already visited")
+			return ErrAlreadyVisited
 		}
 		c.lock.Lock()
 		c.visitedURLs[uHash] = true
@@ -420,7 +441,7 @@ func (c *Collector) checkRobots(u *url.URL) error {
 	}
 
 	if !uaGroup.Test(u.EscapedPath()) {
-		return errors.New("URL blocked by robots.txt")
+		return ErrRobotsTxtBlocked
 	}
 	return nil
 }
@@ -680,7 +701,7 @@ func (c *Collector) Limits(rules []*LimitRule) error {
 // SetCookies handles the receipt of the cookies in a reply for the given URL
 func (c *Collector) SetCookies(URL string, cookies []*http.Cookie) error {
 	if c.backend.Client.Jar == nil {
-		return errors.New("Cookie jar is not available")
+		return ErrNoCookieJar
 	}
 	u, err := url.Parse(URL)
 	if err != nil {

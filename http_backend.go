@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
-	"errors"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -72,7 +71,7 @@ func (r *LimitRule) Init() error {
 		hasPattern = true
 	}
 	if !hasPattern {
-		return errors.New("No pattern defined in LimitRule")
+		return ErrNoPattern
 	}
 	return nil
 }
