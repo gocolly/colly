@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"io/ioutil"
-	"mime"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -24,9 +22,6 @@ import (
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
-
-	"golang.org/x/net/html"
-	"golang.org/x/net/html/charset"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/kennygrant/sanitize"
@@ -80,72 +75,6 @@ type Collector struct {
 	lock              *sync.RWMutex
 }
 
-// Request is the representation of a HTTP request made by a Collector
-type Request struct {
-	// URL is the parsed URL of the HTTP request
-	URL *url.URL
-	// Headers contains the Request's HTTP headers
-	Headers *http.Header
-	// Ctx is a context between a Request and a Response
-	Ctx *Context
-	// Depth is the number of the parents of the request
-	Depth int
-	// Method is the HTTP method of the request
-	Method string
-	// Body is the request body which is used on POST/PUT requests
-	Body io.Reader
-	// Unique identifier of the request
-	Id        uint32
-	collector *Collector
-}
-
-// Response is the representation of a HTTP response made by a Collector
-type Response struct {
-	// StatusCode is the status code of the Response
-	StatusCode int
-	// Body is the content of the Response
-	Body []byte
-	// Ctx is a context between a Request and a Response
-	Ctx *Context
-	// Request is the Request object of the response
-	Request *Request
-	// Headers contains the Response's HTTP headers
-	Headers *http.Header
-}
-
-// HTMLElement is the representation of a HTML tag.
-type HTMLElement struct {
-	// Name is the name of the tag
-	Name       string
-	Text       string
-	attributes []html.Attribute
-	// Request is the request object of the element's HTML document
-	Request *Request
-	// Response is the Response object of the element's HTML document
-	Response *Response
-	// DOM is the goquery parsed DOM object of the page. DOM is relative
-	// to the current HTMLElement
-	DOM *goquery.Selection
-}
-
-// NewHTMLElementFromSelectionNode creates a HTMLElement from a goquery.Selection Node.
-func NewHTMLElementFromSelectionNode(resp *Response, s *goquery.Selection, n *html.Node) *HTMLElement {
-	return &HTMLElement{
-		Name:       n.Data,
-		Request:    resp.Request,
-		Response:   resp,
-		Text:       goquery.NewDocumentFromNode(n).Text(),
-		DOM:        s,
-		attributes: n.Attr,
-	}
-}
-
-// Context provides a tiny layer for passing data between callbacks
-type Context struct {
-	contextMap map[string]interface{}
-	lock       *sync.RWMutex
-}
-
 // RequestCallback is a type alias for OnRequest callback functions
 type RequestCallback func(*Request)
 
@@ -197,14 +126,6 @@ func NewCollector() *Collector {
 	c := &Collector{}
 	c.Init()
 	return c
-}
-
-// NewContext initializes a new Context instance
-func NewContext() *Context {
-	return &Context{
-		contextMap: make(map[string]interface{}),
-		lock:       &sync.RWMutex{},
-	}
 }
 
 // Init initializes the Collector's private variables and sets default
@@ -779,158 +700,6 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 	}
 }
 
-// Attr returns the selected attribute of a HTMLElement or empty string
-// if no attribute found
-func (h *HTMLElement) Attr(k string) string {
-	for _, a := range h.attributes {
-		if a.Key == k {
-			return a.Val
-		}
-	}
-	return ""
-}
-
-// ChildText returns the concatenated and stripped text content of the matching
-// elements.
-func (h *HTMLElement) ChildText(goquerySelector string) string {
-	return strings.TrimSpace(h.DOM.Find(goquerySelector).Text())
-}
-
-// ChildAttr returns the stripped text content of the first matching
-// element's attribute.
-func (h *HTMLElement) ChildAttr(goquerySelector, attrName string) string {
-	if attr, ok := h.DOM.Find(goquerySelector).Attr(attrName); ok {
-		return strings.TrimSpace(attr)
-	}
-	return ""
-}
-
-// ChildAttrs returns the stripped text content of all the matching
-// element's attributes.
-func (h *HTMLElement) ChildAttrs(goquerySelector, attrName string) []string {
-	res := make([]string, 0)
-	h.DOM.Find(goquerySelector).Each(func(_ int, s *goquery.Selection) {
-		if attr, ok := s.Attr(attrName); ok {
-			res = append(res, strings.TrimSpace(attr))
-		}
-	})
-	return res
-}
-
-// AbsoluteURL returns with the resolved absolute URL of an URL chunk.
-// AbsoluteURL returns empty string if the URL chunk is a fragment or
-// could not be parsed
-func (r *Request) AbsoluteURL(u string) string {
-	if strings.HasPrefix(u, "#") {
-		return ""
-	}
-	absURL, err := r.URL.Parse(u)
-	if err != nil {
-		return ""
-	}
-	absURL.Fragment = ""
-	if absURL.Scheme == "//" {
-		absURL.Scheme = r.URL.Scheme
-	}
-	return absURL.String()
-}
-
-// Visit continues Collector's collecting job by creating a
-// request and preserves the Context of the previous request.
-// Visit also calls the previously provided callbacks
-func (r *Request) Visit(URL string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx, nil, true)
-}
-
-// Post continues a collector job by creating a POST request and preserves the Context
-// of the previous request.
-// Post also calls the previously provided callbacks
-func (r *Request) Post(URL string, requestData map[string]string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), r.Ctx, nil, true)
-}
-
-// PostRaw starts a collector job by creating a POST request with raw binary data.
-// PostRaw preserves the Context of the previous request
-// and calls the previously provided callbacks
-func (r *Request) PostRaw(URL string, requestData []byte) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, bytes.NewReader(requestData), r.Ctx, nil, true)
-}
-
-// PostMultipart starts a collector job by creating a Multipart POST request
-// with raw binary data.  PostMultipart also calls the previously provided.
-// callbacks
-func (r *Request) PostMultipart(URL string, requestData map[string][]byte) error {
-	boundary := randomBoundary()
-	hdr := http.Header{}
-	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
-	hdr.Set("User-Agent", r.collector.UserAgent)
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, requestData), r.Ctx, hdr, true)
-}
-
-// Retry submits HTTP request again with the same parameters
-func (r *Request) Retry() error {
-	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, false)
-}
-
-// UnmarshalBinary decodes Context value to nil
-// This function is used by request caching
-func (c *Context) UnmarshalBinary(_ []byte) error {
-	return nil
-}
-
-// MarshalBinary encodes Context value
-// This function is used by request caching
-func (c *Context) MarshalBinary() (_ []byte, _ error) {
-	return nil, nil
-}
-
-// Put stores a value of any type in Context
-func (c *Context) Put(key string, value interface{}) {
-	c.lock.Lock()
-	c.contextMap[key] = value
-	c.lock.Unlock()
-}
-
-// Get retrieves a string value from Context.
-// Get returns an empty string if key not found
-func (c *Context) Get(key string) string {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	if v, ok := c.contextMap[key]; ok {
-		return v.(string)
-	}
-	return ""
-}
-
-// GetAny retrieves a value from Context.
-// GetAny returns nil if key not found
-func (c *Context) GetAny(key string) interface{} {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	if v, ok := c.contextMap[key]; ok {
-		return v
-	}
-	return nil
-}
-
-// Save writes response body to disk
-func (r *Response) Save(fileName string) error {
-	return ioutil.WriteFile(fileName, r.Body, 0644)
-}
-
-// FileName returns the sanitized file name parsed from "Content-Disposition"
-// header or from URL
-func (r *Response) FileName() string {
-	_, params, err := mime.ParseMediaType(r.Headers.Get("Content-Disposition"))
-	if fName, ok := params["filename"]; ok && err == nil {
-		return SanitizeFileName(fName)
-	}
-	if r.Request.URL.RawQuery != "" {
-		return SanitizeFileName(fmt.Sprintf("%s_%s", r.Request.URL.Path, r.Request.URL.RawQuery))
-	}
-	return SanitizeFileName(r.Request.URL.Path[1:])
-}
-
 // SanitizeFileName replaces dangerous characters in a string
 // so the return value can be used as a safe file name.
 func SanitizeFileName(fileName string) string {
@@ -981,23 +750,4 @@ func randomBoundary() string {
 		panic(err)
 	}
 	return fmt.Sprintf("%x", buf[:])
-}
-
-func (r *Response) fixCharset() {
-	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
-	if !strings.Contains(contentType, "charset") {
-		return
-	}
-	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
-		return
-	}
-	encodedBodyReader, err := charset.NewReader(bytes.NewReader(r.Body), contentType)
-	if err != nil {
-		return
-	}
-	tmpBody, err := ioutil.ReadAll(encodedBodyReader)
-	if err != nil {
-		return
-	}
-	r.Body = tmpBody
 }
