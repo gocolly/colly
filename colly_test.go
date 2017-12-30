@@ -12,11 +12,11 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var testServerPort int = 31337
-var testServerAddr string = fmt.Sprintf("127.0.0.1:%d", testServerPort)
-var testServerRootURL string = fmt.Sprintf("http://%s/", testServerAddr)
-var serverIndexResponse []byte = []byte("hello world\n")
-var robotsFile string = `
+var testServerPort = 31337
+var testServerAddr = fmt.Sprintf("127.0.0.1:%d", testServerPort)
+var testServerRootURL = fmt.Sprintf("http://%s/", testServerAddr)
+var serverIndexResponse = []byte("hello world\n")
+var robotsFile = `
 User-agent: *
 Allow: /allowed
 Disallow: /disallowed
@@ -169,7 +169,7 @@ func TestCollectorOnHTML(t *testing.T) {
 	})
 
 	c.OnHTML("p", func(e *HTMLElement) {
-		paragraphCallbackCount += 1
+		paragraphCallbackCount++
 		if e.Attr("class") != "description" {
 			t.Error("Failed to get paragraph's class attribute")
 		}
@@ -202,7 +202,7 @@ func TestCollectorURLRevisit(t *testing.T) {
 	visitCount := 0
 
 	c.OnRequest(func(r *Request) {
-		visitCount += 1
+		visitCount++
 	})
 
 	c.Visit(testServerRootURL)

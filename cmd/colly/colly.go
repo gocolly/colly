@@ -10,7 +10,7 @@ import (
 	"github.com/jawher/mow.cli"
 )
 
-var scraperHeadTemplate string = `package main
+var scraperHeadTemplate = `package main
 
 import (
 	"log"
@@ -22,30 +22,30 @@ func main() {
 	c := colly.NewCollector()
 `
 
-var scraperEndTemplate string = `
+var scraperEndTemplate = `
 	c.Visit("https://yourdomain.com/")
 }
 `
 
-var htmlCallbackTemplate string = `
+var htmlCallbackTemplate = `
 	c.OnHTML("element-selector", func(e *colly.HTMLElement) {
 		log.Println(e.Text)
 	})
 `
 
-var requestCallbackTemplate string = `
+var requestCallbackTemplate = `
 	c.OnRequest("element-selector", func(r *colly.Request) {
 		log.Println("Visiting", r.URL)
 	})
 `
 
-var responseCallbackTemplate string = `
+var responseCallbackTemplate = `
 	c.OnResponse("element-selector", func(r *colly.Response) {
 		log.Println("Visited", r.Request.URL, r.StatusCode)
 	})
 `
 
-var errorCallbackTemplate string = `
+var errorCallbackTemplate = `
 	c.OnError("element-selector", func(r *colly.Response, err error) {
 		log.Printf("Error on %s: %s", r.Request.URL, err)
 	})

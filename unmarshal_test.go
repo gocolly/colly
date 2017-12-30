@@ -7,8 +7,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var basicTestData []byte = []byte(`<ul><li class="x">list <span>item</span> 1</li><li>list item 2</li><li>3</li></ul>`)
-var nestedTestData []byte = []byte(`<div><p>a</p><div><p>b</p><div><p>c</p></div></div></div>`)
+var basicTestData = []byte(`<ul><li class="x">list <span>item</span> 1</li><li>list item 2</li><li>3</li></ul>`)
+var nestedTestData = []byte(`<div><p>a</p><div><p>b</p><div><p>c</p></div></div></div>`)
 
 func TestBasicUnmarshal(t *testing.T) {
 	doc, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(basicTestData))
