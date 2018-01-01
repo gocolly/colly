@@ -59,7 +59,10 @@ type Collector struct {
 	// information.
 	IgnoreRobotsTxt bool
 	// Id is the unique identifier of a collector
-	Id                uint32
+	Id uint32
+	// DetectCharset can enable character encoding detection for non-utf8 response bodies
+	// without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
+	DetectCharset     bool
 	debugger          debug.Debugger
 	visitedURLs       map[uint64]bool
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -271,7 +274,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx
 	response.Request = request
-	response.fixCharset()
+	response.fixCharset(c.DetectCharset)
 
 	c.handleOnResponse(response)
 
