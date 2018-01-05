@@ -4,10 +4,10 @@ package debug
 type Event struct {
 	// Type is the type of the event
 	Type string
-	// RequestId identifies the HTTP request of the Event
-	RequestId uint32
-	// CollectorId identifies the collector of the Event
-	CollectorId uint32
+	// RequestID identifies the HTTP request of the Event
+	RequestID uint32
+	// CollectorID identifies the collector of the Event
+	CollectorID uint32
 	// Values contains the event's key-value pairs. Different type of events
 	// can return different key-value pairs
 	Values map[string]string

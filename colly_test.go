@@ -233,8 +233,8 @@ func TestNewCollector(t *testing.T) {
 			} {
 				c := NewCollector(ID(id))
 
-				if got, want := c.Id, id; got != want {
-					t.Fatalf("c.Id = %d, want %d", got, want)
+				if got, want := c.ID, id; got != want {
+					t.Fatalf("c.ID = %d, want %d", got, want)
 				}
 			}
 		})

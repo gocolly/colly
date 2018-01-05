@@ -22,8 +22,8 @@ type Request struct {
 	Method string
 	// Body is the request body which is used on POST/PUT requests
 	Body io.Reader
-	// Unique identifier of the request
-	Id        uint32
+	// ID is the Unique identifier of the request
+	ID        uint32
 	collector *Collector
 }
 

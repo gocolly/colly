@@ -17,12 +17,12 @@ type WebDebugger struct {
 }
 
 type requestInfo struct {
-	Url            string
+	URL            string
 	Started        time.Time
 	Duration       time.Duration
 	ResponseStatus string
-	Id             uint32
-	CollectorId    uint32
+	ID             uint32
+	CollectorID    uint32
 }
 
 // Init initializes the WebDebugger
@@ -49,18 +49,18 @@ func (w *WebDebugger) Init() error {
 func (w *WebDebugger) Event(e *Event) {
 	switch e.Type {
 	case "request":
-		w.CurrentRequests[e.RequestId] = requestInfo{
-			Url:         e.Values["url"],
+		w.CurrentRequests[e.RequestID] = requestInfo{
+			URL:         e.Values["url"],
 			Started:     time.Now(),
-			Id:          e.RequestId,
-			CollectorId: e.CollectorId,
+			ID:          e.RequestID,
+			CollectorID: e.CollectorID,
 		}
 	case "response", "error":
-		r := w.CurrentRequests[e.RequestId]
+		r := w.CurrentRequests[e.RequestID]
 		r.Duration = time.Since(r.Started)
 		r.ResponseStatus = e.Values["status"]
 		w.RequestLog = append(w.RequestLog, r)
-		delete(w.CurrentRequests, e.RequestId)
+		delete(w.CurrentRequests, e.RequestID)
 	}
 }
 

@@ -58,8 +58,8 @@ type Collector struct {
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
 	// information.
 	IgnoreRobotsTxt bool
-	// Id is the unique identifier of a collector
-	Id uint32
+	// ID is the unique identifier of a collector
+	ID uint32
 	// DetectCharset can enable character encoding detection for non-utf8 response bodies
 	// without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
 	DetectCharset     bool
@@ -204,7 +204,7 @@ func IgnoreRobotsTxt() func(*Collector) {
 // ID sets the unique identifier of the Collector.
 func ID(id uint32) func(*Collector) {
 	return func(c *Collector) {
-		c.Id = id
+		c.ID = id
 	}
 }
 
@@ -238,7 +238,7 @@ func (c *Collector) Init() {
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData)
 	c.IgnoreRobotsTxt = true
-	c.Id = atomic.AddUint32(&collectorCounter, 1)
+	c.ID = atomic.AddUint32(&collectorCounter, 1)
 }
 
 // Appengine will replace the Collector's backend http.Client
@@ -348,7 +348,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Method:    method,
 		Body:      requestData,
 		collector: c,
-		Id:        atomic.AddUint32(&c.requestCount, 1),
+		ID:        atomic.AddUint32(&c.requestCount, 1),
 	}
 
 	c.handleOnRequest(request)
@@ -610,10 +610,10 @@ func (c *Collector) SetProxyFunc(p ProxyFunc) {
 	}
 }
 
-func createEvent(eventType string, requestId, collectorId uint32, kvargs map[string]string) *debug.Event {
+func createEvent(eventType string, requestID, collectorID uint32, kvargs map[string]string) *debug.Event {
 	return &debug.Event{
-		CollectorId: collectorId,
-		RequestId:   requestId,
+		CollectorID: collectorID,
+		RequestID:   requestID,
 		Type:        eventType,
 		Values:      kvargs,
 	}
@@ -621,7 +621,7 @@ func createEvent(eventType string, requestId, collectorId uint32, kvargs map[str
 
 func (c *Collector) handleOnRequest(r *Request) {
 	if c.debugger != nil {
-		c.debugger.Event(createEvent("request", r.Id, c.Id, map[string]string{
+		c.debugger.Event(createEvent("request", r.ID, c.ID, map[string]string{
 			"url": r.URL.String(),
 		}))
 	}
@@ -632,7 +632,7 @@ func (c *Collector) handleOnRequest(r *Request) {
 
 func (c *Collector) handleOnResponse(r *Response) {
 	if c.debugger != nil {
-		c.debugger.Event(createEvent("response", r.Request.Id, c.Id, map[string]string{
+		c.debugger.Event(createEvent("response", r.Request.ID, c.ID, map[string]string{
 			"url":    r.Request.URL.String(),
 			"status": http.StatusText(r.StatusCode),
 		}))
@@ -655,7 +655,7 @@ func (c *Collector) handleOnHTML(resp *Response) {
 			for _, n := range s.Nodes {
 				e := NewHTMLElementFromSelectionNode(resp, s, n)
 				if c.debugger != nil {
-					c.debugger.Event(createEvent("html", resp.Request.Id, c.Id, map[string]string{
+					c.debugger.Event(createEvent("html", resp.Request.ID, c.ID, map[string]string{
 						"selector": cc.Selector,
 						"url":      resp.Request.URL.String(),
 					}))
@@ -680,7 +680,7 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 		}
 	}
 	if c.debugger != nil {
-		c.debugger.Event(createEvent("error", request.Id, c.Id, map[string]string{
+		c.debugger.Event(createEvent("error", request.ID, c.ID, map[string]string{
 			"url":    request.URL.String(),
 			"status": http.StatusText(response.StatusCode),
 		}))
@@ -696,7 +696,7 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 
 func (c *Collector) handleOnScraped(r *Response) {
 	if c.debugger != nil {
-		c.debugger.Event(createEvent("scraped", r.Request.Id, c.Id, map[string]string{
+		c.debugger.Event(createEvent("scraped", r.Request.ID, c.ID, map[string]string{
 			"url": r.Request.URL.String(),
 		}))
 	}
@@ -748,7 +748,7 @@ func (c *Collector) Clone() *Collector {
 		AllowedDomains:    c.AllowedDomains,
 		CacheDir:          c.CacheDir,
 		DisallowedDomains: c.DisallowedDomains,
-		Id:                atomic.AddUint32(&collectorCounter, 1),
+		ID:                atomic.AddUint32(&collectorCounter, 1),
 		IgnoreRobotsTxt:   c.IgnoreRobotsTxt,
 		MaxBodySize:       c.MaxBodySize,
 		MaxDepth:          c.MaxDepth,
