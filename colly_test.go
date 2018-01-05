@@ -6,10 +6,14 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
+
+	"github.com/gocolly/colly/debug"
 )
 
 var testServerPort = 31337
@@ -102,6 +106,156 @@ func init() {
 			log.Printf("Httpserver: ListenAndServe() error: %s", err)
 		}
 	}()
+}
+
+func TestNewCollector(t *testing.T) {
+	t.Run("Functional Options", func(t *testing.T) {
+		t.Run("UserAgent", func(t *testing.T) {
+			for _, ua := range []string{
+				"foo",
+				"bar",
+			} {
+				c := NewCollector(UserAgent(ua))
+
+				if got, want := c.UserAgent, ua; got != want {
+					t.Fatalf("c.UserAgent = %q, want %q", got, want)
+				}
+			}
+		})
+
+		t.Run("MaxDepth", func(t *testing.T) {
+			for _, depth := range []int{
+				12,
+				34,
+				0,
+			} {
+				c := NewCollector(MaxDepth(depth))
+
+				if got, want := c.MaxDepth, depth; got != want {
+					t.Fatalf("c.MaxDepth = %d, want %d", got, want)
+				}
+			}
+		})
+
+		t.Run("AllowedDomains", func(t *testing.T) {
+			for _, domains := range [][]string{
+				[]string{"example.com", "example.net"},
+				[]string{"example.net"},
+				[]string{},
+				nil,
+			} {
+				c := NewCollector(AllowedDomains(domains...))
+
+				if got, want := c.AllowedDomains, domains; !reflect.DeepEqual(got, want) {
+					t.Fatalf("c.AllowedDomains = %q, want %q", got, want)
+				}
+			}
+		})
+
+		t.Run("DisallowedDomains", func(t *testing.T) {
+			for _, domains := range [][]string{
+				[]string{"example.com", "example.net"},
+				[]string{"example.net"},
+				[]string{},
+				nil,
+			} {
+				c := NewCollector(DisallowedDomains(domains...))
+
+				if got, want := c.DisallowedDomains, domains; !reflect.DeepEqual(got, want) {
+					t.Fatalf("c.DisallowedDomains = %q, want %q", got, want)
+				}
+			}
+		})
+
+		t.Run("URLFilters", func(t *testing.T) {
+			for _, filters := range [][]*regexp.Regexp{
+				[]*regexp.Regexp{regexp.MustCompile(`\w+`)},
+				[]*regexp.Regexp{regexp.MustCompile(`\d+`)},
+				[]*regexp.Regexp{},
+				nil,
+			} {
+				c := NewCollector(URLFilters(filters...))
+
+				if got, want := c.URLFilters, filters; !reflect.DeepEqual(got, want) {
+					t.Fatalf("c.URLFilters = %v, want %v", got, want)
+				}
+			}
+		})
+
+		t.Run("AllowURLRevisit", func(t *testing.T) {
+			c := NewCollector(AllowURLRevisit())
+
+			if !c.AllowURLRevisit {
+				t.Fatal("c.AllowURLRevisit = false, want true")
+			}
+		})
+
+		t.Run("MaxBodySize", func(t *testing.T) {
+			for _, sizeInBytes := range []int{
+				1024 * 1024,
+				1024,
+				0,
+			} {
+				c := NewCollector(MaxBodySize(sizeInBytes))
+
+				if got, want := c.MaxBodySize, sizeInBytes; got != want {
+					t.Fatalf("c.MaxBodySize = %d, want %d", got, want)
+				}
+			}
+		})
+
+		t.Run("CacheDir", func(t *testing.T) {
+			for _, path := range []string{
+				"/tmp/",
+				"/var/cache/",
+			} {
+				c := NewCollector(CacheDir(path))
+
+				if got, want := c.CacheDir, path; got != want {
+					t.Fatalf("c.CacheDir = %q, want %q", got, want)
+				}
+			}
+		})
+
+		t.Run("IgnoreRobotsTxt", func(t *testing.T) {
+			c := NewCollector(IgnoreRobotsTxt())
+
+			if !c.IgnoreRobotsTxt {
+				t.Fatal("c.IgnoreRobotsTxt = false, want true")
+			}
+		})
+
+		t.Run("ID", func(t *testing.T) {
+			for _, id := range []uint32{
+				0,
+				1,
+				2,
+			} {
+				c := NewCollector(ID(id))
+
+				if got, want := c.Id, id; got != want {
+					t.Fatalf("c.Id = %d, want %d", got, want)
+				}
+			}
+		})
+
+		t.Run("DetectCharset", func(t *testing.T) {
+			c := NewCollector(DetectCharset())
+
+			if !c.DetectCharset {
+				t.Fatal("c.DetectCharset = false, want true")
+			}
+		})
+
+		t.Run("Debugger", func(t *testing.T) {
+			d := &debug.LogDebugger{}
+			c := NewCollector(Debugger(d))
+
+			if got, want := c.debugger, d; got != want {
+				t.Fatalf("c.debugger = %v, want %v", got, want)
+			}
+		})
+	})
 }
 
 func TestCollectorVisit(t *testing.T) {
