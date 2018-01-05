@@ -25,13 +25,14 @@ type Course struct {
 
 func main() {
 	// Instantiate default collector
-	c := colly.NewCollector()
-	// Using IndonesiaX as sample
-	c.AllowedDomains = []string{"indonesiax.co.id", "www.indonesiax.co.id"}
+	c := colly.NewCollector(
+		// Using IndonesiaX as sample
+		colly.AllowedDomains("indonesiax.co.id", "www.indonesiax.co.id"),
 
-	// Cache responses to prevent multiple download of pages
-	// even if the collector is restarted
-	c.CacheDir = "./cache"
+		// Cache responses to prevent multiple download of pages
+		// even if the collector is restarted
+		colly.CacheDir("./cache"),
+	)
 
 	courses := make([]Course, 0, 200)
 

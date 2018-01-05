@@ -25,14 +25,14 @@ type Course struct {
 
 func main() {
 	// Instantiate default collector
-	c := colly.NewCollector()
+	c := colly.NewCollector(
+		// Visit only domains: coursera.org, www.coursera.org
+		colly.AllowedDomains("coursera.org", "www.coursera.org"),
 
-	// Visit only domains: coursera.org, www.coursera.org
-	c.AllowedDomains = []string{"coursera.org", "www.coursera.org"}
-
-	// Cache responses to prevent multiple download of pages
-	// even if the collector is restarted
-	c.CacheDir = "./coursera_cache"
+		// Cache responses to prevent multiple download of pages
+		// even if the collector is restarted
+		colly.CacheDir("./coursera_cache"),
+	)
 
 	// Create another collector to scrape course details
 	detailCollector := c.Clone()
