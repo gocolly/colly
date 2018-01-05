@@ -58,3 +58,16 @@ func (c *Context) GetAny(key string) interface{} {
 	}
 	return nil
 }
+
+// ForEach iterate context
+func (c *Context) ForEach(fn func(k string, v interface{}) interface{}) []interface{} {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	ret := make([]interface{}, 0, len(c.contextMap))
+	for k, v := range c.contextMap {
+		ret = append(ret, fn(k, v))
+	}
+
+	return ret
+}
