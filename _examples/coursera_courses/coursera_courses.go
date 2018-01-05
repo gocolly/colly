@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -104,12 +104,9 @@ func main() {
 	// Start scraping on http://coursera.com/browse
 	c.Visit("https://coursera.org/browse")
 
-	// Convert results to JSON data if the scraping job has finished
-	jsonData, err := json.MarshalIndent(courses, "", "  ")
-	if err != nil {
-		panic(err)
-	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
 
-	// Dump json to the standard output (can be redirected to a file)
-	fmt.Println(string(jsonData))
+	// Dump json to the standard output
+	enc.Encode(courses)
 }
