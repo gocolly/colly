@@ -1,18 +1,17 @@
 language: go
+sudo: false
 go:
   - 1.7.x
   - 1.8.x
   - 1.9.x
   - tip
-os:
-  - linux
-  # remove osx, getting vm from travis is extremely slow
-  # - osx
-#env:
-#  - "PATH=/home/travis/gopath/bin:$PATH"
+env:
+  - "PATH=$GOPATH/bin:$PATH"
 script:
+  - go get -u github.com/golang/lint/golint
   - OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
+  - OUT="$(golint ./...)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - go vet -v ./...
   - go test -race -v -coverprofile=coverage.txt -covermode=atomic ./
   - go build
