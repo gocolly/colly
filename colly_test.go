@@ -3,9 +3,8 @@ package colly
 import (
 	"bytes"
 	"fmt"
-	"log"
-	"net"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"regexp"
 	"strings"
@@ -16,9 +15,6 @@ import (
 	"github.com/gocolly/colly/debug"
 )
 
-var testServerPort = 31337
-var testServerAddr = fmt.Sprintf("127.0.0.1:%d", testServerPort)
-var testServerRootURL = fmt.Sprintf("http://%s/", testServerAddr)
 var serverIndexResponse = []byte("hello world\n")
 var robotsFile = `
 User-agent: *
@@ -26,18 +22,14 @@ Allow: /allowed
 Disallow: /disallowed
 `
 
-func init() {
-	srv := &http.Server{}
-	listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: testServerPort})
-	if err != nil {
-		panic(err)
-	}
+func newTestServer() *httptest.Server {
+	mux := http.NewServeMux()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(serverIndexResponse)
 	})
 
-	http.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Conent-Type", "text/html")
 		w.Write([]byte(`<!DOCTYPE html>
 <html>
@@ -53,44 +45,45 @@ func init() {
 		`))
 	})
 
-	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			w.Header().Set("Conent-Type", "text/html")
 			w.Write([]byte(r.FormValue("name")))
 		}
 	})
 
-	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(robotsFile))
 	})
 
-	http.HandleFunc("/allowed", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/allowed", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("allowed"))
 	})
 
-	http.HandleFunc("/disallowed", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/disallowed", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("disallowed"))
 	})
 
-	http.Handle("/redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/redirected/", http.StatusSeeOther)
 
 	}))
-	http.Handle("/redirected/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	mux.Handle("/redirected/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `<a href="test">test</a>`)
 	}))
 
-	http.HandleFunc("/set_cookie", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/set_cookie", func(w http.ResponseWriter, r *http.Request) {
 		c := &http.Cookie{Name: "test", Value: "testv", HttpOnly: false}
 		http.SetCookie(w, c)
 		w.WriteHeader(200)
 		w.Write([]byte("ok"))
 	})
 
-	http.HandleFunc("/check_cookie", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/check_cookie", func(w http.ResponseWriter, r *http.Request) {
 		cs := r.Cookies()
 		if len(cs) != 1 || r.Cookies()[0].Value != "testv" {
 			w.WriteHeader(500)
@@ -101,11 +94,7 @@ func init() {
 		w.Write([]byte("ok"))
 	})
 
-	go func() {
-		if err := srv.Serve(listener); err != nil {
-			log.Printf("Httpserver: ListenAndServe() error: %s", err)
-		}
-	}()
+	return httptest.NewServer(mux)
 }
 
 var newCollectorTests = map[string]func(*testing.T){
@@ -254,6 +243,9 @@ func TestNewCollector(t *testing.T) {
 }
 
 func TestCollectorVisit(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 
 	onRequestCalled := false
@@ -289,7 +281,7 @@ func TestCollectorVisit(t *testing.T) {
 		onScrapedCalled = true
 	})
 
-	c.Visit(testServerRootURL)
+	c.Visit(ts.URL)
 
 	if !onRequestCalled {
 		t.Error("Failed to call OnRequest callback")
@@ -305,6 +297,9 @@ func TestCollectorVisit(t *testing.T) {
 }
 
 func TestCollectorOnHTML(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 
 	titleCallbackCalled := false
@@ -334,7 +329,7 @@ func TestCollectorOnHTML(t *testing.T) {
 		}
 	})
 
-	c.Visit(testServerRootURL + "html")
+	c.Visit(ts.URL + "/html")
 
 	if !titleCallbackCalled {
 		t.Error("Failed to call OnHTML callback for <title> tag")
@@ -346,6 +341,9 @@ func TestCollectorOnHTML(t *testing.T) {
 }
 
 func TestCollectorURLRevisit(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 
 	visitCount := 0
@@ -354,8 +352,8 @@ func TestCollectorURLRevisit(t *testing.T) {
 		visitCount++
 	})
 
-	c.Visit(testServerRootURL)
-	c.Visit(testServerRootURL)
+	c.Visit(ts.URL)
+	c.Visit(ts.URL)
 
 	if visitCount != 1 {
 		t.Error("URL revisited")
@@ -363,8 +361,8 @@ func TestCollectorURLRevisit(t *testing.T) {
 
 	c.AllowURLRevisit = true
 
-	c.Visit(testServerRootURL)
-	c.Visit(testServerRootURL)
+	c.Visit(ts.URL)
+	c.Visit(ts.URL)
 
 	if visitCount != 3 {
 		t.Error("URL not revisited")
@@ -372,6 +370,9 @@ func TestCollectorURLRevisit(t *testing.T) {
 }
 
 func TestCollectorPost(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	postValue := "hello"
 	c := NewCollector()
 
@@ -381,12 +382,15 @@ func TestCollectorPost(t *testing.T) {
 		}
 	})
 
-	c.Post(testServerRootURL+"login", map[string]string{
+	c.Post(ts.URL+"/login", map[string]string{
 		"name": postValue,
 	})
 }
 
 func TestRedirect(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 	c.OnHTML("a[href]", func(e *HTMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
@@ -394,31 +398,40 @@ func TestRedirect(t *testing.T) {
 			t.Error("Invalid URL after redirect: " + u)
 		}
 	})
-	c.Visit(testServerRootURL + "redirect")
+	c.Visit(ts.URL + "/redirect")
 }
 
 func TestCollectorCookies(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 
-	if err := c.Visit(testServerRootURL + "set_cookie"); err != nil {
+	if err := c.Visit(ts.URL + "/set_cookie"); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := c.Visit(testServerRootURL + "check_cookie"); err != nil {
+	if err := c.Visit(ts.URL + "/check_cookie"); err != nil {
 		t.Fatalf("Failed to use previously set cookies: %s", err)
 	}
 }
 
 func BenchmarkVisit(b *testing.B) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 	c.OnHTML("p", func(_ *HTMLElement) {})
 
 	for n := 0; n < b.N; n++ {
-		c.Visit(fmt.Sprintf("%shtml?q=%d", testServerRootURL, n))
+		c.Visit(fmt.Sprintf("%s/html?q=%d", ts.URL, n))
 	}
 }
 
 func TestRobotsWhenAllowed(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 	c.IgnoreRobotsTxt = false
 
@@ -428,7 +441,7 @@ func TestRobotsWhenAllowed(t *testing.T) {
 		}
 	})
 
-	err := c.Visit(testServerRootURL + "allowed")
+	err := c.Visit(ts.URL + "/allowed")
 
 	if err != nil {
 		t.Fatal(err)
@@ -436,6 +449,9 @@ func TestRobotsWhenAllowed(t *testing.T) {
 }
 
 func TestRobotsWhenDisallowed(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 	c.IgnoreRobotsTxt = false
 
@@ -443,13 +459,16 @@ func TestRobotsWhenDisallowed(t *testing.T) {
 		t.Fatalf("Received response: %d", resp.StatusCode)
 	})
 
-	err := c.Visit(testServerRootURL + "disallowed")
+	err := c.Visit(ts.URL + "/disallowed")
 	if err.Error() != "URL blocked by robots.txt" {
 		t.Fatalf("wrong error message: %v", err)
 	}
 }
 
 func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
 	c := NewCollector()
 	c.IgnoreRobotsTxt = true
 
@@ -459,7 +478,7 @@ func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 		}
 	})
 
-	err := c.Visit(testServerRootURL + "disallowed")
+	err := c.Visit(ts.URL + "/disallowed")
 
 	if err != nil {
 		t.Fatal(err)
