@@ -20,11 +20,12 @@ func main() {
 	defer writer.Flush()
 	// Write CSV header
 	writer.Write([]string{"Name", "Price", "URL", "Image URL"})
-	// Instantiate default collector
-	c := colly.NewCollector()
 
-	// Allow requests only to store.xkcd.com
-	c.AllowedDomains = []string{"store.xkcd.com"}
+	// Instantiate default collector
+	c := colly.NewCollector(
+		// Allow requests only to store.xkcd.com
+		colly.AllowedDomains("store.xkcd.com"),
+	)
 
 	// Extract product details
 	c.OnHTML(".product-grid-item", func(e *colly.HTMLElement) {

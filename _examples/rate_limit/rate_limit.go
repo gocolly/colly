@@ -11,10 +11,10 @@ func main() {
 	url := "https://httpbin.org/delay/2"
 
 	// Instantiate default collector
-	c := colly.NewCollector()
-
-	// Attach a debugger to the collector
-	c.SetDebugger(&debug.LogDebugger{})
+	c := colly.NewCollector(
+		// Attach a debugger to the collector
+		colly.Debugger(&debug.LogDebugger{}),
+	)
 
 	// Limit the number of threads started by colly to two
 	// when visiting links which domains' matches "*httpbin.*" glob

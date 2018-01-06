@@ -8,10 +8,10 @@ import (
 
 func main() {
 	// Instantiate default collector
-	c := colly.NewCollector()
-
-	// Visit only domains: hackerspaces.org, wiki.hackerspaces.org
-	c.AllowedDomains = []string{"hackerspaces.org", "wiki.hackerspaces.org"}
+	c := colly.NewCollector(
+		// Visit only domains: hackerspaces.org, wiki.hackerspaces.org
+		colly.AllowedDomains("hackerspaces.org", "wiki.hackerspaces.org"),
+	)
 
 	// On every a element which has href attribute call callback
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {

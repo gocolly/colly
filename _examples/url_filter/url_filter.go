@@ -9,13 +9,13 @@ import (
 
 func main() {
 	// Instantiate default collector
-	c := colly.NewCollector()
-
-	// Visit only root url and urls which start with "e" or "h" on httpbin.org
-	c.URLFilters = []*regexp.Regexp{
-		regexp.MustCompile("http://httpbin\\.org/(|e.+)$"),
-		regexp.MustCompile("http://httpbin\\.org/h.+"),
-	}
+	c := colly.NewCollector(
+		// Visit only root url and urls which start with "e" or "h" on httpbin.org
+		colly.URLFilters(
+			regexp.MustCompile("http://httpbin\\.org/(|e.+)$"),
+			regexp.MustCompile("http://httpbin\\.org/h.+"),
+		),
+	)
 
 	// On every a element which has href attribute call callback
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {

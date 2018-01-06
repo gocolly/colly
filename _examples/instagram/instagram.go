@@ -32,9 +32,10 @@ func main() {
 	instagramAccount := os.Args[1]
 	outputDir := fmt.Sprintf("./instagram_%s/", instagramAccount)
 
-	c := colly.NewCollector()
-	c.CacheDir = "./_instagram_cache/"
-	c.UserAgent = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
+	c := colly.NewCollector(
+		colly.CacheDir("./_instagram_cache/"),
+		colly.UserAgent("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"),
+	)
 
 	c.OnHTML("body > script:first-of-type", func(e *colly.HTMLElement) {
 		jsonData := e.Text[strings.Index(e.Text, "{") : len(e.Text)-1]
