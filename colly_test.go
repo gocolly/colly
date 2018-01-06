@@ -109,6 +109,59 @@ func init() {
 }
 
 var newCollectorTests = map[string]func(*testing.T){
+	"UserAgent": func(t *testing.T) {
+		for _, ua := range []string{
+			"foo",
+			"bar",
+		} {
+			c := NewCollector(UserAgent(ua))
+
+			if got, want := c.UserAgent, ua; got != want {
+				t.Fatalf("c.UserAgent = %q, want %q", got, want)
+			}
+		}
+	},
+	"MaxDepth": func(t *testing.T) {
+		for _, depth := range []int{
+			12,
+			34,
+			0,
+		} {
+			c := NewCollector(MaxDepth(depth))
+
+			if got, want := c.MaxDepth, depth; got != want {
+				t.Fatalf("c.MaxDepth = %d, want %d", got, want)
+			}
+		}
+	},
+	"AllowedDomains": func(t *testing.T) {
+		for _, domains := range [][]string{
+			{"example.com", "example.net"},
+			{"example.net"},
+			{},
+			nil,
+		} {
+			c := NewCollector(AllowedDomains(domains...))
+
+			if got, want := c.AllowedDomains, domains; !reflect.DeepEqual(got, want) {
+				t.Fatalf("c.AllowedDomains = %q, want %q", got, want)
+			}
+		}
+	},
+	"DisallowedDomains": func(t *testing.T) {
+		for _, domains := range [][]string{
+			{"example.com", "example.net"},
+			{"example.net"},
+			{},
+			nil,
+		} {
+			c := NewCollector(DisallowedDomains(domains...))
+
+			if got, want := c.DisallowedDomains, domains; !reflect.DeepEqual(got, want) {
+				t.Fatalf("c.DisallowedDomains = %q, want %q", got, want)
+			}
+		}
+	},
 	"URLFilters": func(t *testing.T) {
 		for _, filters := range [][]*regexp.Regexp{
 			{regexp.MustCompile(`\w+`)},
@@ -140,6 +193,18 @@ var newCollectorTests = map[string]func(*testing.T){
 
 			if got, want := c.MaxBodySize, sizeInBytes; got != want {
 				t.Fatalf("c.MaxBodySize = %d, want %d", got, want)
+			}
+		}
+	},
+	"CacheDir": func(t *testing.T) {
+		for _, path := range []string{
+			"/tmp/",
+			"/var/cache/",
+		} {
+			c := NewCollector(CacheDir(path))
+
+			if got, want := c.CacheDir, path; got != want {
+				t.Fatalf("c.CacheDir = %q, want %q", got, want)
 			}
 		}
 	},
@@ -181,9 +246,11 @@ var newCollectorTests = map[string]func(*testing.T){
 }
 
 func TestNewCollector(t *testing.T) {
-	for n, f := range newCollectorTests {
-		t.Run(n, f)
-	}
+	t.Run("Functional Options", func(t *testing.T) {
+		for name, test := range newCollectorTests {
+			t.Run(name, test)
+		}
+	})
 }
 
 func TestCollectorVisit(t *testing.T) {
