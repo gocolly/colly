@@ -522,3 +522,47 @@ func TestHTMLElement(t *testing.T) {
 		t.Errorf("element href mismatch. got %s, expected %s.\n", v.Attr("href"), "http://go-colly.org")
 	}
 }
+
+func TestCollectorOnXML(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	titleCallbackCalled := false
+	paragraphCallbackCount := 0
+
+	c.OnXML("/html/head/title", func(e *XMLElement) {
+		titleCallbackCalled = true
+		if e.Text != "Test Page" {
+			t.Error("Title element text does not match, got", e.Text)
+		}
+	})
+
+	c.OnXML("/html/body/p", func(e *XMLElement) {
+		paragraphCallbackCount++
+		if e.Attr("class") != "description" {
+			t.Error("Failed to get paragraph's class attribute")
+		}
+	})
+
+	c.OnXML("/html/body", func(e *XMLElement) {
+		if e.ChildAttr("p", "class") != "description" {
+			t.Error("Invalid class value")
+		}
+		classes := e.ChildAttrs("p", "class")
+		if len(classes) != 2 {
+			t.Error("Invalid class values")
+		}
+	})
+
+	c.Visit(ts.URL + "/html")
+
+	if !titleCallbackCalled {
+		t.Error("Failed to call OnXML callback for <title> tag")
+	}
+
+	if paragraphCallbackCount != 2 {
+		t.Error("Failed to find all <p> tags")
+	}
+}
