@@ -35,7 +35,7 @@ const htmlPage = `
 `
 
 func TestAttr(t *testing.T) {
-	resp := &colly.Response{200, []byte(htmlPage), nil, nil, nil}
+	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
 	doc, _ := xmlquery.Parse(strings.NewReader(htmlPage))
 	xmlNode := xmlquery.FindOne(doc, "/html")
 	xmlElem := colly.NewXMLElementFromXMLNode(resp, xmlNode)
@@ -50,7 +50,7 @@ func TestAttr(t *testing.T) {
 }
 
 func TestChildText(t *testing.T) {
-	resp := &colly.Response{200, []byte(htmlPage), nil, nil, nil}
+	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
 	doc, _ := xmlquery.Parse(strings.NewReader(htmlPage))
 	xmlNode := xmlquery.FindOne(doc, "/html")
 	xmlElem := colly.NewXMLElementFromXMLNode(resp, xmlNode)
@@ -61,7 +61,7 @@ func TestChildText(t *testing.T) {
 }
 
 func TestChildAttr(t *testing.T) {
-	resp := &colly.Response{200, []byte(htmlPage), nil, nil, nil}
+	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
 	doc, _ := xmlquery.Parse(strings.NewReader(htmlPage))
 	xmlNode := xmlquery.FindOne(doc, "/html")
 	xmlElem := colly.NewXMLElementFromXMLNode(resp, xmlNode)
@@ -75,7 +75,7 @@ func TestChildAttr(t *testing.T) {
 }
 
 func TestChildAttrs(t *testing.T) {
-	resp := &colly.Response{200, []byte(htmlPage), nil, nil, nil}
+	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
 	doc, _ := xmlquery.Parse(strings.NewReader(htmlPage))
 	xmlNode := xmlquery.FindOne(doc, "/html")
 	xmlElem := colly.NewXMLElementFromXMLNode(resp, xmlNode)
