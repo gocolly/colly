@@ -25,6 +25,12 @@ type Request struct {
 	// ID is the Unique identifier of the request
 	ID        uint32
 	collector *Collector
+	abort     bool
+}
+
+// Abort cancels the HTTP request when called in an OnRequest callback
+func (r *Request) Abort() {
+	r.abort = true
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.

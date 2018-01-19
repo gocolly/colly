@@ -353,6 +353,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 
 	c.handleOnRequest(request)
 
+	if request.abort {
+		return nil
+	}
+
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
