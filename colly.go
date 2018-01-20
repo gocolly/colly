@@ -58,6 +58,9 @@ type Collector struct {
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
 	// information.
 	IgnoreRobotsTxt bool
+	// Async turns on asynchronous network communication. Use Collector.Wait() to
+	// be sure all requests have been finished.
+	Async bool
 	// ID is the unique identifier of a collector
 	ID uint32
 	// DetectCharset can enable character encoding detection for non-utf8 response bodies
@@ -208,6 +211,13 @@ func ID(id uint32) func(*Collector) {
 	}
 }
 
+// Async turns on asynchronous network requests.
+func Async(a bool) func(*Collector) {
+	return func(c *Collector) {
+		c.Async = a
+	}
+}
+
 // DetectCharset enables character encoding detection for non-utf8 response bodies
 // without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
 func DetectCharset() func(*Collector) {
@@ -306,7 +316,6 @@ func (c *Collector) SetDebugger(d debug.Debugger) {
 
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {
 	c.wg.Add(1)
-	defer c.wg.Done()
 	if err := c.requestCheck(u, method, depth, checkRevisit); err != nil {
 		return err
 	}
@@ -329,6 +338,15 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err != nil {
 		return err
 	}
+	if c.Async {
+		go c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req, parsedURL)
+		return nil
+	}
+	return c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req, parsedURL)
+}
+
+func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool, req *http.Request, parsedURL *url.URL) error {
+	defer c.wg.Done()
 	if hdr == nil {
 		req.Header.Set("User-Agent", c.UserAgent)
 		if method == "POST" {
