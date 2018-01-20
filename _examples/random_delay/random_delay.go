@@ -15,6 +15,7 @@ func main() {
 	c := colly.NewCollector(
 		// Attach a debugger to the collector
 		colly.Debugger(&debug.LogDebugger{}),
+		colly.Async(true),
 	)
 
 	// Limit the number of threads started by colly to two
@@ -27,7 +28,7 @@ func main() {
 
 	// Start scraping in four threads on https://httpbin.org/delay/2
 	for i := 0; i < 4; i++ {
-		go c.Visit(fmt.Sprintf("%s?n=%d", url, i))
+		c.Visit(fmt.Sprintf("%s?n=%d", url, i))
 	}
 	// Start scraping on https://httpbin.org/delay/2
 	c.Visit(url)
