@@ -15,13 +15,13 @@ func main() {
 		colly.Async(true),
 	)
 
-	// Limit the maximum parallelism to 5
+	// Limit the maximum parallelism to 2
 	// This is necessary if the goroutines are dynamically
 	// created to control the limit of simultaneous requests.
 	//
 	// Parallelism can be controlled also by spawning fixed
 	// number of go routines.
-	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 5})
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 2})
 
 	// On every a element which has href attribute call callback
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
