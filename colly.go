@@ -315,7 +315,6 @@ func (c *Collector) SetDebugger(d debug.Debugger) {
 }
 
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {
-	c.wg.Add(1)
 	if err := c.requestCheck(u, method, depth, checkRevisit); err != nil {
 		return err
 	}
@@ -338,6 +337,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err != nil {
 		return err
 	}
+	c.wg.Add(1)
 	if c.Async {
 		go c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req, parsedURL)
 		return nil
