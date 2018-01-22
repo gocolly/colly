@@ -778,6 +778,7 @@ func (c *Collector) Clone() *Collector {
 		UserAgent:         c.UserAgent,
 		backend:           c.backend,
 		debugger:          c.debugger,
+		Async:             c.Async,
 		errorCallbacks:    make([]ErrorCallback, 0, 8),
 		htmlCallbacks:     make([]*htmlCallbackContainer, 0, 8),
 		lock:              c.lock,
