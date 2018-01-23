@@ -140,6 +140,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 		return resp, err
 	}
 	if err := gob.NewEncoder(file).Encode(resp); err != nil {
+		file.Close()
 		return resp, err
 	}
 	file.Close()
