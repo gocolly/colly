@@ -139,10 +139,10 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 	if err != nil {
 		return resp, err
 	}
-	defer file.Close()
 	if err := gob.NewEncoder(file).Encode(resp); err != nil {
 		return resp, err
 	}
+	file.Close()
 	return resp, os.Rename(filename+"~", filename)
 }
 
