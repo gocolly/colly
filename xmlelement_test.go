@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/antchfx/xmlquery"
+	"github.com/antchfx/htmlquery"
 	"github.com/gocolly/colly"
 )
 
@@ -36,24 +36,24 @@ const htmlPage = `
 
 func TestAttr(t *testing.T) {
 	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
-	doc, _ := xmlquery.Parse(strings.NewReader(htmlPage))
-	xmlNode := xmlquery.FindOne(doc, "/html")
-	xmlElem := colly.NewXMLElementFromXMLNode(resp, xmlNode)
+	doc, _ := htmlquery.Parse(strings.NewReader(htmlPage))
+	xmlNode := htmlquery.FindOne(doc, "/html")
+	xmlElem := colly.NewXMLElementFromHTMLNode(resp, xmlNode)
 
 	if xmlElem.Attr("xmlns") != "http://www.w3.org/1999/xhtml" {
 		t.Fatalf("failed xmlns attribute test: %v != http://www.w3.org/1999/xhtml", xmlElem.Attr("xmlns"))
 	}
 
-	if xmlElem.Attr("lang") != "en" {
+	if xmlElem.Attr("xml:lang") != "en" {
 		t.Fatalf("failed lang attribute test: %v != en", xmlElem.Attr("lang"))
 	}
 }
 
 func TestChildText(t *testing.T) {
 	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
-	doc, _ := xmlquery.Parse(strings.NewReader(htmlPage))
-	xmlNode := xmlquery.FindOne(doc, "/html")
-	xmlElem := colly.NewXMLElementFromXMLNode(resp, xmlNode)
+	doc, _ := htmlquery.Parse(strings.NewReader(htmlPage))
+	xmlNode := htmlquery.FindOne(doc, "/html")
+	xmlElem := colly.NewXMLElementFromHTMLNode(resp, xmlNode)
 
 	if text := xmlElem.ChildText("//p"); text != "This is a regular text paragraph." {
 		t.Fatalf("failed child tag test: %v != This is a regular text paragraph.", text)
@@ -62,9 +62,9 @@ func TestChildText(t *testing.T) {
 
 func TestChildAttr(t *testing.T) {
 	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
-	doc, _ := xmlquery.Parse(strings.NewReader(htmlPage))
-	xmlNode := xmlquery.FindOne(doc, "/html")
-	xmlElem := colly.NewXMLElementFromXMLNode(resp, xmlNode)
+	doc, _ := htmlquery.Parse(strings.NewReader(htmlPage))
+	xmlNode := htmlquery.FindOne(doc, "/html")
+	xmlElem := colly.NewXMLElementFromHTMLNode(resp, xmlNode)
 
 	if attr := xmlElem.ChildAttr("/body/ul/li[1]", "class"); attr != "list-item-1" {
 		t.Fatalf("failed child attribute test: %v != list-item-1", attr)
@@ -76,9 +76,9 @@ func TestChildAttr(t *testing.T) {
 
 func TestChildAttrs(t *testing.T) {
 	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
-	doc, _ := xmlquery.Parse(strings.NewReader(htmlPage))
-	xmlNode := xmlquery.FindOne(doc, "/html")
-	xmlElem := colly.NewXMLElementFromXMLNode(resp, xmlNode)
+	doc, _ := htmlquery.Parse(strings.NewReader(htmlPage))
+	xmlNode := htmlquery.FindOne(doc, "/html")
+	xmlElem := colly.NewXMLElementFromHTMLNode(resp, xmlNode)
 
 	attrs := xmlElem.ChildAttrs("/body/ul/li", "class")
 	if len(attrs) != 2 {

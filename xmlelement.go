@@ -3,9 +3,8 @@ package colly
 import (
 	"strings"
 
-	"encoding/xml"
-
-	"github.com/antchfx/xmlquery"
+	"github.com/antchfx/htmlquery"
+	"golang.org/x/net/html"
 )
 
 // XMLElement is the representation of a XML tag.
@@ -13,23 +12,23 @@ type XMLElement struct {
 	// Name is the name of the tag
 	Name       string
 	Text       string
-	attributes []xml.Attr
+	attributes []html.Attribute
 	// Request is the request object of the element's HTML document
 	Request *Request
 	// Response is the Response object of the element's HTML document
 	Response *Response
 	// DOM is the goquery parsed DOM object of the page. DOM is relative
 	// to the current HTMLElement
-	DOM *xmlquery.Node
+	DOM *html.Node
 }
 
 // NewXMLElementFromXMLNode creates a XMLElement from a xmlquery.Node.
-func NewXMLElementFromXMLNode(resp *Response, s *xmlquery.Node) *XMLElement {
+func NewXMLElementFromHTMLNode(resp *Response, s *html.Node) *XMLElement {
 	return &XMLElement{
 		Name:       s.Data,
 		Request:    resp.Request,
 		Response:   resp,
-		Text:       s.InnerText(),
+		Text:       htmlquery.InnerText(s),
 		DOM:        s,
 		attributes: s.Attr,
 	}
@@ -39,8 +38,8 @@ func NewXMLElementFromXMLNode(resp *Response, s *xmlquery.Node) *XMLElement {
 // if no attribute found
 func (h *XMLElement) Attr(k string) string {
 	for _, a := range h.attributes {
-		if a.Name.Local == k {
-			return a.Value
+		if a.Key == k {
+			return a.Val
 		}
 	}
 	return ""
@@ -49,23 +48,33 @@ func (h *XMLElement) Attr(k string) string {
 // ChildText returns the concatenated and stripped text content of the matching
 // elements.
 func (h *XMLElement) ChildText(xpathQuery string) string {
-	return strings.TrimSpace(xmlquery.FindOne(h.DOM, xpathQuery).InnerText())
+	return strings.TrimSpace(htmlquery.InnerText(htmlquery.FindOne(h.DOM, xpathQuery)))
 }
 
 // ChildAttr returns the stripped text content of the first matching
 // element's attribute.
 func (h *XMLElement) ChildAttr(xpathQuery, attrName string) string {
-	attr := xmlquery.FindOne(h.DOM, xpathQuery).SelectAttr(attrName)
-	return strings.TrimSpace(attr)
+	child := htmlquery.FindOne(h.DOM, xpathQuery)
+	if child != nil {
+		for _, attr := range child.Attr {
+			if attr.Key == attrName {
+				return strings.TrimSpace(attr.Val)
+			}
+		}
+	}
+
+	return ""
 }
 
 // ChildAttrs returns the stripped text content of all the matching
 // element's attributes.
 func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
 	res := make([]string, 0)
-	xmlquery.FindEach(h.DOM, xpathQuery, func(i int, s *xmlquery.Node) {
-		if attr := s.SelectAttr(attrName); attr != "" {
-			res = append(res, strings.TrimSpace(attr))
+	htmlquery.FindEach(h.DOM, xpathQuery, func(i int, child *html.Node) {
+		for _, attr := range child.Attr {
+			if attr.Key == attrName {
+				res = append(res, strings.TrimSpace(attr.Val))
+			}
 		}
 	})
 	return res
