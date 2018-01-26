@@ -22,7 +22,7 @@ type XMLElement struct {
 	DOM *html.Node
 }
 
-// NewXMLElementFromXMLNode creates a XMLElement from a xmlquery.Node.
+// NewXMLElementFromHTMLNode creates a XMLElement from a xmlquery.Node.
 func NewXMLElementFromHTMLNode(resp *Response, s *html.Node) *XMLElement {
 	return &XMLElement{
 		Name:       s.Data,
