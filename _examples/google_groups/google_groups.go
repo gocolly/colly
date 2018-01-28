@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly"
 )
 
@@ -64,15 +63,13 @@ func main() {
 		}
 
 		// Extract mails
-		e.DOM.Find("table tr").Each(func(_ int, s *goquery.Selection) {
-			mailLink := s.Find("td:nth-of-type(1)")
-			mailHref, _ := s.Attr("href")
+		e.ForEach("table tr", func(_ int, el *colly.HTMLElement) {
 			mail := Mail{
-				Title:   mailLink.Text(),
-				Link:    mailHref,
-				Author:  s.Find("td:nth-of-type(2)").Text(),
-				Date:    s.Find("td:nth-of-type(3)").Text(),
-				Message: s.Find("td:nth-of-type(4)").Text(),
+				Title:   el.ChildText("td:nth-of-type(1)"),
+				Link:    el.ChildAttr("td:nth-of-type(1)", "href"),
+				Author:  el.ChildText("td:nth-of-type(2)"),
+				Date:    el.ChildText("td:nth-of-type(3)"),
+				Message: el.ChildText("td:nth-of-type(4)"),
 			}
 			threads[threadSubject] = append(threads[threadSubject], mail)
 		})

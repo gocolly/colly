@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly"
 )
 
@@ -84,18 +83,18 @@ func main() {
 		}
 		// Iterate over rows of the table which contains different information
 		// about the course
-		e.DOM.Find("table.basic-info-table tr").Each(func(_ int, s *goquery.Selection) {
-			switch s.Find("td:first-child").Text() {
+		e.ForEach("table.basic-info-table tr", func(_ int, el *colly.HTMLElement) {
+			switch el.ChildText("td:first-child") {
 			case "Language":
-				course.Language = s.Find("td:nth-child(2)").Text()
+				course.Language = el.ChildText("td:nth-child(2)")
 			case "Level":
-				course.Level = s.Find("td:nth-child(2)").Text()
+				course.Level = el.ChildText("td:nth-child(2)")
 			case "Commitment":
-				course.Commitment = s.Find("td:nth-child(2)").Text()
+				course.Commitment = el.ChildText("td:nth-child(2)")
 			case "How To Pass":
-				course.HowToPass = s.Find("td:nth-child(2)").Text()
+				course.HowToPass = el.ChildText("td:nth-child(2)")
 			case "User Ratings":
-				course.Rating = s.Find("td:nth-child(2) div:nth-of-type(2)").Text()
+				course.Rating = el.ChildText("td:nth-child(2) div:nth-of-type(2)")
 			}
 		})
 		courses = append(courses, course)
