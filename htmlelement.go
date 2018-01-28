@@ -71,3 +71,15 @@ func (h *HTMLElement) ChildAttrs(goquerySelector, attrName string) []string {
 	})
 	return res
 }
+
+// ForEach iterates over the elements matched by the first argument
+// and calls the callback function on every HTMLElement match.
+func (h *HTMLElement) ForEach(goquerySelector string, callback func(int, *HTMLElement)) {
+	i := 0
+	h.DOM.Find("table.basic-info-table tr").Each(func(_ int, s *goquery.Selection) {
+		for _, n := range s.Nodes {
+			callback(i, NewHTMLElementFromSelectionNode(h.Response, s, n))
+			i++
+		}
+	})
+}
