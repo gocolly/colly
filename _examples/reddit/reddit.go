@@ -25,7 +25,7 @@ func main() {
 	)
 
 	// On every a element which has .top-matter attribute call callback
-  // This class is unique to the div that holds all information about a story
+	// This class is unique to the div that holds all information about a story
 	c.OnHTML(".top-matter", func(e *colly.HTMLElement) {
 		temp := item{}
 		temp.StoryURL = e.ChildAttr("a[data-event-action=title]", "href")
@@ -36,13 +36,13 @@ func main() {
 		stories = append(stories, temp)
 	})
 
-  // On every span tag with the class next-button
+	// On every span tag with the class next-button
 	c.OnHTML("span.next-button", func(h *colly.HTMLElement) {
 		t := h.ChildAttr("a", "href")
 		c.Visit(t)
 	})
 
-  // Set max Parallelism and introduce a Random Delay
+	// Set max Parallelism and introduce a Random Delay
 	c.Limit(&colly.LimitRule{
 		Parallelism: 2,
 		RandomDelay: 5 * time.Second,
