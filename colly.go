@@ -18,8 +18,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/antchfx/htmlquery"
+	"github.com/antchfx/xmlquery"
 	"github.com/gocolly/colly/debug"
-
+	"golang.org/x/net/html"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
 
@@ -70,6 +72,7 @@ type Collector struct {
 	visitedURLs       map[uint64]bool
 	robotsMap         map[string]*robotstxt.RobotsData
 	htmlCallbacks     []*htmlCallbackContainer
+	xmlCallbacks      []*xmlCallbackContainer
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
 	errorCallbacks    []ErrorCallback
@@ -90,6 +93,9 @@ type ResponseCallback func(*Response)
 // HTMLCallback is a type alias for OnHTML callback functions
 type HTMLCallback func(*HTMLElement)
 
+// XMLCallback is a type alias for OnXML callback functions
+type XMLCallback func(*XMLElement)
+
 // ErrorCallback is a type alias for OnError callback functions
 type ErrorCallback func(*Response, error)
 
@@ -102,6 +108,11 @@ type ProxyFunc func(*http.Request) (*url.URL, error)
 type htmlCallbackContainer struct {
 	Selector string
 	Function HTMLCallback
+}
+
+type xmlCallbackContainer struct {
+	Query    string
+	Function XMLCallback
 }
 
 var collectorCounter uint32
@@ -395,6 +406,8 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 
 	c.handleOnHTML(response)
 
+	c.handleOnXML(response)
+
 	c.handleOnScraped(response)
 
 	return nil
@@ -540,6 +553,21 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	c.lock.Unlock()
 }
 
+// OnXML registers a function. Function will be executed on every XML
+// element matched by the xpath Query parameter.
+// xpath Query is used by https://github.com/antchfx/xmlquery
+func (c *Collector) OnXML(xpathQuery string, f XMLCallback) {
+	c.lock.Lock()
+	if c.xmlCallbacks == nil {
+		c.xmlCallbacks = make([]*xmlCallbackContainer, 0, 4)
+	}
+	c.xmlCallbacks = append(c.xmlCallbacks, &xmlCallbackContainer{
+		Query:    xpathQuery,
+		Function: f,
+	})
+	c.lock.Unlock()
+}
+
 // OnHTMLDetach deregister a function. Function will not be execute after detached
 func (c *Collector) OnHTMLDetach(goquerySelector string) {
 	c.lock.Lock()
@@ -552,6 +580,22 @@ func (c *Collector) OnHTMLDetach(goquerySelector string) {
 	}
 	if deleteIdx != -1 {
 		c.htmlCallbacks = append(c.htmlCallbacks[:deleteIdx], c.htmlCallbacks[deleteIdx+1:]...)
+	}
+	c.lock.Unlock()
+}
+
+// OnXMLDetach deregister a function. Function will not be execute after detached
+func (c *Collector) OnXMLDetach(xpathQuery string) {
+	c.lock.Lock()
+	deleteIdx := -1
+	for i, cc := range c.xmlCallbacks {
+		if cc.Query == xpathQuery {
+			deleteIdx = i
+			break
+		}
+	}
+	if deleteIdx != -1 {
+		c.xmlCallbacks = append(c.xmlCallbacks[:deleteIdx], c.xmlCallbacks[deleteIdx+1:]...)
 	}
 	c.lock.Unlock()
 }
@@ -685,6 +729,50 @@ func (c *Collector) handleOnHTML(resp *Response) {
 				cc.Function(e)
 			}
 		})
+	}
+}
+
+func (c *Collector) handleOnXML(resp *Response) {
+	if (!strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") && !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "xml")) || len(c.xmlCallbacks) == 0 {
+		return
+	}
+
+	if strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
+		doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
+		if err != nil {
+			return
+		}
+
+		for _, cc := range c.xmlCallbacks {
+			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
+				e := NewXMLElementFromHTMLNode(resp, n)
+				if c.debugger != nil {
+					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
+						"selector": cc.Query,
+						"url":      resp.Request.URL.String(),
+					}))
+				}
+				cc.Function(e)
+			})
+		}
+	} else if strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "xml") {
+		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))
+		if err != nil {
+			return
+		}
+
+		for _, cc := range c.xmlCallbacks {
+			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
+				e := NewXMLElementFromXMLNode(resp, n)
+				if c.debugger != nil {
+					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
+						"selector": cc.Query,
+						"url":      resp.Request.URL.String(),
+					}))
+				}
+				cc.Function(e)
+			})
+		}
 	}
 }
 

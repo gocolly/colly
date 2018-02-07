@@ -1,0 +1,131 @@
+package colly
+
+import (
+	"encoding/xml"
+	"strings"
+
+	"github.com/antchfx/htmlquery"
+	"github.com/antchfx/xmlquery"
+	"golang.org/x/net/html"
+)
+
+// XMLElement is the representation of a XML tag.
+type XMLElement struct {
+	// Name is the name of the tag
+	Name       string
+	Text       string
+	attributes interface{}
+	// Request is the request object of the element's HTML document
+	Request *Request
+	// Response is the Response object of the element's HTML document
+	Response *Response
+	// DOM is the DOM object of the page. DOM is relative
+	// to the current XMLElement and is either a html.Node or xmlquery.Node
+	// based on how the XMLElement was created.
+	DOM    interface{}
+	isHTML bool
+}
+
+// NewXMLElementFromHTMLNode creates a XMLElement from a html.Node.
+func NewXMLElementFromHTMLNode(resp *Response, s *html.Node) *XMLElement {
+	return &XMLElement{
+		Name:       s.Data,
+		Request:    resp.Request,
+		Response:   resp,
+		Text:       htmlquery.InnerText(s),
+		DOM:        s,
+		attributes: s.Attr,
+		isHTML:     true,
+	}
+}
+
+// NewXMLElementFromXMLNode creates a XMLElement from a xmlquery.Node.
+func NewXMLElementFromXMLNode(resp *Response, s *xmlquery.Node) *XMLElement {
+	return &XMLElement{
+		Name:       s.Data,
+		Request:    resp.Request,
+		Response:   resp,
+		Text:       s.InnerText(),
+		DOM:        s,
+		attributes: s.Attr,
+		isHTML:     false,
+	}
+}
+
+// Attr returns the selected attribute of a HTMLElement or empty string
+// if no attribute found
+func (h *XMLElement) Attr(k string) string {
+	if h.isHTML {
+		for _, a := range h.attributes.([]html.Attribute) {
+			if a.Key == k {
+				return a.Val
+			}
+		}
+	} else {
+		for _, a := range h.attributes.([]xml.Attr) {
+			if a.Name.Local == k {
+				return a.Value
+			}
+		}
+	}
+	return ""
+}
+
+// ChildText returns the concatenated and stripped text content of the matching
+// elements.
+func (h *XMLElement) ChildText(xpathQuery string) string {
+	if h.isHTML {
+		return strings.TrimSpace(htmlquery.InnerText(htmlquery.FindOne(h.DOM.(*html.Node), xpathQuery)))
+	}
+	return strings.TrimSpace(xmlquery.FindOne(h.DOM.(*xmlquery.Node), xpathQuery).InnerText())
+}
+
+// ChildAttr returns the stripped text content of the first matching
+// element's attribute.
+func (h *XMLElement) ChildAttr(xpathQuery, attrName string) string {
+	if h.isHTML {
+		child := htmlquery.FindOne(h.DOM.(*html.Node), xpathQuery)
+		if child != nil {
+			for _, attr := range child.Attr {
+				if attr.Key == attrName {
+					return strings.TrimSpace(attr.Val)
+				}
+			}
+		}
+	} else {
+		child := xmlquery.FindOne(h.DOM.(*xmlquery.Node), xpathQuery)
+		if child != nil {
+			for _, attr := range child.Attr {
+				if attr.Name.Local == attrName {
+					return strings.TrimSpace(attr.Value)
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// ChildAttrs returns the stripped text content of all the matching
+// element's attributes.
+func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
+	res := make([]string, 0)
+	if h.isHTML {
+		htmlquery.FindEach(h.DOM.(*html.Node), xpathQuery, func(i int, child *html.Node) {
+			for _, attr := range child.Attr {
+				if attr.Key == attrName {
+					res = append(res, strings.TrimSpace(attr.Val))
+				}
+			}
+		})
+	} else {
+		xmlquery.FindEach(h.DOM.(*xmlquery.Node), xpathQuery, func(i int, child *xmlquery.Node) {
+			for _, attr := range child.Attr {
+				if attr.Name.Local == attrName {
+					res = append(res, strings.TrimSpace(attr.Value))
+				}
+			}
+		})
+	}
+	return res
+}
