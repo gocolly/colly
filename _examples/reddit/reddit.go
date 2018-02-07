@@ -7,7 +7,7 @@ import (
 	"github.com/gocolly/colly"
 )
 
-type Item struct {
+type item struct {
 	StoryURL  string
 	Source    string
 	comments  string
@@ -17,7 +17,7 @@ type Item struct {
 }
 
 func main() {
-	stories := []Item{}
+	stories := []item{}
 	// Instantiate default collector
 	c := colly.NewCollector(
 		// Visit only domains: reddit.com
@@ -27,7 +27,7 @@ func main() {
 	// On every a element which has .top-matter attribute call callback
   // This class is unique to the div that holds all information about a story
 	c.OnHTML(".top-matter", func(e *colly.HTMLElement) {
-		temp := models.Item{}
+		temp := item{}
 		temp.StoryURL = e.ChildAttr("a[data-event-action=title]", "href")
 		temp.Source = "https://www.reddit.com/r/programming/"
 		temp.Title = e.ChildText("a[data-event-action=title]")
