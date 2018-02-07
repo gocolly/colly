@@ -46,7 +46,7 @@ func (r *Response) FileName() string {
 
 func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error {
 	if defaultEncoding != "" {
-		tmpBody, err := encodeBytes(r.Body, defaultEncoding)
+		tmpBody, err := encodeBytes(r.Body, "text/plain; charset="+defaultEncoding)
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		if err != nil {
 			return err
 		}
-		contentType = r.Charset
+		contentType = "text/plain; charset=" + r.Charset
 	}
 	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
 		return nil
@@ -76,8 +76,8 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 	return nil
 }
 
-func encodeBytes(b []byte, encoding string) ([]byte, error) {
-	r, err := charset.NewReader(bytes.NewReader(b), encoding)
+func encodeBytes(b []byte, contentType string) ([]byte, error) {
+	r, err := charset.NewReader(bytes.NewReader(b), contentType)
 	if err != nil {
 		return nil, err
 	}
