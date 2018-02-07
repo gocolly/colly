@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/antchfx/htmlquery"
+	"github.com/antchfx/xmlquery"
 	"github.com/gocolly/colly/debug"
 	"golang.org/x/net/html"
 	"google.golang.org/appengine"
@@ -736,22 +737,42 @@ func (c *Collector) handleOnXML(resp *Response) {
 		return
 	}
 
-	doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
-	if err != nil {
-		return
-	}
+	if !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
+		doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
+		if err != nil {
+			return
+		}
 
-	for _, cc := range c.xmlCallbacks {
-		htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
-			e := NewXMLElementFromHTMLNode(resp, n)
-			if c.debugger != nil {
-				c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
-					"selector": cc.Query,
-					"url":      resp.Request.URL.String(),
-				}))
-			}
-			cc.Function(e)
-		})
+		for _, cc := range c.xmlCallbacks {
+			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
+				e := NewXMLElementFromHTMLNode(resp, n)
+				if c.debugger != nil {
+					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
+						"selector": cc.Query,
+						"url":      resp.Request.URL.String(),
+					}))
+				}
+				cc.Function(e)
+			})
+		}
+	} else if !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "xml") {
+		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))
+		if err != nil {
+			return
+		}
+
+		for _, cc := range c.xmlCallbacks {
+			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
+				e := NewXMLElementFromXMLNode(resp, n)
+				if c.debugger != nil {
+					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
+						"selector": cc.Query,
+						"url":      resp.Request.URL.String(),
+					}))
+				}
+				cc.Function(e)
+			})
+		}
 	}
 }
 
