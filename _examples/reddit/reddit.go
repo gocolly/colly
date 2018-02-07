@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/gocolly/colly"
@@ -22,6 +23,7 @@ func main() {
 	c := colly.NewCollector(
 		// Visit only domains: reddit.com
 		colly.AllowedDomains("www.reddit.com"),
+		colly.Async(true),
 	)
 
 	// On every a element which has .top-matter attribute call callback
@@ -53,7 +55,14 @@ func main() {
 		fmt.Println("Visiting", r.URL.String())
 
 	})
-	c.Visit("https://www.reddit.com/r/programming/")
+
+	// Crawl all reddits the user passes in
+	reddits := os.Args[1:]
+	for _, reddit := range reddits {
+		c.Visit(reddit)
+
+	}
+
 	c.Wait()
 	fmt.Println(stories)
 
