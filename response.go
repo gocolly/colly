@@ -44,7 +44,15 @@ func (r *Response) FileName() string {
 	return SanitizeFileName(r.Request.URL.Path[1:])
 }
 
-func (r *Response) fixCharset(detectCharset bool) {
+func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) {
+	if defaultEncoding != "" {
+		tmpBody, err := encodeBytes(r.Body, defaultEncoding)
+		if err != nil {
+			return
+		}
+		r.Body = tmpBody
+		return
+	}
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
 	if !strings.Contains(contentType, "charset") {
 		if !detectCharset {
@@ -60,13 +68,17 @@ func (r *Response) fixCharset(detectCharset bool) {
 	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
 		return
 	}
-	encodedBodyReader, err := charset.NewReader(bytes.NewReader(r.Body), contentType)
-	if err != nil {
-		return
-	}
-	tmpBody, err := ioutil.ReadAll(encodedBodyReader)
+	tmpBody, err := encodeBytes(r.Body, contentType)
 	if err != nil {
 		return
 	}
 	r.Body = tmpBody
+}
+
+func encodeBytes(b []byte, encoding string) ([]byte, error) {
+	r, err := charset.NewReader(bytes.NewReader(b), encoding)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(r)
 }
