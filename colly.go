@@ -400,7 +400,11 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx
 	response.Request = request
-	response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
+
+	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
+	if err != nil {
+		return err
+	}
 
 	c.handleOnResponse(response)
 
