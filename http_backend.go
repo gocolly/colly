@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"net/http/cookiejar"
 	"os"
 	"path"
 	"regexp"
@@ -76,10 +75,9 @@ func (r *LimitRule) Init() error {
 	return nil
 }
 
-func (h *httpBackend) Init() {
+func (h *httpBackend) Init(jar http.CookieJar) {
 	rand.Seed(time.Now().UnixNano())
 	h.LimitRules = make([]*LimitRule, 0, 8)
-	jar, _ := cookiejar.New(nil)
 	h.Client = &http.Client{
 		Jar:     jar,
 		Timeout: 10 * time.Second,

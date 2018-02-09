@@ -18,16 +18,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/antchfx/htmlquery"
-	"github.com/antchfx/xmlquery"
-	"github.com/gocolly/colly/debug"
 	"golang.org/x/net/html"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/antchfx/htmlquery"
+	"github.com/antchfx/xmlquery"
 	"github.com/kennygrant/sanitize"
 	"github.com/temoto/robotstxt"
+
+	"github.com/gocolly/colly/debug"
+	"github.com/gocolly/colly/storage"
 )
 
 // Collector provides the scraper instance for a scraping job
@@ -68,8 +70,8 @@ type Collector struct {
 	// DetectCharset can enable character encoding detection for non-utf8 response bodies
 	// without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
 	DetectCharset     bool
+	store             storage.Storage
 	debugger          debug.Debugger
-	visitedURLs       map[uint64]bool
 	robotsMap         map[string]*robotstxt.RobotsData
 	htmlCallbacks     []*htmlCallbackContainer
 	xmlCallbacks      []*xmlCallbackContainer
@@ -250,10 +252,11 @@ func Debugger(d debug.Debugger) func(*Collector) {
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
-	c.visitedURLs = make(map[uint64]bool)
+	c.store = &storage.InMemoryStorage{}
+	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
-	c.backend.Init()
+	c.backend.Init(c.store.GetCookieJar())
 	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
@@ -440,15 +443,14 @@ func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool)
 		h := fnv.New64a()
 		h.Write([]byte(u))
 		uHash := h.Sum64()
-		c.lock.RLock()
-		visited := c.visitedURLs[uHash]
-		c.lock.RUnlock()
+		visited, err := c.store.IsVisited(uHash)
+		if err != nil {
+			return err
+		}
 		if visited {
 			return ErrAlreadyVisited
 		}
-		c.lock.Lock()
-		c.visitedURLs[uHash] = true
-		c.lock.Unlock()
+		return c.store.Visited(uHash)
 	}
 	return nil
 }
@@ -644,6 +646,17 @@ func (c *Collector) SetCookieJar(j *cookiejar.Jar) {
 // SetRequestTimeout overrides the default timeout (10 seconds) for this collector
 func (c *Collector) SetRequestTimeout(timeout time.Duration) {
 	c.backend.Client.Timeout = timeout
+}
+
+// SetStorage overrides the default in-memory storage.
+// Storage stores scraping related data like cookies and visited urls
+func (c *Collector) SetStorage(s storage.Storage) error {
+	if err := s.Init(); err != nil {
+		return err
+	}
+	c.store = s
+	c.backend.Client.Jar = s.GetCookieJar()
+	return nil
 }
 
 // SetProxy sets a proxy for the collector. This method overrides the previously
@@ -868,6 +881,7 @@ func (c *Collector) Clone() *Collector {
 		MaxDepth:          c.MaxDepth,
 		URLFilters:        c.URLFilters,
 		UserAgent:         c.UserAgent,
+		store:             c.store,
 		backend:           c.backend,
 		debugger:          c.debugger,
 		Async:             c.Async,
@@ -877,7 +891,6 @@ func (c *Collector) Clone() *Collector {
 		requestCallbacks:  make([]RequestCallback, 0, 8),
 		responseCallbacks: make([]ResponseCallback, 0, 8),
 		robotsMap:         c.robotsMap,
-		visitedURLs:       make(map[uint64]bool),
 		wg:                c.wg,
 	}
 }
