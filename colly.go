@@ -750,11 +750,12 @@ func (c *Collector) handleOnHTML(resp *Response) {
 }
 
 func (c *Collector) handleOnXML(resp *Response) {
-	if (!strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") && !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "xml")) || len(c.xmlCallbacks) == 0 {
+	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
+	if (!strings.Contains(contentType, "html") && !strings.Contains(contentType, "xml")) || len(c.xmlCallbacks) == 0 {
 		return
 	}
 
-	if strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
+	if strings.Contains(contentType, "html") {
 		doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
 		if err != nil {
 			return
@@ -772,7 +773,7 @@ func (c *Collector) handleOnXML(resp *Response) {
 				cc.Function(e)
 			})
 		}
-	} else if strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "xml") {
+	} else if strings.Contains(contentType, "xml") {
 		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))
 		if err != nil {
 			return
