@@ -22,9 +22,6 @@ type Storage interface {
 	// GetCookieJar returns with cookie jar that implements the
 	// http.CookieJar interface
 	GetCookieJar() http.CookieJar
-	// Close is responsible for closing the internal files and connections
-	// of the storage
-	Close() error
 }
 
 // InMemoryStorage is the default storage backend of colly.
