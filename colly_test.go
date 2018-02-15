@@ -94,6 +94,12 @@ func newTestServer() *httptest.Server {
 		w.Write([]byte("ok"))
 	})
 
+	mux.HandleFunc("/500", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Conent-Type", "text/html")
+		w.WriteHeader(500)
+		w.Write([]byte("<p>error</p>"))
+	})
+
 	return httptest.NewServer(mux)
 }
 
@@ -482,6 +488,37 @@ func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 
 	if err != nil {
 		t.Fatal(err)
+	}
+
+}
+
+func TestParseHTTPErrorResponse(t *testing.T) {
+	contentCount := 0
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(
+		AllowURLRevisit(),
+	)
+
+	c.OnHTML("p", func(e *HTMLElement) {
+		if e.Text == "error" {
+			contentCount++
+		}
+	})
+
+	c.Visit(ts.URL + "/500")
+
+	if contentCount != 0 {
+		t.Fatal("Content is parsed without ParseHTTPErrorResponse enabled")
+	}
+
+	c.ParseHTTPErrorResponse = true
+
+	c.Visit(ts.URL + "/500")
+
+	if contentCount != 1 {
+		t.Fatal("Content isn't parsed with ParseHTTPErrorResponse enabled")
 	}
 
 }

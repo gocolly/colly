@@ -65,6 +65,10 @@ type Collector struct {
 	// Async turns on asynchronous network communication. Use Collector.Wait() to
 	// be sure all requests have been finished.
 	Async bool
+	// ParseHTTPErrorResponse allows parsing HTTP responses with non 2xx status codes.
+	// By default, Colly parses only successful HTTP responses. Set ParseHTTPErrorResponse
+	// to true to enable it.
+	ParseHTTPErrorResponse bool
 	// ID is the unique identifier of a collector
 	ID uint32
 	// DetectCharset can enable character encoding detection for non-utf8 response bodies
@@ -170,6 +174,13 @@ func MaxDepth(depth int) func(*Collector) {
 func AllowedDomains(domains ...string) func(*Collector) {
 	return func(c *Collector) {
 		c.AllowedDomains = domains
+	}
+}
+
+// ParseHTTPErrorResponse allows parsing responses with HTTP errors
+func ParseHTTPErrorResponse() func(*Collector) {
+	return func(c *Collector) {
+		c.ParseHTTPErrorResponse = true
 	}
 }
 
@@ -795,7 +806,7 @@ func (c *Collector) handleOnXML(resp *Response) {
 }
 
 func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx *Context) error {
-	if err == nil && response.StatusCode < 203 {
+	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 203) {
 		return nil
 	}
 	if err == nil {
@@ -873,26 +884,27 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 // between collectors.
 func (c *Collector) Clone() *Collector {
 	return &Collector{
-		AllowedDomains:    c.AllowedDomains,
-		CacheDir:          c.CacheDir,
-		DisallowedDomains: c.DisallowedDomains,
-		ID:                atomic.AddUint32(&collectorCounter, 1),
-		IgnoreRobotsTxt:   c.IgnoreRobotsTxt,
-		MaxBodySize:       c.MaxBodySize,
-		MaxDepth:          c.MaxDepth,
-		URLFilters:        c.URLFilters,
-		UserAgent:         c.UserAgent,
-		store:             c.store,
-		backend:           c.backend,
-		debugger:          c.debugger,
-		Async:             c.Async,
-		errorCallbacks:    make([]ErrorCallback, 0, 8),
-		htmlCallbacks:     make([]*htmlCallbackContainer, 0, 8),
-		lock:              c.lock,
-		requestCallbacks:  make([]RequestCallback, 0, 8),
-		responseCallbacks: make([]ResponseCallback, 0, 8),
-		robotsMap:         c.robotsMap,
-		wg:                c.wg,
+		AllowedDomains:         c.AllowedDomains,
+		CacheDir:               c.CacheDir,
+		DisallowedDomains:      c.DisallowedDomains,
+		ID:                     atomic.AddUint32(&collectorCounter, 1),
+		IgnoreRobotsTxt:        c.IgnoreRobotsTxt,
+		MaxBodySize:            c.MaxBodySize,
+		MaxDepth:               c.MaxDepth,
+		URLFilters:             c.URLFilters,
+		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
+		UserAgent:              c.UserAgent,
+		store:                  c.store,
+		backend:                c.backend,
+		debugger:               c.debugger,
+		Async:                  c.Async,
+		errorCallbacks:         make([]ErrorCallback, 0, 8),
+		htmlCallbacks:          make([]*htmlCallbackContainer, 0, 8),
+		lock:                   c.lock,
+		requestCallbacks:       make([]RequestCallback, 0, 8),
+		responseCallbacks:      make([]ResponseCallback, 0, 8),
+		robotsMap:              c.robotsMap,
+		wg:                     c.wg,
 	}
 }
 
