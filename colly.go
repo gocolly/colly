@@ -827,6 +827,9 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	if response.Request == nil {
 		response.Request = request
 	}
+	if response.Ctx == nil {
+		response.Ctx = request.Ctx
+	}
 	for _, f := range c.errorCallbacks {
 		f(response, err)
 	}
