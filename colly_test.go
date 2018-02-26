@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -98,6 +99,11 @@ func newTestServer() *httptest.Server {
 		w.Header().Set("Conent-Type", "text/html")
 		w.WriteHeader(500)
 		w.Write([]byte("<p>error</p>"))
+	})
+
+	mux.HandleFunc("/user_agent", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(r.Header.Get("User-Agent")))
 	})
 
 	return httptest.NewServer(mux)
@@ -490,6 +496,30 @@ func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 		t.Fatal(err)
 	}
 
+}
+
+func TestEnvSettings(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	os.Setenv("COLLY_USER_AGENT", "test")
+	defer os.Unsetenv("COLLY_USER_AGENT")
+
+	c := NewCollector()
+
+	valid := false
+
+	c.OnResponse(func(resp *Response) {
+		if string(resp.Body) == "test" {
+			valid = true
+		}
+	})
+
+	c.Visit(ts.URL + "/user_agent")
+
+	if !valid {
+		t.Fatalf("Wrong user-agent from environment")
+	}
 }
 
 func TestParseHTTPErrorResponse(t *testing.T) {

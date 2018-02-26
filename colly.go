@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -152,6 +155,8 @@ func NewCollector(options ...func(*Collector)) *Collector {
 	for _, f := range options {
 		f(c)
 	}
+
+	c.parseSettingsFromEnv()
 
 	return c
 }
@@ -940,6 +945,45 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 	}
 }
 
+func (c *Collector) parseSettingsFromEnv() {
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "COLLY_") {
+			continue
+		}
+		pair := strings.SplitN(e[6:], "=", 2)
+		switch pair[0] {
+		case "ALLOWED_DOMAINS":
+			c.AllowedDomains = strings.Split(pair[1], ",")
+		case "CACHE_DIR":
+			c.CacheDir = pair[1]
+		case "DETECT_CHARSET":
+			c.DetectCharset = isYesString(pair[1])
+		case "DISABLE_COOKIES":
+			c.backend.Client.Jar = nil
+		case "DISALLOWED_DOMAINS":
+			c.DisallowedDomains = strings.Split(pair[1], ",")
+		case "IGNORE_ROBOTSTXT":
+			c.IgnoreRobotsTxt = isYesString(pair[1])
+		case "MAX_BODY_SIZE":
+			size, err := strconv.Atoi(pair[1])
+			if err == nil {
+				c.MaxBodySize = size
+			}
+		case "MAX_DEPTH":
+			maxDepth, err := strconv.Atoi(pair[1])
+			if err != nil {
+				c.MaxDepth = maxDepth
+			}
+		case "PARSE_HTTP_ERROR_RESPONSE":
+			c.ParseHTTPErrorResponse = isYesString(pair[1])
+		case "USER_AGENT":
+			c.UserAgent = pair[1]
+		default:
+			log.Println("Unknown environment variable:", pair[0])
+		}
+	}
+}
+
 // SanitizeFileName replaces dangerous characters in a string
 // so the return value can be used as a safe file name.
 func SanitizeFileName(fileName string) string {
@@ -990,4 +1034,12 @@ func randomBoundary() string {
 		panic(err)
 	}
 	return fmt.Sprintf("%x", buf[:])
+}
+
+func isYesString(s string) bool {
+	switch strings.ToLower(s) {
+	case "1", "yes", "true", "y":
+		return true
+	}
+	return false
 }
