@@ -148,6 +148,45 @@ var (
 	ErrNoPattern = errors.New("No pattern defined in LimitRule")
 )
 
+var envMap = map[string]func(*Collector, string){
+	"ALLOWED_DOMAINS": func(c *Collector, val string) {
+		c.AllowedDomains = strings.Split(val, ",")
+	},
+	"CACHE_DIR": func(c *Collector, val string) {
+		c.CacheDir = val
+	},
+	"DETECT_CHARSET": func(c *Collector, val string) {
+		c.DetectCharset = isYesString(val)
+	},
+	"DISABLE_COOKIES": func(c *Collector, _ string) {
+		c.backend.Client.Jar = nil
+	},
+	"DISALLOWED_DOMAINS": func(c *Collector, val string) {
+		c.DisallowedDomains = strings.Split(val, ",")
+	},
+	"IGNORE_ROBOTSTXT": func(c *Collector, val string) {
+		c.IgnoreRobotsTxt = isYesString(val)
+	},
+	"MAX_BODY_SIZE": func(c *Collector, val string) {
+		size, err := strconv.Atoi(val)
+		if err == nil {
+			c.MaxBodySize = size
+		}
+	},
+	"MAX_DEPTH": func(c *Collector, val string) {
+		maxDepth, err := strconv.Atoi(val)
+		if err != nil {
+			c.MaxDepth = maxDepth
+		}
+	},
+	"PARSE_HTTP_ERROR_RESPONSE": func(c *Collector, val string) {
+		c.ParseHTTPErrorResponse = isYesString(val)
+	},
+	"USER_AGENT": func(c *Collector, val string) {
+		c.UserAgent = val
+	},
+}
+
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector(options ...func(*Collector)) *Collector {
 	c := &Collector{}
@@ -962,34 +1001,9 @@ func (c *Collector) parseSettingsFromEnv() {
 			continue
 		}
 		pair := strings.SplitN(e[6:], "=", 2)
-		switch pair[0] {
-		case "ALLOWED_DOMAINS":
-			c.AllowedDomains = strings.Split(pair[1], ",")
-		case "CACHE_DIR":
-			c.CacheDir = pair[1]
-		case "DETECT_CHARSET":
-			c.DetectCharset = isYesString(pair[1])
-		case "DISABLE_COOKIES":
-			c.backend.Client.Jar = nil
-		case "DISALLOWED_DOMAINS":
-			c.DisallowedDomains = strings.Split(pair[1], ",")
-		case "IGNORE_ROBOTSTXT":
-			c.IgnoreRobotsTxt = isYesString(pair[1])
-		case "MAX_BODY_SIZE":
-			size, err := strconv.Atoi(pair[1])
-			if err == nil {
-				c.MaxBodySize = size
-			}
-		case "MAX_DEPTH":
-			maxDepth, err := strconv.Atoi(pair[1])
-			if err != nil {
-				c.MaxDepth = maxDepth
-			}
-		case "PARSE_HTTP_ERROR_RESPONSE":
-			c.ParseHTTPErrorResponse = isYesString(pair[1])
-		case "USER_AGENT":
-			c.UserAgent = pair[1]
-		default:
+		if f, ok := envMap[pair[0]]; ok {
+			f(c, pair[1])
+		} else {
 			log.Println("Unknown environment variable:", pair[0])
 		}
 	}
