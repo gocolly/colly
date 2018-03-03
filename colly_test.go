@@ -428,18 +428,6 @@ func TestCollectorCookies(t *testing.T) {
 	}
 }
 
-func BenchmarkVisit(b *testing.B) {
-	ts := newTestServer()
-	defer ts.Close()
-
-	c := NewCollector()
-	c.OnHTML("p", func(_ *HTMLElement) {})
-
-	for n := 0; n < b.N; n++ {
-		c.Visit(fmt.Sprintf("%s/html?q=%d", ts.URL, n))
-	}
-}
-
 func TestRobotsWhenAllowed(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
@@ -631,5 +619,30 @@ func TestCollectorOnXML(t *testing.T) {
 
 	if paragraphCallbackCount != 2 {
 		t.Error("Failed to find all <p> tags")
+	}
+}
+
+func BenchmarkOnHTML(b *testing.B) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.OnHTML("p", func(_ *HTMLElement) {})
+
+	for n := 0; n < b.N; n++ {
+		c.Visit(fmt.Sprintf("%s/html?q=%d", ts.URL, n))
+	}
+}
+
+func BenchmarkOnResponse(b *testing.B) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.AllowURLRevisit = true
+	c.OnResponse(func(_ *Response) {})
+
+	for n := 0; n < b.N; n++ {
+		c.Visit(ts.URL)
 	}
 }
