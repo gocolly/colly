@@ -640,6 +640,18 @@ func BenchmarkOnHTML(b *testing.B) {
 	}
 }
 
+func BenchmarkOnXML(b *testing.B) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.OnXML("//p", func(_ *XMLElement) {})
+
+	for n := 0; n < b.N; n++ {
+		c.Visit(fmt.Sprintf("%s/html?q=%d", ts.URL, n))
+	}
+}
+
 func BenchmarkOnResponse(b *testing.B) {
 	ts := newTestServer()
 	defer ts.Close()
