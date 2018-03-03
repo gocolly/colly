@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -363,33 +364,43 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 			return err
 		}
 	}
-	req, err := http.NewRequest(method, parsedURL.String(), requestData)
-	if err != nil {
-		return err
+	if hdr == nil {
+		hdr = make(http.Header)
+		hdr.Set("User-Agent", c.UserAgent)
+		if method == "POST" {
+			hdr.Add("Content-Type", "application/x-www-form-urlencoded")
+		}
 	}
+	rc, ok := requestData.(io.ReadCloser)
+	if !ok && requestData != nil {
+		rc = ioutil.NopCloser(requestData)
+	}
+	req := &http.Request{
+		Method:     method,
+		URL:        parsedURL,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     hdr,
+		Body:       rc,
+		Host:       parsedURL.Host,
+	}
+	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
-		go c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req, parsedURL)
+		go c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req)
 		return nil
 	}
-	return c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req, parsedURL)
+	return c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req)
 }
 
-func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool, req *http.Request, parsedURL *url.URL) error {
+func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool, req *http.Request) error {
 	defer c.wg.Done()
-	if hdr == nil {
-		req.Header.Set("User-Agent", c.UserAgent)
-		if method == "POST" {
-			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		}
-	} else {
-		req.Header = hdr
-	}
 	if ctx == nil {
 		ctx = NewContext()
 	}
 	request := &Request{
-		URL:       parsedURL,
+		URL:       req.URL,
 		Headers:   &req.Header,
 		Ctx:       ctx,
 		Depth:     depth,
@@ -408,11 +419,12 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
+	origURL := req.URL
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
-	if req.URL.String() != parsedURL.String() {
+	if req.URL != origURL {
 		request.URL = req.URL
 		request.Headers = &req.Header
 	}
