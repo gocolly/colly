@@ -365,11 +365,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		}
 	}
 	if hdr == nil {
-		hdr = make(http.Header)
-		hdr.Set("User-Agent", c.UserAgent)
-		if method == "POST" {
-			hdr.Add("Content-Type", "application/x-www-form-urlencoded")
-		}
+		hdr = http.Header{"User-Agent": []string{c.UserAgent}}
 	}
 	rc, ok := requestData.(io.ReadCloser)
 	if !ok && requestData != nil {
@@ -754,7 +750,7 @@ func (c *Collector) handleOnResponse(r *Response) {
 }
 
 func (c *Collector) handleOnHTML(resp *Response) {
-	if !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") || len(c.htmlCallbacks) == 0 {
+	if len(c.htmlCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
 		return
 	}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(resp.Body))
@@ -778,8 +774,11 @@ func (c *Collector) handleOnHTML(resp *Response) {
 }
 
 func (c *Collector) handleOnXML(resp *Response) {
+	if len(c.xmlCallbacks) == 0 {
+		return
+	}
 	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
-	if (!strings.Contains(contentType, "html") && !strings.Contains(contentType, "xml")) || len(c.xmlCallbacks) == 0 {
+	if !strings.Contains(contentType, "html") && !strings.Contains(contentType, "xml") {
 		return
 	}
 
