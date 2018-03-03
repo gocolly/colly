@@ -77,7 +77,6 @@ func (r *LimitRule) Init() error {
 
 func (h *httpBackend) Init(jar http.CookieJar) {
 	rand.Seed(time.Now().UnixNano())
-	h.LimitRules = make([]*LimitRule, 0, 8)
 	h.Client = &http.Client{
 		Jar:     jar,
 		Timeout: 10 * time.Second,
@@ -98,6 +97,9 @@ func (r *LimitRule) Match(domain string) bool {
 }
 
 func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
+	if h.LimitRules == nil {
+		return nil
+	}
 	h.lock.RLock()
 	defer h.lock.RUnlock()
 	for _, r := range h.LimitRules {
@@ -183,6 +185,9 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 
 func (h *httpBackend) Limit(rule *LimitRule) error {
 	h.lock.Lock()
+	if h.LimitRules == nil {
+		h.LimitRules = make([]*LimitRule, 0, 8)
+	}
 	h.LimitRules = append(h.LimitRules, rule)
 	h.lock.Unlock()
 	return rule.Init()
