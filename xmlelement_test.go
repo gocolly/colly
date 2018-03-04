@@ -3,9 +3,9 @@ package colly_test
 import (
 	"strings"
 	"testing"
-
 	"github.com/antchfx/htmlquery"
-	"github.com/gocolly/colly"
+	"github.com/sharmi/colly"
+	"reflect"
 )
 
 // Borrowed from http://infohost.nmt.edu/tcc/help/pubs/xhtml/example.html
@@ -60,6 +60,16 @@ func TestChildText(t *testing.T) {
 	}
 }
 
+func TestChildTexts(t *testing.T) {
+	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
+	doc, _ := htmlquery.Parse(strings.NewReader(htmlPage))
+	xmlNode := htmlquery.FindOne(doc, "/html")
+	xmlElem := colly.NewXMLElementFromHTMLNode(resp, xmlNode)
+	expected := []string{"First bullet of a bullet list.", "This is the second bullet."}
+	if texts := xmlElem.ChildTexts("//li"); reflect.DeepEqual(texts, expected) == false  {
+		t.Fatalf("failed child tags test: %v != %v", texts, expected)
+	}
+}
 func TestChildAttr(t *testing.T) {
 	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
 	doc, _ := htmlquery.Parse(strings.NewReader(htmlPage))

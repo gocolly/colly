@@ -129,3 +129,18 @@ func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
 	}
 	return res
 }
+
+func (h *XMLElement) ChildTexts(xpathQuery string) []string {
+        res := make([]string, 0)
+        if h.isHTML {
+                htmlquery.FindEach(h.DOM.(*html.Node), xpathQuery, func(i int, child *html.Node) {
+                        res = append(res, strings.TrimSpace(htmlquery.InnerText(child)))
+                                })
+        } else {
+                xmlquery.FindEach(h.DOM.(*xmlquery.Node), xpathQuery, func(i int, child *xmlquery.Node) {
+                        res = append(res, strings.TrimSpace(child.InnerText()))
+                })
+        }
+        return res
+}
+
