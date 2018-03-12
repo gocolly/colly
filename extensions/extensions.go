@@ -1,2 +1,2 @@
-// package extensions implements various helper addons for Colly
+// Package extensions implements various helper addons for Colly
 package extensions
