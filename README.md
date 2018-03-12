@@ -25,6 +25,7 @@ With Colly you can easily extract structured data from websites, which can be us
  * Robots.txt support
  * Distributed scraping
  * Configuration via environment variables
+ * Extensions
 
 
 ## Example
