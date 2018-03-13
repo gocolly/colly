@@ -58,6 +58,9 @@ func TestChildText(t *testing.T) {
 	if text := xmlElem.ChildText("//p"); text != "This is a regular text paragraph." {
 		t.Fatalf("failed child tag test: %v != This is a regular text paragraph.", text)
 	}
+	if text := xmlElem.ChildText("//dl"); text != "" {
+		t.Fatalf("failed child tag test: %v != \"\"", text)
+	}
 }
 
 func TestChildTexts(t *testing.T) {
@@ -68,6 +71,9 @@ func TestChildTexts(t *testing.T) {
 	expected := []string{"First bullet of a bullet list.", "This is the second bullet."}
 	if texts := xmlElem.ChildTexts("//li"); reflect.DeepEqual(texts, expected) == false  {
 		t.Fatalf("failed child tags test: %v != %v", texts, expected)
+	}
+	if texts := xmlElem.ChildTexts("//dl"); reflect.DeepEqual(texts, make([]string, 0)) == false{
+		t.Fatalf("failed child tag test: %v != \"\"", texts)
 	}
 }
 func TestChildAttr(t *testing.T) {

@@ -75,10 +75,19 @@ func (h *XMLElement) Attr(k string) string {
 // elements.
 func (h *XMLElement) ChildText(xpathQuery string) string {
 	if h.isHTML {
-		return strings.TrimSpace(htmlquery.InnerText(htmlquery.FindOne(h.DOM.(*html.Node), xpathQuery)))
+		child := htmlquery.FindOne(h.DOM.(*html.Node), xpathQuery)
+		if child == nil {
+			return ""
+		}
+		return strings.TrimSpace(htmlquery.InnerText(child))
 	}
-	return strings.TrimSpace(xmlquery.FindOne(h.DOM.(*xmlquery.Node), xpathQuery).InnerText())
+	child := xmlquery.FindOne(h.DOM.(*xmlquery.Node), xpathQuery)
+	if child == nil {
+		return ""
+	}
+	return strings.TrimSpace(child.InnerText())
 }
+
 
 // ChildAttr returns the stripped text content of the first matching
 // element's attribute.
@@ -131,16 +140,16 @@ func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
 }
 
 func (h *XMLElement) ChildTexts(xpathQuery string) []string {
-        res := make([]string, 0)
+        texts := make([]string, 0)
         if h.isHTML {
                 htmlquery.FindEach(h.DOM.(*html.Node), xpathQuery, func(i int, child *html.Node) {
-                        res = append(res, strings.TrimSpace(htmlquery.InnerText(child)))
+                        texts = append(texts, strings.TrimSpace(htmlquery.InnerText(child)))
                                 })
         } else {
                 xmlquery.FindEach(h.DOM.(*xmlquery.Node), xpathQuery, func(i int, child *xmlquery.Node) {
-                        res = append(res, strings.TrimSpace(child.InnerText()))
+                        texts = append(texts, strings.TrimSpace(child.InnerText()))
                 })
         }
-        return res
+        return texts
 }
 
