@@ -1098,7 +1098,7 @@ func (j *cookieJarSerializer) SetCookies(u *url.URL, cookies []*http.Cookie) {
 	defer j.lock.Unlock()
 	cookieStr := j.store.Cookies(u)
 
-	// Merge existing cookies, new cookies have precendence.
+	// Merge existing cookies, new cookies have precedence.
 	cnew := make([]*http.Cookie, len(cookies))
 	copy(cnew, cookies)
 	existing := storage.UnstringifyCookies(cookieStr)
