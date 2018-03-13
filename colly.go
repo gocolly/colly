@@ -139,6 +139,11 @@ type xmlCallbackContainer struct {
 	Function XMLCallback
 }
 
+type cookieJarSerializer struct {
+	store storage.Storage
+	lock  *sync.RWMutex
+}
+
 var collectorCounter uint32
 
 var (
@@ -326,7 +331,8 @@ func (c *Collector) Init() {
 	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
-	c.backend.Init(c.store.GetCookieJar())
+	jar, _ := cookiejar.New(nil)
+	c.backend.Init(jar)
 	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
@@ -732,7 +738,7 @@ func (c *Collector) SetStorage(s storage.Storage) error {
 		return err
 	}
 	c.store = s
-	c.backend.Client.Jar = s.GetCookieJar()
+	c.backend.Client.Jar = createJar(s)
 	return nil
 }
 
@@ -1081,4 +1087,44 @@ func isYesString(s string) bool {
 		return true
 	}
 	return false
+}
+
+func createJar(s storage.Storage) http.CookieJar {
+	return &cookieJarSerializer{store: s, lock: &sync.RWMutex{}}
+}
+
+func (j *cookieJarSerializer) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	j.lock.Lock()
+	defer j.lock.Unlock()
+	cookieStr := j.store.Cookies(u)
+
+	// Merge existing cookies, new cookies have precendence.
+	cnew := make([]*http.Cookie, len(cookies))
+	copy(cnew, cookies)
+	existing := storage.UnstringifyCookies(cookieStr)
+	for _, c := range existing {
+		if !storage.ContainsCookie(cnew, c.Name) {
+			cnew = append(cnew, c)
+		}
+	}
+	j.store.SetCookies(u, storage.StringifyCookies(cnew))
+}
+
+func (j *cookieJarSerializer) Cookies(u *url.URL) []*http.Cookie {
+	cookies := storage.UnstringifyCookies(j.store.Cookies(u))
+	// Filter.
+	now := time.Now()
+	cnew := make([]*http.Cookie, 0, len(cookies))
+	for _, c := range cookies {
+		// Drop expired cookies.
+		if c.RawExpires != "" && c.Expires.Before(now) {
+			continue
+		}
+		// Drop secure cookies if not over https.
+		if c.Secure && u.Scheme != "https" {
+			continue
+		}
+		cnew = append(cnew, c)
+	}
+	return cnew
 }
