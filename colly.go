@@ -57,9 +57,6 @@ type Collector struct {
 	// MaxDepth limits the recursion depth of visited URLs.
 	// Set it to 0 for infinite recursion (default).
 	MaxDepth int
-	// FollowRedirects allows Visit to handle redirects automatically
-	// Set it to false for the collector to handle 30x responses.
-	FollowRedirects bool
 	// AllowedDomains is a domain whitelist.
 	// Leave it blank to allow any domains to be visited
 	AllowedDomains []string
@@ -94,7 +91,9 @@ type Collector struct {
 	ID uint32
 	// DetectCharset can enable character encoding detection for non-utf8 response bodies
 	// without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
-	DetectCharset     bool
+	DetectCharset bool
+	// RedirectHandler allows control on how a redirect will be managed
+	RedirectHandler   func(req *http.Request, via []*http.Request) error
 	store             storage.Storage
 	debugger          debug.Debugger
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -190,7 +189,11 @@ var envMap = map[string]func(*Collector, string){
 		c.IgnoreRobotsTxt = isYesString(val)
 	},
 	"FOLLOW_REDIRECTS": func(c *Collector, val string) {
-		c.FollowRedirects = isYesString(val)
+		if !isYesString(val) {
+			c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+		}
 	},
 	"MAX_BODY_SIZE": func(c *Collector, val string) {
 		size, err := strconv.Atoi(val)
@@ -333,7 +336,6 @@ func Debugger(d debug.Debugger) func(*Collector) {
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
-	c.FollowRedirects = true
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
@@ -999,8 +1001,8 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 			return fmt.Errorf("Not following redirect to %s because its not in AllowedDomains", req.URL.Host)
 		}
 
-		if !c.FollowRedirects {
-			return http.ErrUseLastResponse
+		if c.RedirectHandler != nil {
+			return c.RedirectHandler(req, via)
 		}
 
 		// Honor golangs default of maximum of 10 redirects
