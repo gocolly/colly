@@ -985,6 +985,7 @@ func (c *Collector) Clone() *Collector {
 		backend:                c.backend,
 		debugger:               c.debugger,
 		Async:                  c.Async,
+		RedirectHandler:        c.RedirectHandler,
 		errorCallbacks:         make([]ErrorCallback, 0, 8),
 		htmlCallbacks:          make([]*htmlCallbackContainer, 0, 8),
 		lock:                   c.lock,
