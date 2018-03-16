@@ -57,6 +57,9 @@ type Collector struct {
 	// MaxDepth limits the recursion depth of visited URLs.
 	// Set it to 0 for infinite recursion (default).
 	MaxDepth int
+	// FollowRedirects allows Visit to handle redirects automatically
+	// Set it to false for the collector to handle 30x responses.
+	FollowRedirects bool
 	// AllowedDomains is a domain whitelist.
 	// Leave it blank to allow any domains to be visited
 	AllowedDomains []string
@@ -185,6 +188,9 @@ var envMap = map[string]func(*Collector, string){
 	},
 	"IGNORE_ROBOTSTXT": func(c *Collector, val string) {
 		c.IgnoreRobotsTxt = isYesString(val)
+	},
+	"FOLLOW_REDIRECTS": func(c *Collector, val string) {
+		c.FollowRedirects = isYesString(val)
 	},
 	"MAX_BODY_SIZE": func(c *Collector, val string) {
 		size, err := strconv.Atoi(val)
@@ -327,6 +333,7 @@ func Debugger(d debug.Debugger) func(*Collector) {
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
+	c.FollowRedirects = true
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
@@ -990,6 +997,10 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 	return func(req *http.Request, via []*http.Request) error {
 		if !c.isDomainAllowed(req.URL.Host) {
 			return fmt.Errorf("Not following redirect to %s because its not in AllowedDomains", req.URL.Host)
+		}
+
+		if !c.FollowRedirects {
+			return http.ErrUseLastResponse
 		}
 
 		// Honor golangs default of maximum of 10 redirects
