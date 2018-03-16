@@ -91,7 +91,9 @@ type Collector struct {
 	ID uint32
 	// DetectCharset can enable character encoding detection for non-utf8 response bodies
 	// without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
-	DetectCharset     bool
+	DetectCharset bool
+	// RedirectHandler allows control on how a redirect will be managed
+	RedirectHandler   func(req *http.Request, via []*http.Request) error
 	store             storage.Storage
 	debugger          debug.Debugger
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -185,6 +187,13 @@ var envMap = map[string]func(*Collector, string){
 	},
 	"IGNORE_ROBOTSTXT": func(c *Collector, val string) {
 		c.IgnoreRobotsTxt = isYesString(val)
+	},
+	"FOLLOW_REDIRECTS": func(c *Collector, val string) {
+		if !isYesString(val) {
+			c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+		}
 	},
 	"MAX_BODY_SIZE": func(c *Collector, val string) {
 		size, err := strconv.Atoi(val)
@@ -976,6 +985,7 @@ func (c *Collector) Clone() *Collector {
 		backend:                c.backend,
 		debugger:               c.debugger,
 		Async:                  c.Async,
+		RedirectHandler:        c.RedirectHandler,
 		errorCallbacks:         make([]ErrorCallback, 0, 8),
 		htmlCallbacks:          make([]*htmlCallbackContainer, 0, 8),
 		lock:                   c.lock,
@@ -990,6 +1000,10 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 	return func(req *http.Request, via []*http.Request) error {
 		if !c.isDomainAllowed(req.URL.Host) {
 			return fmt.Errorf("Not following redirect to %s because its not in AllowedDomains", req.URL.Host)
+		}
+
+		if c.RedirectHandler != nil {
+			return c.RedirectHandler(req, via)
 		}
 
 		// Honor golangs default of maximum of 10 redirects
