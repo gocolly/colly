@@ -46,7 +46,7 @@ func newTestServer() *httptest.Server {
 	})
 
 	mux.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Conent-Type", "text/html")
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<!DOCTYPE html>
 <html>
 <head>
@@ -63,7 +63,7 @@ func newTestServer() *httptest.Server {
 
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
-			w.Header().Set("Conent-Type", "text/html")
+			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(r.FormValue("name")))
 		}
 	})
@@ -111,7 +111,7 @@ func newTestServer() *httptest.Server {
 	})
 
 	mux.HandleFunc("/500", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Conent-Type", "text/html")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(500)
 		w.Write([]byte("<p>error</p>"))
 	})
