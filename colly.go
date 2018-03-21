@@ -972,7 +972,9 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 func (c *Collector) Clone() *Collector {
 	return &Collector{
 		AllowedDomains:         c.AllowedDomains,
+		AllowURLRevisit:        c.AllowURLRevisit,
 		CacheDir:               c.CacheDir,
+		DetectCharset:          c.DetectCharset,
 		DisallowedDomains:      c.DisallowedDomains,
 		ID:                     atomic.AddUint32(&collectorCounter, 1),
 		IgnoreRobotsTxt:        c.IgnoreRobotsTxt,
@@ -988,6 +990,8 @@ func (c *Collector) Clone() *Collector {
 		RedirectHandler:        c.RedirectHandler,
 		errorCallbacks:         make([]ErrorCallback, 0, 8),
 		htmlCallbacks:          make([]*htmlCallbackContainer, 0, 8),
+		xmlCallbacks:           make([]*xmlCallbackContainer, 0, 8),
+		scrapedCallbacks:       make([]ScrapedCallback, 0, 8),
 		lock:                   c.lock,
 		requestCallbacks:       make([]RequestCallback, 0, 8),
 		responseCallbacks:      make([]ResponseCallback, 0, 8),
