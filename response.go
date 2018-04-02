@@ -55,7 +55,7 @@ func (r *Response) FileName() string {
 	if r.Request.URL.RawQuery != "" {
 		return SanitizeFileName(fmt.Sprintf("%s_%s", r.Request.URL.Path, r.Request.URL.RawQuery))
 	}
-	return SanitizeFileName(r.Request.URL.Path[1:])
+	return SanitizeFileName(strings.TrimPrefix(r.Request.URL.Path, "/"))
 }
 
 func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error {
