@@ -77,7 +77,7 @@ func (h *HTMLElement) ChildAttr(goquerySelector, attrName string) string {
 // ChildAttrs returns the stripped text content of all the matching
 // element's attributes.
 func (h *HTMLElement) ChildAttrs(goquerySelector, attrName string) []string {
-	res := make([]string, 0)
+	var res []string
 	h.DOM.Find(goquerySelector).Each(func(_ int, s *goquery.Selection) {
 		if attr, ok := s.Attr(attrName); ok {
 			res = append(res, strings.TrimSpace(attr))

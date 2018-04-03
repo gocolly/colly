@@ -123,7 +123,7 @@ func (h *XMLElement) ChildAttr(xpathQuery, attrName string) string {
 // ChildAttrs returns the stripped text content of all the matching
 // element's attributes.
 func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
-	res := make([]string, 0)
+	var res []string
 	if h.isHTML {
 		htmlquery.FindEach(h.DOM.(*html.Node), xpathQuery, func(i int, child *html.Node) {
 			for _, attr := range child.Attr {
