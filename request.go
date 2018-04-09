@@ -44,6 +44,7 @@ type Request struct {
 	ID        uint32
 	collector *Collector
 	abort     bool
+	baseURL   *url.URL
 }
 
 // Abort cancels the HTTP request when called in an OnRequest callback
@@ -58,7 +59,13 @@ func (r *Request) AbsoluteURL(u string) string {
 	if strings.HasPrefix(u, "#") {
 		return ""
 	}
-	absURL, err := r.URL.Parse(u)
+	var base *url.URL
+	if r.baseURL != nil {
+		base = r.baseURL
+	} else {
+		base = r.URL
+	}
+	absURL, err := base.Parse(u)
 	if err != nil {
 		return ""
 	}

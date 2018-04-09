@@ -825,6 +825,9 @@ func (c *Collector) handleOnHTML(resp *Response) {
 	if err != nil {
 		return
 	}
+	if href, found := doc.Find("base[href]").Attr("href"); found {
+		resp.Request.baseURL, _ = url.Parse(href)
+	}
 	for _, cc := range c.htmlCallbacks {
 		doc.Find(cc.Selector).Each(func(i int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
@@ -854,6 +857,14 @@ func (c *Collector) handleOnXML(resp *Response) {
 		doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
 		if err != nil {
 			return
+		}
+		if e := htmlquery.FindOne(doc, "//base/@href"); e != nil {
+			for _, a := range e.Attr {
+				if a.Key == "href" {
+					resp.Request.baseURL, _ = url.Parse(a.Val)
+					break
+				}
+			}
 		}
 
 		for _, cc := range c.xmlCallbacks {

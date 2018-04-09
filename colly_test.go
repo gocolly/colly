@@ -121,6 +121,21 @@ func newTestServer() *httptest.Server {
 		w.Write([]byte(r.Header.Get("User-Agent")))
 	})
 
+	mux.HandleFunc("/base", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<!DOCTYPE html>
+<html>
+<head>
+<title>Test Page</title>
+<base href="http://xy.com/" />
+</head>
+<body>
+<a href="z">link</a>
+</body>
+</html>
+		`))
+	})
+
 	return httptest.NewServer(mux)
 }
 
@@ -431,6 +446,29 @@ func TestRedirect(t *testing.T) {
 		}
 	})
 	c.Visit(ts.URL + "/redirect")
+}
+
+func TestBaseTag(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.OnHTML("a[href]", func(e *HTMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		if u != "http://xy.com/z" {
+			t.Error("Invalid <base /> tag handling in OnHTML: expected https://xy.com/z, got " + u)
+		}
+	})
+	c.Visit(ts.URL + "/base")
+
+	c2 := NewCollector()
+	c2.OnXML("//a/@href", func(e *XMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		if u != "http://xy.com/z" {
+			t.Error("Invalid <base /> tag handling in OnXML: expected https://xy.com/z, got " + u)
+		}
+	})
+	c2.Visit(ts.URL + "/base")
 }
 
 func TestCollectorCookies(t *testing.T) {
