@@ -544,6 +544,19 @@ func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 
 }
 
+func TestConnectionErrorOnRobotsTxtResultsInError(t *testing.T) {
+	ts := newTestServer()
+	ts.Close() // immediately close the server to force a connection error
+
+	c := NewCollector()
+	c.IgnoreRobotsTxt = false
+	err := c.Visit(ts.URL)
+
+	if err == nil {
+		t.Fatal("Error expected")
+	}
+}
+
 func TestEnvSettings(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()

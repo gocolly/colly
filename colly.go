@@ -565,17 +565,16 @@ func (c *Collector) isDomainAllowed(domain string) bool {
 }
 
 func (c *Collector) checkRobots(u *url.URL) error {
-	// var robot *robotstxt.RobotsData
-	// var ok bool
-	var err error
-
 	c.lock.RLock()
 	robot, ok := c.robotsMap[u.Host]
 	c.lock.RUnlock()
 
 	if !ok {
 		// no robots file cached
-		resp, _ := c.backend.Client.Get(u.Scheme + "://" + u.Host + "/robots.txt")
+		resp, err := c.backend.Client.Get(u.Scheme + "://" + u.Host + "/robots.txt")
+		if err != nil {
+			return err
+		}
 		robot, err = robotstxt.FromResponse(resp)
 		if err != nil {
 			return err
