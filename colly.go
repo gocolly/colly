@@ -565,9 +565,6 @@ func (c *Collector) isDomainAllowed(domain string) bool {
 }
 
 func (c *Collector) checkRobots(u *url.URL) error {
-	// var robot *robotstxt.RobotsData
-	// var ok bool
-
 	c.lock.RLock()
 	robot, ok := c.robotsMap[u.Host]
 	c.lock.RUnlock()
