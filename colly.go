@@ -18,6 +18,7 @@ package colly
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
@@ -411,6 +412,35 @@ func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Cont
 func (c *Collector) SetDebugger(d debug.Debugger) {
 	d.Init()
 	c.debugger = d
+}
+
+// UnmarshalRequest creates a Request from serialized data
+func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
+	req := &serializableRequest{}
+	err := json.Unmarshal(r, req)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := url.Parse(req.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := NewContext()
+	for k, v := range req.Ctx {
+		ctx.Put(k, v)
+	}
+
+	return &Request{
+		Method:    req.Method,
+		URL:       u,
+		Body:      bytes.NewReader(req.Body),
+		Ctx:       ctx,
+		ID:        atomic.AddUint32(&c.requestCount, 1),
+		Headers:   &http.Header{},
+		collector: c,
+	}, nil
 }
 
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {

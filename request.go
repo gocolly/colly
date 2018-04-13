@@ -16,10 +16,13 @@ package colly
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 )
 
 // Request is the representation of a HTTP request made by a Collector
@@ -45,6 +48,31 @@ type Request struct {
 	collector *Collector
 	abort     bool
 	baseURL   *url.URL
+}
+
+type serializableRequest struct {
+	URL    string
+	Method string
+	Body   []byte
+	ID     uint32
+	Ctx    map[string]interface{}
+}
+
+// New creates a new request with the context of the original request
+func (r *Request) New(method, URL string, body io.Reader) (*Request, error) {
+	u, err := url.Parse(URL)
+	if err != nil {
+		return nil, err
+	}
+	return &Request{
+		Method:    method,
+		URL:       u,
+		Body:      body,
+		Ctx:       r.Ctx,
+		Headers:   &http.Header{},
+		ID:        atomic.AddUint32(&r.collector.requestCount, 1),
+		collector: r.collector,
+	}, nil
 }
 
 // Abort cancels the HTTP request when called in an OnRequest callback
@@ -111,4 +139,30 @@ func (r *Request) PostMultipart(URL string, requestData map[string][]byte) error
 // Retry submits HTTP request again with the same parameters
 func (r *Request) Retry() error {
 	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, false)
+}
+
+// Marshal serializes the Request
+func (r *Request) Marshal() ([]byte, error) {
+	ctx := make(map[string]interface{})
+	if r.Ctx != nil {
+		r.Ctx.ForEach(func(k string, v interface{}) interface{} {
+			ctx[k] = v
+			return nil
+		})
+	}
+	var err error
+	var body []byte
+	if r.Body != nil {
+		body, err = ioutil.ReadAll(r.Body)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return json.Marshal(&serializableRequest{
+		URL:    r.URL.String(),
+		Method: r.Method,
+		Body:   body,
+		ID:     r.ID,
+		Ctx:    ctx,
+	})
 }

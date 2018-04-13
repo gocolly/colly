@@ -1,31 +1,21 @@
 package queue
 
 import (
-	"io"
+	"net/url"
 	"sync"
 
 	"github.com/gocolly/colly"
 )
 
-// Request is the container of HTTP request attributes
-type Request struct {
-	// URL of the request
-	URL string
-	// Method of the request
-	Method string
-	// Body is the optional request body for POST/PUT requests
-	Body io.Reader
-}
-
 // Storage is the interface of the queue's storage backend
 type Storage interface {
 	// Init initializes the storage
 	Init() error
-	// AddRequest adds a request to the queue
-	AddRequest(*Request) error
+	// AddRequest adds a serialized request to the queue
+	AddRequest([]byte) error
 	// GetRequest pops the next request from the queue
 	// or returns error if the queue is empty
-	GetRequest() (*Request, error)
+	GetRequest() ([]byte, error)
 	// QueueSize returns with the size of the queue
 	QueueSize() (int, error)
 }
@@ -51,7 +41,7 @@ type InMemoryQueueStorage struct {
 }
 
 type inMemoryQueueItem struct {
-	Request *Request
+	Request []byte
 	Next    *inMemoryQueueItem
 }
 
@@ -78,12 +68,28 @@ func (q *Queue) IsEmpty() bool {
 
 // AddURL adds a new URL to the queue
 func (q *Queue) AddURL(URL string) error {
-	return q.storage.AddRequest(&Request{URL: URL, Method: "GET"})
+	u, err := url.Parse(URL)
+	if err != nil {
+		return err
+	}
+	r := &colly.Request{
+		URL:    u,
+		Method: "GET",
+	}
+	d, err := r.Marshal()
+	if err != nil {
+		return err
+	}
+	return q.storage.AddRequest(d)
 }
 
 // AddRequest adds a new Request to the queue
-func (q *Queue) AddRequest(method, URL string, body io.Reader) error {
-	return q.storage.AddRequest(&Request{URL: URL, Method: method, Body: body})
+func (q *Queue) AddRequest(r *colly.Request) error {
+	d, err := r.Marshal()
+	if err != nil {
+		return err
+	}
+	return q.storage.AddRequest(d)
 }
 
 // Size returns the size of the queue
@@ -100,11 +106,15 @@ func (q *Queue) Run(c *colly.Collector) error {
 		go func(c *colly.Collector, wg *sync.WaitGroup) {
 			defer wg.Done()
 			for !q.IsEmpty() {
-				r, err := q.storage.GetRequest()
-				if err != nil || r == nil {
+				rb, err := q.storage.GetRequest()
+				if err != nil || rb == nil {
 					break
 				}
-				c.Request(r.Method, r.URL, r.Body, nil, nil)
+				r, err := c.UnmarshalRequest(rb)
+				if err != nil || r == nil {
+					continue
+				}
+				r.Retry()
 			}
 		}(c, wg)
 	}
@@ -119,7 +129,7 @@ func (q *InMemoryQueueStorage) Init() error {
 }
 
 // AddRequest implements Storage.AddRequest() function
-func (q *InMemoryQueueStorage) AddRequest(r *Request) error {
+func (q *InMemoryQueueStorage) AddRequest(r []byte) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	// Discard URLs if size limit exceeded
@@ -138,7 +148,7 @@ func (q *InMemoryQueueStorage) AddRequest(r *Request) error {
 }
 
 // GetRequest implements Storage.GetRequest() function
-func (q *InMemoryQueueStorage) GetRequest() (*Request, error) {
+func (q *InMemoryQueueStorage) GetRequest() ([]byte, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	if q.size == 0 {
