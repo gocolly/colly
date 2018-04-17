@@ -479,6 +479,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Body:       rc,
 		Host:       parsedURL.Host,
 	}
+	setRequestBody(req, requestData)
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
@@ -486,6 +487,38 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		return nil
 	}
 	return c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req)
+}
+
+func setRequestBody(req *http.Request, body io.Reader) {
+	if body != nil {
+		switch v := body.(type) {
+		case *bytes.Buffer:
+			req.ContentLength = int64(v.Len())
+			buf := v.Bytes()
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := bytes.NewReader(buf)
+				return ioutil.NopCloser(r), nil
+			}
+		case *bytes.Reader:
+			req.ContentLength = int64(v.Len())
+			snapshot := *v
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := snapshot
+				return ioutil.NopCloser(&r), nil
+			}
+		case *strings.Reader:
+			req.ContentLength = int64(v.Len())
+			snapshot := *v
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := snapshot
+				return ioutil.NopCloser(&r), nil
+			}
+		}
+		if req.GetBody != nil && req.ContentLength == 0 {
+			req.Body = http.NoBody
+			req.GetBody = func() (io.ReadCloser, error) { return http.NoBody, nil }
+		}
+	}
 }
 
 func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool, req *http.Request) error {
