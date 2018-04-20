@@ -3,9 +3,12 @@ package queue
 import (
 	"net/url"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gocolly/colly"
 )
+
+const stop = true
 
 // Storage is the interface of the queue's storage backend
 type Storage interface {
@@ -24,8 +27,11 @@ type Storage interface {
 // requests in multiple threads
 type Queue struct {
 	// Threads defines the number of consumer threads
-	Threads int
-	storage Storage
+	Threads           int
+	storage           Storage
+	activeThreadCount int32
+	threadChans       []chan bool
+	lock              *sync.Mutex
 }
 
 // InMemoryQueueStorage is the default implementation of the Storage interface.
@@ -55,8 +61,10 @@ func New(threads int, s Storage) (*Queue, error) {
 		return nil, err
 	}
 	return &Queue{
-		Threads: threads,
-		storage: s,
+		Threads:     threads,
+		storage:     s,
+		lock:        &sync.Mutex{},
+		threadChans: make([]chan bool, 0, threads),
 	}, nil
 }
 
@@ -89,7 +97,16 @@ func (q *Queue) AddRequest(r *colly.Request) error {
 	if err != nil {
 		return err
 	}
-	return q.storage.AddRequest(d)
+	if err := q.storage.AddRequest(d); err != nil {
+		return err
+	}
+	q.lock.Lock()
+	for _, c := range q.threadChans {
+		c <- !stop
+	}
+	q.threadChans = make([]chan bool, 0, q.Threads)
+	q.lock.Unlock()
+	return nil
 }
 
 // Size returns the size of the queue
@@ -98,28 +115,55 @@ func (q *Queue) Size() (int, error) {
 }
 
 // Run starts consumer threads and calls the Collector
-// to perform requests. Run blocks while the queue has items
+// to perform requests. Run blocks while the queue has active requests
 func (q *Queue) Run(c *colly.Collector) error {
 	wg := &sync.WaitGroup{}
 	for i := 0; i < q.Threads; i++ {
 		wg.Add(1)
 		go func(c *colly.Collector, wg *sync.WaitGroup) {
 			defer wg.Done()
-			for !q.IsEmpty() {
+			for {
+				if q.IsEmpty() {
+					if q.activeThreadCount == 0 {
+						break
+					}
+					ch := make(chan bool)
+					q.lock.Lock()
+					q.threadChans = append(q.threadChans, ch)
+					q.lock.Unlock()
+					action := <-ch
+					if action == stop && q.IsEmpty() {
+						break
+					}
+				}
+				atomic.AddInt32(&q.activeThreadCount, 1)
 				rb, err := q.storage.GetRequest()
 				if err != nil || rb == nil {
-					break
+					q.finish()
+					continue
 				}
 				r, err := c.UnmarshalRequest(rb)
 				if err != nil || r == nil {
+					q.finish()
 					continue
 				}
 				r.Retry()
+				q.finish()
 			}
 		}(c, wg)
 	}
 	wg.Wait()
 	return nil
+}
+
+func (q *Queue) finish() {
+	atomic.AddInt32(&q.activeThreadCount, -1)
+	q.lock.Lock()
+	for _, c := range q.threadChans {
+		c <- stop
+	}
+	q.threadChans = make([]chan bool, 0, q.Threads)
+	q.lock.Unlock()
 }
 
 // Init implements Storage.Init() function
