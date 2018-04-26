@@ -63,11 +63,20 @@ type Collector struct {
 	AllowedDomains []string
 	// DisallowedDomains is a domain blacklist.
 	DisallowedDomains []string
+	// DisallowedURLFilters is a list of regular expressions which restricts
+	// visiting URLs. If any of the rules matches to a URL the
+	// request will be stopped. DisallowedURLFilters will
+	// be evaluated before URLFilters
+	// Leave it blank to allow any URLs to be visited
+	DisallowedURLFilters []*regexp.Regexp
 	// URLFilters is a list of regular expressions which restricts
 	// visiting URLs. If any of the rules matches to a URL the
-	// request won't be stopped.
+	// request won't be stopped. DisallowedURLFilters will
+	// be evaluated before URLFilters
+
 	// Leave it blank to allow any URLs to be visited
 	URLFilters []*regexp.Regexp
+
 	// AllowURLRevisit allows multiple downloads of the same URL
 	AllowURLRevisit bool
 	// MaxBodySize is the limit of the retrieved response body in bytes.
@@ -157,6 +166,10 @@ var (
 	ErrMissingURL = errors.New("Missing URL")
 	// ErrMaxDepth is the error type for exceeding max depth
 	ErrMaxDepth = errors.New("Max depth limit reached")
+	// ErrForbiddenURL is the error thrown if visiting
+	// a URL which is not allowed by URLFilters
+	ErrForbiddenURL = errors.New("ForbiddenURL")
+
 	// ErrNoURLFiltersMatch is the error thrown if visiting
 	// a URL which is not allowed by URLFilters
 	ErrNoURLFiltersMatch = errors.New("No URLFilters match")
@@ -262,6 +275,14 @@ func ParseHTTPErrorResponse() func(*Collector) {
 func DisallowedDomains(domains ...string) func(*Collector) {
 	return func(c *Collector) {
 		c.DisallowedDomains = domains
+	}
+}
+
+// DisallowdURLFilters sets the list of regular expressions which restricts
+// visiting URLs. If any of the rules matches to a URL the request will be stopped.
+func DisallowedURLFilters(filters ...*regexp.Regexp) func(*Collector) {
+	return func(c *Collector) {
+		c.DisallowedURLFilters = filters
 	}
 }
 
@@ -581,6 +602,18 @@ func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool)
 	}
 	if c.MaxDepth > 0 && c.MaxDepth < depth {
 		return ErrMaxDepth
+	}
+	if len(c.DisallowedURLFilters) > 0 {
+		matched := false
+		for _, r := range c.DisallowedURLFilters {
+			if r.Match([]byte(u)) {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			return ErrForbiddenURL
+		}
 	}
 	if len(c.URLFilters) > 0 {
 		matched := false
@@ -1053,6 +1086,7 @@ func (c *Collector) Clone() *Collector {
 		IgnoreRobotsTxt:        c.IgnoreRobotsTxt,
 		MaxBodySize:            c.MaxBodySize,
 		MaxDepth:               c.MaxDepth,
+		DisallowedURLFilters:   c.DisallowedURLFilters,
 		URLFilters:             c.URLFilters,
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
