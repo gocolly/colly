@@ -193,6 +193,17 @@ var newCollectorTests = map[string]func(*testing.T){
 			}
 		}
 	},
+	"DisallowedURLFilters": func(t *testing.T) {
+		for _, filters := range [][]*regexp.Regexp{
+			{regexp.MustCompile(`.*not_allowed.*`)},
+		} {
+			c := NewCollector(DisallowedURLFilters(filters...))
+
+			if got, want := c.DisallowedURLFilters, filters; !reflect.DeepEqual(got, want) {
+				t.Fatalf("c.DisallowedURLFilters = %v, want %v", got, want)
+			}
+		}
+	},
 	"URLFilters": func(t *testing.T) {
 		for _, filters := range [][]*regexp.Regexp{
 			{regexp.MustCompile(`\w+`)},
