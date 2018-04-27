@@ -278,7 +278,7 @@ func DisallowedDomains(domains ...string) func(*Collector) {
 	}
 }
 
-// DisallowdURLFilters sets the list of regular expressions which restricts
+// DisallowedURLFilters sets the list of regular expressions which restricts
 // visiting URLs. If any of the rules matches to a URL the request will be stopped.
 func DisallowedURLFilters(filters ...*regexp.Regexp) func(*Collector) {
 	return func(c *Collector) {
