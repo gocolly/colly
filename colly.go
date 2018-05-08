@@ -504,10 +504,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
-		go c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req)
+		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
 		return nil
 	}
-	return c.fetch(u, method, depth, requestData, ctx, hdr, checkRevisit, req)
+	return c.fetch(u, method, depth, requestData, ctx, hdr, req)
 }
 
 func setRequestBody(req *http.Request, body io.Reader) {
@@ -542,7 +542,7 @@ func setRequestBody(req *http.Request, body io.Reader) {
 	}
 }
 
-func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool, req *http.Request) error {
+func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request) error {
 	defer c.wg.Done()
 	if ctx == nil {
 		ctx = NewContext()
