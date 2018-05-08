@@ -137,8 +137,13 @@ func (r *Request) PostMultipart(URL string, requestData map[string][]byte) error
 }
 
 // Retry submits HTTP request again with the same parameters
-func (r *Request) Retry(checkRevisit bool) error {
-	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, checkRevisit)
+func (r *Request) Retry() error {
+	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, false)
+}
+
+// Do submits the request
+func (r *Request) Do() error {
+	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, r.collector.AllowURLRevisit)
 }
 
 // Marshal serializes the Request

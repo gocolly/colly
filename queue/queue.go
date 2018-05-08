@@ -147,7 +147,7 @@ func (q *Queue) Run(c *colly.Collector) error {
 					q.finish()
 					continue
 				}
-				r.Retry(true)
+				r.Do()
 				q.finish()
 			}
 		}(c, wg)
