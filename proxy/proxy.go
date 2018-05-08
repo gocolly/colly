@@ -35,7 +35,7 @@ func (r *roundRobinSwitcher) GetProxy(_ *http.Request) (*url.URL, error) {
 
 // RoundRobinProxySwitcher creates a proxy switcher function which rotates
 // ProxyURLs on every request.
-// The proxy type is determined by the URL scheme. "http"
+// The proxy type is determined by the URL scheme. "http", "https"
 // and "socks5" are supported. If the scheme is empty,
 // "http" is assumed.
 func RoundRobinProxySwitcher(ProxyURLs ...string) (colly.ProxyFunc, error) {
