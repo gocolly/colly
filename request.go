@@ -141,6 +141,11 @@ func (r *Request) Retry() error {
 	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, false)
 }
 
+// Do submits the request
+func (r *Request) Do() error {
+	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, r.collector.AllowURLRevisit)
+}
+
 // Marshal serializes the Request
 func (r *Request) Marshal() ([]byte, error) {
 	ctx := make(map[string]interface{})
