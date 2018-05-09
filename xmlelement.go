@@ -91,7 +91,11 @@ func (h *XMLElement) ChildText(xpathQuery string) string {
 	if h.isHTML {
 		return strings.TrimSpace(htmlquery.InnerText(htmlquery.FindOne(h.DOM.(*html.Node), xpathQuery)))
 	}
-	return strings.TrimSpace(xmlquery.FindOne(h.DOM.(*xmlquery.Node), xpathQuery).InnerText())
+	n := xmlquery.FindOne(h.DOM.(*xmlquery.Node), xpathQuery)
+	if n == nil {
+		return ""
+	}
+	return strings.TrimSpace(n.InnerText())
 }
 
 // ChildAttr returns the stripped text content of the first matching
