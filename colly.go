@@ -610,26 +610,12 @@ func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool)
 		return ErrMaxDepth
 	}
 	if len(c.DisallowedURLFilters) > 0 {
-		matched := false
-		for _, r := range c.DisallowedURLFilters {
-			if r.Match([]byte(u)) {
-				matched = true
-				break
-			}
-		}
-		if matched {
+		if isMatchingFilter(c.DisallowedURLFilters, []byte(u)) {
 			return ErrForbiddenURL
 		}
 	}
 	if len(c.URLFilters) > 0 {
-		matched := false
-		for _, r := range c.URLFilters {
-			if r.Match([]byte(u)) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
+		if !isMatchingFilter(c.URLFilters, []byte(u)) {
 			return ErrNoURLFiltersMatch
 		}
 	}
@@ -1260,4 +1246,13 @@ func (j *cookieJarSerializer) Cookies(u *url.URL) []*http.Cookie {
 		cnew = append(cnew, c)
 	}
 	return cnew
+}
+
+func isMatchingFilter(fs []*regexp.Regexp, d []byte) bool {
+	for _, r := range fs {
+		if r.Match(d) {
+			return true
+		}
+	}
+	return false
 }
