@@ -1,11 +1,11 @@
-package colly_test
+package colly
 
 import (
+	"github.com/antchfx/htmlquery"
+	"github.com/gocolly/colly"
+	"reflect"
 	"strings"
 	"testing"
-	"github.com/antchfx/htmlquery"
-	"github.com/sharmi/colly"
-	"reflect"
 )
 
 // Borrowed from http://infohost.nmt.edu/tcc/help/pubs/xhtml/example.html
@@ -69,10 +69,10 @@ func TestChildTexts(t *testing.T) {
 	xmlNode := htmlquery.FindOne(doc, "/html")
 	xmlElem := colly.NewXMLElementFromHTMLNode(resp, xmlNode)
 	expected := []string{"First bullet of a bullet list.", "This is the second bullet."}
-	if texts := xmlElem.ChildTexts("//li"); reflect.DeepEqual(texts, expected) == false  {
+	if texts := xmlElem.ChildTexts("//li"); reflect.DeepEqual(texts, expected) == false {
 		t.Fatalf("failed child tags test: %v != %v", texts, expected)
 	}
-	if texts := xmlElem.ChildTexts("//dl"); reflect.DeepEqual(texts, make([]string, 0)) == false{
+	if texts := xmlElem.ChildTexts("//dl"); reflect.DeepEqual(texts, make([]string, 0)) == false {
 		t.Fatalf("failed child tag test: %v != \"\"", texts)
 	}
 }

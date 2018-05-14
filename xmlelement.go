@@ -139,6 +139,8 @@ func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
 	return res
 }
 
+// ChildTexts returns an array of strings corresponding to child elements that match the xpath query. 
+// Each item in the array is the stripped text content of the corresponding matching child element.
 func (h *XMLElement) ChildTexts(xpathQuery string) []string {
         texts := make([]string, 0)
         if h.isHTML {
