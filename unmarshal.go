@@ -67,6 +67,10 @@ func UnmarshalHTML(v interface{}, s *goquery.Selection) error {
 
 func unmarshalAttr(s *goquery.Selection, attrV reflect.Value, attrT reflect.StructField) error {
 	selector := attrT.Tag.Get("selector")
+	//selector is "-" or blank specify that field should ignore.
+	if selector == "-" || selector == "" {
+		return nil
+	}
 	htmlAttr := attrT.Tag.Get("attr")
 	// TODO support more types
 	switch attrV.Kind() {
