@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -32,6 +33,40 @@ import (
 
 	"github.com/gobwas/glob"
 )
+
+// HTTPDriver is an interface to allow multiple backend to perform HTTP requests
+type HTTPDriver interface {
+	// Init initializes the HTTPDriver implementation
+	Init(jar http.CookieJar)
+	//GetMatchingRule returns the LimitRule for a given domain
+	GetMatchingRule(domain string) *LimitRule
+	// Cache caches the
+	Cache(request *http.Request, bodySize int, cacheDir string) (*Response, error)
+	// Do processes the http.Request
+	Do(request *http.Request, bodySize int) (*Response, error)
+	// Limit adds a LimitRule
+	Limit(rule *LimitRule) error
+	// Limits adds multiple LimitRules
+	Limits(rules []*LimitRule) error
+	// Jar sets the cookie jar
+	Jar(j http.CookieJar)
+	// GetJar returns the current cookie jar
+	GetJar() http.CookieJar
+	// Transport sets the http.RoundTripper
+	Transport(t http.RoundTripper)
+	// Timeout sets the timeout duration
+	Timeout(t time.Duration)
+	// GetTimeout gets the timeout duration
+	GetTimeout() time.Duration
+	// Proxy set the ProxyFunc
+	Proxy(pf ProxyFunc)
+	// SetCookies sets cookies for a specific URL
+	SetCookies(url *url.URL, cookies []*http.Cookie) error
+	// Cookies get the cookies for a specific URL
+	Cookies(url *url.URL) []*http.Cookie
+	// CheckRedirect set the redirect function
+	CheckRedirect(func(req *http.Request, via []*http.Request) error)
+}
 
 type httpBackend struct {
 	LimitRules []*LimitRule
@@ -224,4 +259,55 @@ func (h *httpBackend) Limits(rules []*LimitRule) error {
 		}
 	}
 	return nil
+}
+
+func (h *httpBackend) Jar(j http.CookieJar) {
+	h.Client.Jar = j
+}
+
+func (h *httpBackend) GetJar() http.CookieJar {
+	return h.Client.Jar
+}
+
+func (h *httpBackend) Transport(t http.RoundTripper) {
+	h.Client.Transport = t
+}
+
+func (h *httpBackend) Timeout(t time.Duration) {
+	h.Client.Timeout = t
+}
+
+func (h *httpBackend) GetTimeout() time.Duration {
+	return h.Client.Timeout
+}
+
+func (h *httpBackend) Proxy(pf ProxyFunc) {
+	t, ok := h.Client.Transport.(*http.Transport)
+	if h.Client.Transport != nil && ok {
+		t.Proxy = pf
+	} else {
+		h.Client.Transport = &http.Transport{
+			Proxy: pf,
+		}
+	}
+}
+
+func (h *httpBackend) SetCookies(url *url.URL, cookies []*http.Cookie) error {
+	if h.Client.Jar == nil {
+		return ErrNoCookieJar
+	}
+	h.Client.Jar.SetCookies(url, cookies)
+	return nil
+}
+
+func (h *httpBackend) Cookies(url *url.URL) []*http.Cookie {
+	if h.Client.Jar == nil {
+		return nil
+	}
+
+	return h.Client.Jar.Cookies(url)
+}
+
+func (h *httpBackend) CheckRedirect(f func(req *http.Request, via []*http.Request) error) {
+	h.Client.CheckRedirect = f
 }
