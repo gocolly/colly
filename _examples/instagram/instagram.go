@@ -19,7 +19,7 @@ const instagramQueryId = "42323d64886122307be10013ad2dcc45"
 
 // "id": user id, "after": end cursor
 const nextPageURL string = `https://www.instagram.com/graphql/query/?query_hash=%s&variables=%s`
-const nextPagePayload string = `{"id":"%s","first":12,"after":"%s"}`
+const nextPagePayload string = `{"id":"%s","first":50,"after":"%s"}`
 
 var requestID string
 
