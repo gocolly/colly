@@ -567,6 +567,11 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
+
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", "*/*")
+	}
+
 	origURL := req.URL
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
