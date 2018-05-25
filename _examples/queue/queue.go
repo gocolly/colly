@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/queue"
@@ -15,7 +16,8 @@ func main() {
 
 	// create a request queue with 2 consumer threads
 	q, _ := queue.New(
-		2, // Number of consumer threads
+		2,                                           // Number of consumer threads
+		8*time.Second,                               // Random max duration delay before request
 		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
 	)
 
