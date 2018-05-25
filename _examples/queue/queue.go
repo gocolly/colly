@@ -16,10 +16,11 @@ func main() {
 
 	// create a request queue with 2 consumer threads
 	q, _ := queue.New(
-		2,                                           // Number of consumer threads
-		8*time.Second,                               // Random max duration delay before request
+		2, // Number of consumer threads
 		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
 	)
+	// Random max duration delay before request
+	q.RandomDelay = 8 * time.Second
 
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("visiting", r.URL)

@@ -28,7 +28,8 @@ type Storage interface {
 // Queue is a request queue which uses a Collector to consume
 // requests in multiple threads
 type Queue struct {
-	// Threads defines the number of consumer threads
+	// Threads defines the number of consumer threads.
+	//RandomDelay defines maximum time of delay before request
 	Threads           int
 	storage           Storage
 	activeThreadCount int32
@@ -56,7 +57,7 @@ type inMemoryQueueItem struct {
 
 // New creates a new queue with a Storage specified in argument
 // A standard InMemoryQueueStorage is used if Storage argument is nil.
-func New(threads int, randomDelay time.Duration, s Storage) (*Queue, error) {
+func New(threads int, s Storage) (*Queue, error) {
 	if s == nil {
 		s = &InMemoryQueueStorage{MaxSize: 100000}
 	}
@@ -66,7 +67,6 @@ func New(threads int, randomDelay time.Duration, s Storage) (*Queue, error) {
 	return &Queue{
 		Threads:     threads,
 		storage:     s,
-		RandomDelay: randomDelay,
 		lock:        &sync.Mutex{},
 		threadChans: make([]chan bool, 0, threads),
 	}, nil
@@ -151,11 +151,11 @@ func (q *Queue) Run(c *colly.Collector) error {
 					q.finish()
 					continue
 				}
-				randomDelay := time.Duration(0)
+
 				if q.RandomDelay != 0 {
-					randomDelay = time.Duration(rand.Intn(int(q.RandomDelay)))
+					time.Sleep(time.Duration(rand.Intn(int(q.RandomDelay))))
 				}
-				time.Sleep(randomDelay)
+
 				r.Do()
 				q.finish()
 			}
