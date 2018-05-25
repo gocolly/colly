@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/queue"
@@ -18,6 +19,8 @@ func main() {
 		2, // Number of consumer threads
 		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
 	)
+	// Random max duration delay before request
+	q.RandomDelay = 8 * time.Second
 
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("visiting", r.URL)

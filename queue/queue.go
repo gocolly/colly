@@ -1,9 +1,11 @@
 package queue
 
 import (
+	"math/rand"
 	"net/url"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gocolly/colly"
 )
@@ -26,11 +28,13 @@ type Storage interface {
 // Queue is a request queue which uses a Collector to consume
 // requests in multiple threads
 type Queue struct {
-	// Threads defines the number of consumer threads
+	// Threads defines the number of consumer threads.
+	//RandomDelay defines maximum time of delay before request
 	Threads           int
 	storage           Storage
 	activeThreadCount int32
 	threadChans       []chan bool
+	RandomDelay       time.Duration
 	lock              *sync.Mutex
 }
 
@@ -147,6 +151,11 @@ func (q *Queue) Run(c *colly.Collector) error {
 					q.finish()
 					continue
 				}
+
+				if q.RandomDelay != 0 {
+					time.Sleep(time.Duration(rand.Intn(int(q.RandomDelay))))
+				}
+
 				r.Do()
 				q.finish()
 			}
