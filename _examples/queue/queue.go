@@ -21,8 +21,8 @@ func main() {
 
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("visiting", r.URL)
-		if r.URL.String() != url {
-			r2, err := r.New("GET", url, nil)
+		if r.ID < 15 {
+			r2, err := r.New("GET", fmt.Sprintf("%s?x=%v", url, r.ID), nil)
 			if err == nil {
 				q.AddRequest(r2)
 			}
