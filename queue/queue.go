@@ -136,7 +136,9 @@ func (q *Queue) Run(c *colly.Collector) error {
 						break
 					}
 				}
+				q.lock.Lock()
 				atomic.AddInt32(&q.activeThreadCount, 1)
+				q.lock.Unlock()
 				rb, err := q.storage.GetRequest()
 				if err != nil || rb == nil {
 					q.finish()
