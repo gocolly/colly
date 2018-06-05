@@ -157,8 +157,8 @@ func (q *Queue) Run(c *colly.Collector) error {
 }
 
 func (q *Queue) finish() {
-	atomic.AddInt32(&q.activeThreadCount, -1)
 	q.lock.Lock()
+	q.activeThreadCount--
 	for _, c := range q.threadChans {
 		c <- stop
 	}
@@ -206,5 +206,7 @@ func (q *InMemoryQueueStorage) GetRequest() ([]byte, error) {
 
 // QueueSize implements Storage.QueueSize() function
 func (q *InMemoryQueueStorage) QueueSize() (int, error) {
+	q.lock.Lock()
+	defer q.lock.Unlock()
 	return q.size, nil
 }
