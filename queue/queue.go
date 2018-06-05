@@ -125,7 +125,7 @@ func (q *Queue) Run(c *colly.Collector) error {
 			for {
 				if q.IsEmpty() {
 					if q.activeThreadCount == 0 {
-						break
+						continue
 					}
 					ch := make(chan bool)
 					q.lock.Lock()
