@@ -97,3 +97,22 @@ func (h *HTMLElement) ForEach(goquerySelector string, callback func(int, *HTMLEl
 		}
 	})
 }
+
+
+// ForEach iterates over the elements matched by the first argument
+// and calls the callback function on every HTMLElement match.
+// It is identical to ForEach except that it is possible to break
+// out of the loop by returning false in the callback function. It returns the
+// current Selection object.
+func (h *HTMLElement) ForEachWithBreak(goquerySelector string, callback func(int, *HTMLElement) bool) {
+	i := 0
+	h.DOM.Find(goquerySelector).EachWithBreak(func(_ int, s *goquery.Selection) bool {
+		for _, n := range s.Nodes {
+			if callback(i, NewHTMLElementFromSelectionNode(h.Response, s, n)) {
+				return true
+			}
+			i++
+		}
+		return false
+	})
+}
