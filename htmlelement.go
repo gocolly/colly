@@ -98,7 +98,6 @@ func (h *HTMLElement) ForEach(goquerySelector string, callback func(int, *HTMLEl
 	})
 }
 
-
 // ForEach iterates over the elements matched by the first argument
 // and calls the callback function on every HTMLElement match.
 // It is identical to ForEach except that it is possible to break
