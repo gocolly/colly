@@ -28,6 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"compress/gzip"
+
 	"github.com/gobwas/glob"
 )
 
@@ -184,6 +186,12 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	var bodyReader io.Reader = res.Body
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
+	}
+	if res.Header.Get("Content-Encoding") == "gzip" {
+		bodyReader, err = gzip.NewReader(bodyReader)
+		if err != nil {
+			return nil, err
+		}
 	}
 	body, err := ioutil.ReadAll(bodyReader)
 	defer res.Body.Close()
