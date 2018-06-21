@@ -56,6 +56,7 @@ type serializableRequest struct {
 	Body   []byte
 	ID     uint32
 	Ctx    map[string]interface{}
+	Header http.Header
 }
 
 // New creates a new request with the context of the original request
@@ -169,5 +170,6 @@ func (r *Request) Marshal() ([]byte, error) {
 		Body:   body,
 		ID:     r.ID,
 		Ctx:    ctx,
+		Header: *r.Headers,
 	})
 }

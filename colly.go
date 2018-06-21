@@ -459,7 +459,7 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 		Body:      bytes.NewReader(req.Body),
 		Ctx:       ctx,
 		ID:        atomic.AddUint32(&c.requestCount, 1),
-		Headers:   &http.Header{},
+		Headers:   &req.Header,
 		collector: c,
 	}, nil
 }
