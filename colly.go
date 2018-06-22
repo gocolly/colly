@@ -351,6 +351,17 @@ func Debugger(d debug.Debugger) func(*Collector) {
 	}
 }
 
+// Driver sets the HTTPDriver used by the Collector.
+func Driver(backend HTTPDriver) func(*Collector) {
+	return func(c *Collector) {
+		jar := c.backend.GetJar()
+		timeout := c.backend.GetTimeout()
+		c.backend = backend
+		c.backend.Init(jar)
+		c.backend.Timeout(timeout)
+	}
+}
+
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {

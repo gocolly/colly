@@ -103,14 +103,14 @@ func (h *appEngineBackend) Cache(request *http.Request, bodySize int, cacheDir s
 func (h *appEngineBackend) Do(request *http.Request, bodySize int) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
-		r.waitChan <- true
+		r.WaitChan <- true
 		defer func(r *LimitRule) {
 			randomDelay := time.Duration(0)
 			if r.RandomDelay != 0 {
 				randomDelay = time.Duration(rand.Intn(int(r.RandomDelay)))
 			}
 			time.Sleep(r.Delay + randomDelay)
-			<-r.waitChan
+			<-r.WaitChan
 		}(r)
 	}
 

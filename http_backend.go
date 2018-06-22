@@ -91,18 +91,18 @@ type LimitRule struct {
 	RandomDelay time.Duration
 	// Parallelism is the number of the maximum allowed concurrent requests of the matching domains
 	Parallelism    int
-	waitChan       chan bool
+	WaitChan       chan bool
 	compiledRegexp *regexp.Regexp
 	compiledGlob   glob.Glob
 }
 
 // Init initializes the private members of LimitRule
 func (r *LimitRule) Init() error {
-	waitChanSize := 1
+	WaitChanSize := 1
 	if r.Parallelism > 1 {
-		waitChanSize = r.Parallelism
+		WaitChanSize = r.Parallelism
 	}
-	r.waitChan = make(chan bool, waitChanSize)
+	r.WaitChan = make(chan bool, WaitChanSize)
 	hasPattern := false
 	if r.DomainRegexp != "" {
 		c, err := regexp.Compile(r.DomainRegexp)
@@ -201,14 +201,14 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
-		r.waitChan <- true
+		r.WaitChan <- true
 		defer func(r *LimitRule) {
 			randomDelay := time.Duration(0)
 			if r.RandomDelay != 0 {
 				randomDelay = time.Duration(rand.Intn(int(r.RandomDelay)))
 			}
 			time.Sleep(r.Delay + randomDelay)
-			<-r.waitChan
+			<-r.WaitChan
 		}(r)
 	}
 
