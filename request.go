@@ -51,12 +51,12 @@ type Request struct {
 }
 
 type serializableRequest struct {
-	URL    string
-	Method string
-	Body   []byte
-	ID     uint32
-	Ctx    map[string]interface{}
-	Header http.Header
+	URL     string
+	Method  string
+	Body    []byte
+	ID      uint32
+	Ctx     map[string]interface{}
+	Headers http.Header
 }
 
 // New creates a new request with the context of the original request
@@ -165,11 +165,11 @@ func (r *Request) Marshal() ([]byte, error) {
 		}
 	}
 	return json.Marshal(&serializableRequest{
-		URL:    r.URL.String(),
-		Method: r.Method,
-		Body:   body,
-		ID:     r.ID,
-		Ctx:    ctx,
-		Header: *r.Headers,
+		URL:     r.URL.String(),
+		Method:  r.Method,
+		Body:    body,
+		ID:      r.ID,
+		Ctx:     ctx,
+		Headers: *r.Headers,
 	})
 }

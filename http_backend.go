@@ -187,7 +187,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
-	if res.Header.Get("Content-Encoding") == "gzip" {
+	if res.Uncompressed && res.Header.Get("Content-Encoding") == "gzip" {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
 			return nil, err
