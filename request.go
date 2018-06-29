@@ -164,12 +164,15 @@ func (r *Request) Marshal() ([]byte, error) {
 			return nil, err
 		}
 	}
-	return json.Marshal(&serializableRequest{
-		URL:     r.URL.String(),
-		Method:  r.Method,
-		Body:    body,
-		ID:      r.ID,
-		Ctx:     ctx,
-		Headers: *r.Headers,
-	})
+	sr := &serializableRequest{
+		URL:    r.URL.String(),
+		Method: r.Method,
+		Body:   body,
+		ID:     r.ID,
+		Ctx:    ctx,
+	}
+	if r.Headers != nil {
+		sr.Headers = *r.Headers
+	}
+	return json.Marshal(sr)
 }
