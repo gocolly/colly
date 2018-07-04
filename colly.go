@@ -1102,7 +1102,7 @@ func (c *Collector) Clone() *Collector {
 		requestCallbacks:       make([]RequestCallback, 0, 8),
 		responseCallbacks:      make([]ResponseCallback, 0, 8),
 		robotsMap:              c.robotsMap,
-		wg:                     c.wg,
+		wg:                     &sync.WaitGroup{},
 	}
 }
 
