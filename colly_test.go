@@ -1,3 +1,17 @@
+// Copyright 2018 Adam Tauber
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package colly
 
 import (
@@ -32,7 +46,7 @@ func newTestServer() *httptest.Server {
 	})
 
 	mux.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Conent-Type", "text/html")
+		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<!DOCTYPE html>
 <html>
 <head>
@@ -49,7 +63,7 @@ func newTestServer() *httptest.Server {
 
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
-			w.Header().Set("Conent-Type", "text/html")
+			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(r.FormValue("name")))
 		}
 	})
@@ -97,7 +111,7 @@ func newTestServer() *httptest.Server {
 	})
 
 	mux.HandleFunc("/500", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Conent-Type", "text/html")
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(500)
 		w.Write([]byte("<p>error</p>"))
 	})
@@ -105,6 +119,21 @@ func newTestServer() *httptest.Server {
 	mux.HandleFunc("/user_agent", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(r.Header.Get("User-Agent")))
+	})
+
+	mux.HandleFunc("/base", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<!DOCTYPE html>
+<html>
+<head>
+<title>Test Page</title>
+<base href="http://xy.com/" />
+</head>
+<body>
+<a href="z">link</a>
+</body>
+</html>
+		`))
 	})
 
 	return httptest.NewServer(mux)
@@ -161,6 +190,17 @@ var newCollectorTests = map[string]func(*testing.T){
 
 			if got, want := c.DisallowedDomains, domains; !reflect.DeepEqual(got, want) {
 				t.Fatalf("c.DisallowedDomains = %q, want %q", got, want)
+			}
+		}
+	},
+	"DisallowedURLFilters": func(t *testing.T) {
+		for _, filters := range [][]*regexp.Regexp{
+			{regexp.MustCompile(`.*not_allowed.*`)},
+		} {
+			c := NewCollector(DisallowedURLFilters(filters...))
+
+			if got, want := c.DisallowedURLFilters, filters; !reflect.DeepEqual(got, want) {
+				t.Fatalf("c.DisallowedURLFilters = %v, want %v", got, want)
 			}
 		}
 	},
@@ -419,6 +459,29 @@ func TestRedirect(t *testing.T) {
 	c.Visit(ts.URL + "/redirect")
 }
 
+func TestBaseTag(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.OnHTML("a[href]", func(e *HTMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		if u != "http://xy.com/z" {
+			t.Error("Invalid <base /> tag handling in OnHTML: expected https://xy.com/z, got " + u)
+		}
+	})
+	c.Visit(ts.URL + "/base")
+
+	c2 := NewCollector()
+	c2.OnXML("//a/@href", func(e *XMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		if u != "http://xy.com/z" {
+			t.Error("Invalid <base /> tag handling in OnXML: expected https://xy.com/z, got " + u)
+		}
+	})
+	c2.Visit(ts.URL + "/base")
+}
+
 func TestCollectorCookies(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
@@ -490,6 +553,19 @@ func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 		t.Fatal(err)
 	}
 
+}
+
+func TestConnectionErrorOnRobotsTxtResultsInError(t *testing.T) {
+	ts := newTestServer()
+	ts.Close() // immediately close the server to force a connection error
+
+	c := NewCollector()
+	c.IgnoreRobotsTxt = false
+	err := c.Visit(ts.URL)
+
+	if err == nil {
+		t.Fatal("Error expected")
+	}
 }
 
 func TestEnvSettings(t *testing.T) {

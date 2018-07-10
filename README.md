@@ -11,6 +11,9 @@ With Colly you can easily extract structured data from websites, which can be us
 [![report card](https://img.shields.io/badge/report%20card-a%2B-ff3333.svg?style=flat-square)](http://goreportcard.com/report/gocolly/colly)
 [![view examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/gocolly/colly/tree/master/_examples)
 [![Code Coverage](https://img.shields.io/codecov/c/github/gocolly/colly/master.svg)](https://codecov.io/github/gocolly/colly?branch=master)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgocolly%2Fcolly.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgocolly%2Fcolly?ref=badge_shield)
+[![Twitter URL](https://img.shields.io/badge/twitter-follow-green.svg)](https://twitter.com/gocolly)
+
 
 ## Features
 
@@ -22,6 +25,9 @@ With Colly you can easily extract structured data from websites, which can be us
  * Caching
  * Automatic encoding of non-unicode responses
  * Robots.txt support
+ * Distributed scraping
+ * Configuration via environment variables
+ * Extensions
 
 
 ## Example
@@ -63,6 +69,8 @@ Bugs or suggestions? Visit the [issue tracker](https://github.com/gocolly/colly/
 Below is a list of public, open source projects that use Colly:
 
  * [greenpeace/check-my-pages](https://github.com/greenpeace/check-my-pages) Scraping script to test the Spanish Greenpeace web archive
+ * [altsab/gowap](https://github.com/altsab/gowap) Wappalyzer implementation in Go
+
 
 If you are using Colly in a project please send a pull request to add it to the list.
 
@@ -95,3 +103,7 @@ Support this project by becoming a sponsor. Your logo will show up here with a l
 <a href="https://opencollective.com/colly/sponsor/9/website" target="_blank"><img src="https://opencollective.com/colly/sponsor/9/avatar.svg"></a>
 
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgocolly%2Fcolly.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgocolly%2Fcolly?ref=badge_large)

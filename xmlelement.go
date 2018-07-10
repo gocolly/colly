@@ -1,3 +1,17 @@
+// Copyright 2018 Adam Tauber
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package colly
 
 import (
@@ -86,6 +100,7 @@ func (h *XMLElement) ChildText(xpathQuery string) string {
 		return ""
 	}
 	return strings.TrimSpace(child.InnerText())
+
 }
 
 
@@ -118,7 +133,7 @@ func (h *XMLElement) ChildAttr(xpathQuery, attrName string) string {
 // ChildAttrs returns the stripped text content of all the matching
 // element's attributes.
 func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
-	res := make([]string, 0)
+	var res []string
 	if h.isHTML {
 		htmlquery.FindEach(h.DOM.(*html.Node), xpathQuery, func(i int, child *html.Node) {
 			for _, attr := range child.Attr {
