@@ -14,12 +14,13 @@
 
 package colly_test
 
-import (
-	"strings"
-	"testing"
 
+import (
 	"github.com/antchfx/htmlquery"
 	"github.com/gocolly/colly"
+	"reflect"
+	"strings"
+	"testing"
 )
 
 // Borrowed from http://infohost.nmt.edu/tcc/help/pubs/xhtml/example.html
@@ -72,8 +73,24 @@ func TestChildText(t *testing.T) {
 	if text := xmlElem.ChildText("//p"); text != "This is a regular text paragraph." {
 		t.Fatalf("failed child tag test: %v != This is a regular text paragraph.", text)
 	}
+	if text := xmlElem.ChildText("//dl"); text != "" {
+		t.Fatalf("failed child tag test: %v != \"\"", text)
+	}
 }
 
+func TestChildTexts(t *testing.T) {
+	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
+	doc, _ := htmlquery.Parse(strings.NewReader(htmlPage))
+	xmlNode := htmlquery.FindOne(doc, "/html")
+	xmlElem := colly.NewXMLElementFromHTMLNode(resp, xmlNode)
+	expected := []string{"First bullet of a bullet list.", "This is the second bullet."}
+	if texts := xmlElem.ChildTexts("//li"); reflect.DeepEqual(texts, expected) == false {
+		t.Fatalf("failed child tags test: %v != %v", texts, expected)
+	}
+	if texts := xmlElem.ChildTexts("//dl"); reflect.DeepEqual(texts, make([]string, 0)) == false {
+		t.Fatalf("failed child tag test: %v != \"\"", texts)
+	}
+}
 func TestChildAttr(t *testing.T) {
 	resp := &colly.Response{StatusCode: 200, Body: []byte(htmlPage)}
 	doc, _ := htmlquery.Parse(strings.NewReader(htmlPage))
