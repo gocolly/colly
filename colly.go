@@ -86,6 +86,9 @@ type Collector struct {
 	// CacheDir specifies a location where GET requests are cached as files.
 	// When it's not defined, caching is disabled.
 	CacheDir string
+	// CacheFilter specifies a function that filters response contents.
+	// Response should be cached only when function returns nil.
+	CacheFilter func(response *Response) error
 	// IgnoreRobotsTxt allows the Collector to ignore any restrictions set by
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
 	// information.
@@ -312,6 +315,14 @@ func MaxBodySize(sizeInBytes int) func(*Collector) {
 func CacheDir(path string) func(*Collector) {
 	return func(c *Collector) {
 		c.CacheDir = path
+	}
+}
+
+// CacheFilter specifies the location where GET requests are cached as files with additional filter logic.
+func CacheFilter(path string, filter func(response *Response) error) func(*Collector) {
+	return func(c *Collector) {
+		c.CacheDir = path
+		c.CacheFilter = filter
 	}
 }
 
@@ -573,7 +584,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	}
 
 	origURL := req.URL
-	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
+	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir, c.CacheFilter)
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}

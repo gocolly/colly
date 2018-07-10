@@ -250,6 +250,22 @@ var newCollectorTests = map[string]func(*testing.T){
 			}
 		}
 	},
+	"CacheFilter": func(t *testing.T) {
+		for _, path := range []string{
+			"/tmp/",
+			"/var/cache/",
+		} {
+			c := NewCollector(CacheFilter(path, func(response *Response) error {
+				return nil
+			}))
+
+			if got, want := c.CacheDir, path; got != want {
+				t.Fatalf("c.CacheDir = %q, want %q", got, want)
+			}
+
+			// actual test for c.CacheFilter
+		}
+	},
 	"IgnoreRobotsTxt": func(t *testing.T) {
 		c := NewCollector(IgnoreRobotsTxt())
 
