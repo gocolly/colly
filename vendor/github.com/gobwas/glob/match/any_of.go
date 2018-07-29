@@ -1,8 +1,6 @@
 package match
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type AnyOf struct {
 	Matchers Matchers

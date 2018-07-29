@@ -51,31 +51,52 @@ func (self BTree) Len() int {
 }
 
 // todo?
-func (self BTree) Index(s string) (int, []int) {
+func (self BTree) Index(s string) (index int, segments []int) {
+	//inputLen := len(s)
+	//// try to cut unnecessary parts
+	//// by knowledge of length of right and left part
+	//offset, limit := self.offsetLimit(inputLen)
+	//for offset < limit {
+	//	// search for matching part in substring
+	//	vi, segments := self.Value.Index(s[offset:limit])
+	//	if index == -1 {
+	//		return -1, nil
+	//	}
+	//	if self.Left == nil {
+	//		if index != offset {
+	//			return -1, nil
+	//		}
+	//	} else {
+	//		left := s[:offset+vi]
+	//		i := self.Left.IndexSuffix(left)
+	//		if i == -1 {
+	//			return -1, nil
+	//		}
+	//		index = i
+	//	}
+	//	if self.Right != nil {
+	//		for _, seg := range segments {
+	//			right := s[:offset+vi+seg]
+	//		}
+	//	}
+
+	//	l := s[:offset+index]
+	//	var left bool
+	//	if self.Left != nil {
+	//		left = self.Left.Index(l)
+	//	} else {
+	//		left = l == ""
+	//	}
+	//}
+
 	return -1, nil
 }
 
 func (self BTree) Match(s string) bool {
 	inputLen := len(s)
-
-	// self.Length, self.RLen and self.LLen are values meaning the length of runes for each part
-	// here we manipulating byte length for better optimizations
-	// but these checks still works, cause minLen of 1-rune string is 1 byte.
-	if self.LengthRunes != -1 && self.LengthRunes > inputLen {
-		return false
-	}
-
 	// try to cut unnecessary parts
 	// by knowledge of length of right and left part
-	var offset, limit int
-	if self.LeftLengthRunes >= 0 {
-		offset = self.LeftLengthRunes
-	}
-	if self.RightLengthRunes >= 0 {
-		limit = inputLen - self.RightLengthRunes
-	} else {
-		limit = inputLen
-	}
+	offset, limit := self.offsetLimit(inputLen)
 
 	for offset < limit {
 		// search for matching part in substring
@@ -126,6 +147,24 @@ func (self BTree) Match(s string) bool {
 	}
 
 	return false
+}
+
+func (self BTree) offsetLimit(inputLen int) (offset int, limit int) {
+	// self.Length, self.RLen and self.LLen are values meaning the length of runes for each part
+	// here we manipulating byte length for better optimizations
+	// but these checks still works, cause minLen of 1-rune string is 1 byte.
+	if self.LengthRunes != -1 && self.LengthRunes > inputLen {
+		return 0, 0
+	}
+	if self.LeftLengthRunes >= 0 {
+		offset = self.LeftLengthRunes
+	}
+	if self.RightLengthRunes >= 0 {
+		limit = inputLen - self.RightLengthRunes
+	} else {
+		limit = inputLen
+	}
+	return offset, limit
 }
 
 func (self BTree) String() string {

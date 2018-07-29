@@ -1,0 +1,9 @@
+*.cgo?.*
+*.o
+*.so
+*.sublime-*
+.DS_Store
+_cgo_*
+_obj
+_test
+coverage.txt

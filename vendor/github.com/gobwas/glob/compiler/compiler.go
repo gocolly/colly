@@ -43,37 +43,43 @@ func optimizeMatcher(matcher match.Matcher) match.Matcher {
 			return m
 		}
 
-		leftNil := m.Left == nil
-		rightNil := m.Right == nil
-
+		var (
+			leftNil  = m.Left == nil
+			rightNil = m.Right == nil
+		)
 		if leftNil && rightNil {
 			return match.NewText(r.Str)
 		}
 
 		_, leftSuper := m.Left.(match.Super)
 		lp, leftPrefix := m.Left.(match.Prefix)
+		la, leftAny := m.Left.(match.Any)
 
 		_, rightSuper := m.Right.(match.Super)
 		rs, rightSuffix := m.Right.(match.Suffix)
+		ra, rightAny := m.Right.(match.Any)
 
-		if leftSuper && rightSuper {
+		switch {
+		case leftSuper && rightSuper:
 			return match.NewContains(r.Str, false)
-		}
 
-		if leftSuper && rightNil {
+		case leftSuper && rightNil:
 			return match.NewSuffix(r.Str)
-		}
 
-		if rightSuper && leftNil {
+		case rightSuper && leftNil:
 			return match.NewPrefix(r.Str)
-		}
 
-		if leftNil && rightSuffix {
+		case leftNil && rightSuffix:
 			return match.NewPrefixSuffix(r.Str, rs.Suffix)
-		}
 
-		if rightNil && leftPrefix {
+		case rightNil && leftPrefix:
 			return match.NewPrefixSuffix(lp.Prefix, r.Str)
+
+		case rightNil && leftAny:
+			return match.NewSuffixAny(r.Str, la.Separators)
+
+		case leftNil && rightAny:
+			return match.NewPrefixAny(r.Str, ra.Separators)
 		}
 
 		return m
