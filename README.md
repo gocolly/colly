@@ -70,6 +70,7 @@ Below is a list of public, open source projects that use Colly:
 
  * [greenpeace/check-my-pages](https://github.com/greenpeace/check-my-pages) Scraping script to test the Spanish Greenpeace web archive
  * [altsab/gowap](https://github.com/altsab/gowap) Wappalyzer implementation in Go
+ * [jesuiscamille/goquotes](https://github.com/jesuiscamille/goquotes) A quotes scrapper, making your day a little better!
 
 
 If you are using Colly in a project please send a pull request to add it to the list.
