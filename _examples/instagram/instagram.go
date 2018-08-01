@@ -1,27 +1,25 @@
 package main
 
 import (
-	"bytes"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/gocolly/colly"
 )
-
-// found in https://www.instagram.com/static/bundles/en_US_Commons.js/68e7390c5938.js
-// included from profile page
-const instagramQueryId = "42323d64886122307be10013ad2dcc45"
 
 // "id": user id, "after": end cursor
 const nextPageURL string = `https://www.instagram.com/graphql/query/?query_hash=%s&variables=%s`
 const nextPagePayload string = `{"id":"%s","first":50,"after":"%s"}`
 
 var requestID string
+var requestIds [][]byte
+var queryIdPattern = regexp.MustCompile(`queryId:".{32}"`)
 
 type pageInfo struct {
 	EndCursor string `json:"end_cursor"`
@@ -108,8 +106,8 @@ func main() {
 	c.OnHTML("html", func(e *colly.HTMLElement) {
 		d := c.Clone()
 		d.OnResponse(func(r *colly.Response) {
-			idStart := bytes.Index(r.Body, []byte(`:n},queryId:"`))
-			requestID = string(r.Body[idStart+13 : idStart+45])
+			requestIds = queryIdPattern.FindAll(r.Body, -1)
+			requestID = string(requestIds[1][9:41])
 		})
 		requestIDURL := e.Request.AbsoluteURL(e.ChildAttr(`link[as="script"]`, "href"))
 		d.Visit(requestIDURL)
