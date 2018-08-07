@@ -17,6 +17,7 @@ package colly
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -38,7 +39,6 @@ import (
 	"time"
 
 	"golang.org/x/net/html"
-	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
 
 	"github.com/PuerkitoBio/goquery"
@@ -374,10 +374,16 @@ func (c *Collector) Init() {
 
 // Appengine will replace the Collector's backend http.Client
 // With an Http.Client that is provided by appengine/urlfetch
-// This function should be used when the scraper is initiated
-// by a http.Request to Google App Engine
-func (c *Collector) Appengine(req *http.Request) {
-	ctx := appengine.NewContext(req)
+// This function should be used when the scraper is run on
+// Google App Engine. Example:
+//   func startScraper(w http.ResponseWriter, r *http.Request) {
+//     ctx := appengine.NewContext(r)
+//     c := colly.NewCollector()
+//     c.Appengine(ctx)
+//      ...
+//     c.Visit("https://google.ca")
+//   }
+func (c *Collector) Appengine(ctx context.Context) {
 	client := urlfetch.Client(ctx)
 	client.Jar = c.backend.Client.Jar
 	client.CheckRedirect = c.backend.Client.CheckRedirect
