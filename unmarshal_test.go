@@ -23,6 +23,7 @@ import (
 
 var basicTestData = []byte(`<ul><li class="x">list <span>item</span> 1</li><li>list item 2</li><li>3</li></ul>`)
 var nestedTestData = []byte(`<div><p>a</p><div><p>b</p><div><p>c</p></div></div></div>`)
+var pointerSliceTestData = []byte(`<ul class="object"><li class="info">Information: <span>Info 1</span></li><li class="info">Information: <span>Info 2</span></li></ul>`)
 
 func TestBasicUnmarshal(t *testing.T) {
 	doc, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(basicTestData))
@@ -69,4 +70,32 @@ func TestNestedUnmarshal(t *testing.T) {
 	if s.Struct.Struct.String != "c" {
 		t.Errorf(`Invalid data for Struct.Struct.String: %q, expected "c"`, s.Struct.Struct.String)
 	}
+}
+
+func TestPointerSliceUnmarshall(t *testing.T) {
+	type info struct {
+		Text string `selector:"span"`
+	}
+	type object struct {
+		Info []*info `selector:"li.info"`
+	}
+
+	doc, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(pointerSliceTestData))
+	e := HTMLElement{DOM: doc.First()}
+	o := object{}
+	err := e.Unmarshal(&o)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal page: %s\n", err.Error())
+	}
+
+	if len(o.Info) != 2 {
+		t.Errorf("Invalid length for Info: %d, expected 2", len(o.Info))
+	}
+	if o.Info[0].Text != "Info 1" {
+		t.Errorf("Invalid data for Info.[0].Text: %s, expected Info 1", o.Info[0].Text)
+	}
+	if o.Info[1].Text != "Info 2" {
+		t.Errorf("Invalid data for Info.[1].Text: %s, expected Info 2", o.Info[1].Text)
+	}
+
 }
