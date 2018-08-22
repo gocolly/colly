@@ -34,16 +34,19 @@ type HTMLElement struct {
 	// DOM is the goquery parsed DOM object of the page. DOM is relative
 	// to the current HTMLElement
 	DOM *goquery.Selection
+	// Index stores the position of the current element within all the elements matched by an OnHTML callback
+	Index int
 }
 
 // NewHTMLElementFromSelectionNode creates a HTMLElement from a goquery.Selection Node.
-func NewHTMLElementFromSelectionNode(resp *Response, s *goquery.Selection, n *html.Node) *HTMLElement {
+func NewHTMLElementFromSelectionNode(resp *Response, s *goquery.Selection, n *html.Node, idx int) *HTMLElement {
 	return &HTMLElement{
 		Name:       n.Data,
 		Request:    resp.Request,
 		Response:   resp,
 		Text:       goquery.NewDocumentFromNode(n).Text(),
 		DOM:        s,
+		Index:      idx,
 		attributes: n.Attr,
 	}
 }
@@ -92,7 +95,7 @@ func (h *HTMLElement) ForEach(goquerySelector string, callback func(int, *HTMLEl
 	i := 0
 	h.DOM.Find(goquerySelector).Each(func(_ int, s *goquery.Selection) {
 		for _, n := range s.Nodes {
-			callback(i, NewHTMLElementFromSelectionNode(h.Response, s, n))
+			callback(i, NewHTMLElementFromSelectionNode(h.Response, s, n, i))
 			i++
 		}
 	})
@@ -107,7 +110,7 @@ func (h *HTMLElement) ForEachWithBreak(goquerySelector string, callback func(int
 	i := 0
 	h.DOM.Find(goquerySelector).EachWithBreak(func(_ int, s *goquery.Selection) bool {
 		for _, n := range s.Nodes {
-			if callback(i, NewHTMLElementFromSelectionNode(h.Response, s, n)) {
+			if callback(i, NewHTMLElementFromSelectionNode(h.Response, s, n, i)) {
 				return true
 			}
 			i++

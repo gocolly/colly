@@ -927,9 +927,11 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 		resp.Request.baseURL, _ = url.Parse(href)
 	}
 	for _, cc := range c.htmlCallbacks {
-		doc.Find(cc.Selector).Each(func(i int, s *goquery.Selection) {
+		i := 0
+		doc.Find(cc.Selector).Each(func(_ int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
-				e := NewHTMLElementFromSelectionNode(resp, s, n)
+				e := NewHTMLElementFromSelectionNode(resp, s, n, i)
+				i += 1
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("html", resp.Request.ID, c.ID, map[string]string{
 						"selector": cc.Selector,
