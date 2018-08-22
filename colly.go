@@ -931,7 +931,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 		doc.Find(cc.Selector).Each(func(_ int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
 				e := NewHTMLElementFromSelectionNode(resp, s, n, i)
-				i += 1
+				i++
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("html", resp.Request.ID, c.ID, map[string]string{
 						"selector": cc.Selector,

@@ -639,9 +639,11 @@ func TestHTMLElement(t *testing.T) {
 		t.Fatal(err)
 	}
 	elements := []*HTMLElement{}
-	doc.Find(sel).Each(func(i int, s *goquery.Selection) {
+	i := 0
+	doc.Find(sel).Each(func(_ int, s *goquery.Selection) {
 		for _, n := range s.Nodes {
-			elements = append(elements, NewHTMLElementFromSelectionNode(resp, s, n))
+			elements = append(elements, NewHTMLElementFromSelectionNode(resp, s, n, i))
+			i++
 		}
 	})
 	elementsLen := len(elements)
