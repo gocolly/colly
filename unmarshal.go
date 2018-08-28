@@ -150,6 +150,12 @@ func unmarshalSlice(s *goquery.Selection, selector, htmlAttr string, attrV refle
 			UnmarshalHTML(someVal.Interface(), innerSel)
 			attrV.Set(reflect.Append(attrV, someVal))
 		})
+	case reflect.Struct:
+		s.Find(selector).Each(func(_ int, innerSel *goquery.Selection) {
+			someVal := reflect.New(attrV.Type().Elem())
+			UnmarshalHTML(someVal.Interface(), innerSel)
+			attrV.Set(reflect.Append(attrV, reflect.Indirect(someVal)))
+		})
 	default:
 		return errors.New("Invalid slice type")
 	}
