@@ -99,3 +99,31 @@ func TestPointerSliceUnmarshall(t *testing.T) {
 	}
 
 }
+
+func TestStructSliceUnmarshall(t *testing.T) {
+	type info struct {
+		Text string `selector:"span"`
+	}
+	type object struct {
+		Info []info `selector:"li.info"`
+	}
+
+	doc, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(pointerSliceTestData))
+	e := HTMLElement{DOM: doc.First()}
+	o := object{}
+	err := e.Unmarshal(&o)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal page: %s\n", err.Error())
+	}
+
+	if len(o.Info) != 2 {
+		t.Errorf("Invalid length for Info: %d, expected 2", len(o.Info))
+	}
+	if o.Info[0].Text != "Info 1" {
+		t.Errorf("Invalid data for Info.[0].Text: %s, expected Info 1", o.Info[0].Text)
+	}
+	if o.Info[1].Text != "Info 2" {
+		t.Errorf("Invalid data for Info.[1].Text: %s, expected Info 2", o.Info[1].Text)
+	}
+
+}
