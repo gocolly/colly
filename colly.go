@@ -158,6 +158,13 @@ type cookieJarSerializer struct {
 
 var collectorCounter uint32
 
+// The key type is unexported to prevent collisions with context keys defined in
+// other packages.
+type key int
+
+// ProxyURLKey is the context key for the request proxy address.
+const ProxyURLKey key = 0
+
 var (
 	// ErrForbiddenDomain is the error thrown if visiting
 	// a domain which is not allowed in AllowedDomains
@@ -586,6 +593,9 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if req.URL != origURL {
 		request.URL = req.URL
 		request.Headers = &req.Header
+	}
+	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
+		request.ProxyURL = proxyURL
 	}
 	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx

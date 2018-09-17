@@ -48,6 +48,8 @@ type Request struct {
 	collector *Collector
 	abort     bool
 	baseURL   *url.URL
+	// ProxyURL is the proxy address that handles the request
+	ProxyURL string
 }
 
 type serializableRequest struct {

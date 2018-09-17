@@ -21,6 +21,7 @@ func main() {
 
 	// Print the response
 	c.OnResponse(func(r *colly.Response) {
+		log.Printf("Proxy Address: %s\n", r.Request.ProxyURL)
 		log.Printf("%s\n", bytes.Replace(r.Body, []byte("\n"), nil, -1))
 	})
 
