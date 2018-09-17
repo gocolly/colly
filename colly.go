@@ -163,7 +163,7 @@ var collectorCounter uint32
 type key int
 
 // ProxyURLKey is the context key for the request proxy address.
-const ProxyURLKey key = 0
+const ProxyURLKey key = iota
 
 var (
 	// ErrForbiddenDomain is the error thrown if visiting
