@@ -1281,7 +1281,7 @@ func isMatchingFilter(fs []*regexp.Regexp, d []byte) bool {
 }
 
 func isResposeHTML(resp *Response) bool {
-	if strings.ToLower(string(resp.Body)[0:15]) == "<!doctype html>" {
+	if strings.ToLower(string(resp.Body)[0:14]) == "<!doctype html" {
 		return true
 	}
 	return false
