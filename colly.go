@@ -926,7 +926,7 @@ func (c *Collector) handleOnResponse(r *Response) {
 }
 
 func (c *Collector) handleOnHTML(resp *Response) error {
-	if len(c.htmlCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
+	if len(c.htmlCallbacks) == 0 || !isResposeHTML(resp) {
 		return nil
 	}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(resp.Body))
@@ -1276,6 +1276,14 @@ func isMatchingFilter(fs []*regexp.Regexp, d []byte) bool {
 		if r.Match(d) {
 			return true
 		}
+	}
+	return false
+}
+
+func isResposeHTML(resp *Response) bool {
+	fmt.Println(strings.ToLower(string(resp.Body)[0:15]))
+	if strings.ToLower(string(resp.Body)[0:15]) == "<!doctype html" {
+		return true
 	}
 	return false
 }
