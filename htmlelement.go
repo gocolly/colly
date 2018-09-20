@@ -15,6 +15,7 @@
 package colly
 
 import (
+	"log"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -36,10 +37,16 @@ type HTMLElement struct {
 	DOM *goquery.Selection
 	// Index stores the position of the current element within all the elements matched by an OnHTML callback
 	Index int
+	// HTML is raw html script of current element
+	HTML string
 }
 
 // NewHTMLElementFromSelectionNode creates a HTMLElement from a goquery.Selection Node.
 func NewHTMLElementFromSelectionNode(resp *Response, s *goquery.Selection, n *html.Node, idx int) *HTMLElement {
+	html, err := goquery.NewDocumentFromNode(n).Html()
+	if err != nil {
+		log.Println("err on get html from node, ", err)
+	}
 	return &HTMLElement{
 		Name:       n.Data,
 		Request:    resp.Request,
@@ -48,6 +55,7 @@ func NewHTMLElementFromSelectionNode(resp *Response, s *goquery.Selection, n *ht
 		DOM:        s,
 		Index:      idx,
 		attributes: n.Attr,
+		HTML:       html,
 	}
 }
 
