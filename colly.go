@@ -602,7 +602,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	response.Request = request
 
 	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return err
 	}
 
