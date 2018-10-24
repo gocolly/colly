@@ -47,8 +47,8 @@ import (
 	"github.com/kennygrant/sanitize"
 	"github.com/temoto/robotstxt"
 
-	"github.com/gocolly/colly/debug"
-	"github.com/gocolly/colly/storage"
+	"github.com/go-colly/colly/debug"
+	"github.com/go-colly/colly/storage"
 )
 
 // Collector provides the scraper instance for a scraping job
@@ -121,22 +121,22 @@ type Collector struct {
 }
 
 // RequestCallback is a type alias for OnRequest callback functions
-type RequestCallback func(*Request)
+type RequestCallback func(context.Context, *Request)
 
 // ResponseCallback is a type alias for OnResponse callback functions
-type ResponseCallback func(*Response)
+type ResponseCallback func(context.Context, *Response)
 
 // HTMLCallback is a type alias for OnHTML callback functions
-type HTMLCallback func(*HTMLElement)
+type HTMLCallback func(context.Context, *HTMLElement)
 
 // XMLCallback is a type alias for OnXML callback functions
-type XMLCallback func(*XMLElement)
+type XMLCallback func(context.Context, *XMLElement)
 
 // ErrorCallback is a type alias for OnError callback functions
-type ErrorCallback func(*Response, error)
+type ErrorCallback func(context.Context, *Response, error)
 
 // ScrapedCallback is a type alias for OnScraped callback functions
-type ScrapedCallback func(*Response)
+type ScrapedCallback func(context.Context, *Response)
 
 // ProxyFunc is a type alias for proxy setter functions.
 type ProxyFunc func(*http.Request) (*url.URL, error)
@@ -403,19 +403,27 @@ func (c *Collector) Appengine(ctx context.Context) {
 // request to the URL specified in parameter.
 // Visit also calls the previously provided callbacks
 func (c *Collector) Visit(URL string) error {
-	return c.scrape(URL, "GET", 1, nil, nil, nil, true)
+	return c.VisitWithContext(context.Background(), URL)
+}
+
+// VisitWithContext functions just like Visit but with
+// the ability to pass in a context.Context that is monitored
+// as Collector's On* methods are performed. Allowing
+// for the halting of a Collector context cancellation.
+func (c *Collector) VisitWithContext(ctx context.Context, URL string) error {
+	return c.scrape(ctx, URL, "GET", 1, nil, nil, nil, true)
 }
 
 // Post starts a collector job by creating a POST request.
 // Post also calls the previously provided callbacks
 func (c *Collector) Post(URL string, requestData map[string]string) error {
-	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil, nil, true)
+	return c.scrape(context.Background(), URL, "POST", 1, createFormReader(requestData), nil, nil, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
 // Post also calls the previously provided callbacks
 func (c *Collector) PostRaw(URL string, requestData []byte) error {
-	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), nil, nil, true)
+	return c.scrape(context.Background(), URL, "POST", 1, bytes.NewReader(requestData), nil, nil, true)
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
@@ -425,7 +433,7 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) err
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", c.UserAgent)
-	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, requestData), nil, hdr, true)
+	return c.scrape(context.Background(), URL, "POST", 1, createMultipartReader(boundary, requestData), nil, hdr, true)
 }
 
 // Request starts a collector job by creating a custom HTTP request
@@ -439,7 +447,7 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) err
 //   - "PATCH"
 //   - "OPTIONS"
 func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Context, hdr http.Header) error {
-	return c.scrape(URL, method, 1, requestData, ctx, hdr, true)
+	return c.scrape(context.Background(), URL, method, 1, requestData, ctx, hdr, true)
 }
 
 // SetDebugger attaches a debugger to the collector
@@ -477,7 +485,7 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	}, nil
 }
 
-func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {
+func (c *Collector) scrape(callCtx context.Context, u, method string, depth int, requestData io.Reader, reqCtx *Context, hdr http.Header, checkRevisit bool) error {
 	if err := c.requestCheck(u, method, depth, checkRevisit); err != nil {
 		return err
 	}
@@ -517,10 +525,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
-		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
+		go c.fetch(callCtx, u, method, depth, requestData, reqCtx, hdr, req)
 		return nil
 	}
-	return c.fetch(u, method, depth, requestData, ctx, hdr, req)
+	return c.fetch(callCtx, u, method, depth, requestData, reqCtx, hdr, req)
 }
 
 func setRequestBody(req *http.Request, body io.Reader) {
@@ -555,15 +563,15 @@ func setRequestBody(req *http.Request, body io.Reader) {
 	}
 }
 
-func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request) error {
+func (c *Collector) fetch(callCtx context.Context, u, method string, depth int, requestData io.Reader, reqCtx *Context, hdr http.Header, req *http.Request) error {
 	defer c.wg.Done()
-	if ctx == nil {
-		ctx = NewContext()
+	if reqCtx == nil {
+		reqCtx = NewContext()
 	}
 	request := &Request{
 		URL:       req.URL,
 		Headers:   &req.Header,
-		Ctx:       ctx,
+		Ctx:       reqCtx,
 		Depth:     depth,
 		Method:    method,
 		Body:      requestData,
@@ -571,7 +579,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		ID:        atomic.AddUint32(&c.requestCount, 1),
 	}
 
-	c.handleOnRequest(request)
+	c.handleOnRequest(callCtx, request)
 
 	if request.abort {
 		return nil
@@ -587,7 +595,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 
 	origURL := req.URL
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
-	if err := c.handleOnError(response, err, request, ctx); err != nil {
+	if err := c.handleOnError(callCtx, response, err, request, reqCtx); err != nil {
 		return err
 	}
 	if req.URL != origURL {
@@ -598,7 +606,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		request.ProxyURL = proxyURL
 	}
 	atomic.AddUint32(&c.responseCount, 1)
-	response.Ctx = ctx
+	response.Ctx = reqCtx
 	response.Request = request
 
 	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
@@ -606,19 +614,19 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		return err
 	}
 
-	c.handleOnResponse(response)
+	c.handleOnResponse(callCtx, response)
 
-	err = c.handleOnHTML(response)
+	err = c.handleOnHTML(callCtx, response)
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		c.handleOnError(callCtx, response, err, request, reqCtx)
 	}
 
-	err = c.handleOnXML(response)
+	err = c.handleOnXML(callCtx, response)
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		c.handleOnError(callCtx, response, err, request, reqCtx)
 	}
 
-	c.handleOnScraped(response)
+	c.handleOnScraped(callCtx, response)
 
 	return err
 }
@@ -902,18 +910,18 @@ func createEvent(eventType string, requestID, collectorID uint32, kvargs map[str
 	}
 }
 
-func (c *Collector) handleOnRequest(r *Request) {
+func (c *Collector) handleOnRequest(ctx context.Context, r *Request) {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("request", r.ID, c.ID, map[string]string{
 			"url": r.URL.String(),
 		}))
 	}
 	for _, f := range c.requestCallbacks {
-		f(r)
+		f(ctx, r)
 	}
 }
 
-func (c *Collector) handleOnResponse(r *Response) {
+func (c *Collector) handleOnResponse(ctx context.Context, r *Response) {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("response", r.Request.ID, c.ID, map[string]string{
 			"url":    r.Request.URL.String(),
@@ -921,11 +929,11 @@ func (c *Collector) handleOnResponse(r *Response) {
 		}))
 	}
 	for _, f := range c.responseCallbacks {
-		f(r)
+		f(ctx, r)
 	}
 }
 
-func (c *Collector) handleOnHTML(resp *Response) error {
+func (c *Collector) handleOnHTML(ctx context.Context, resp *Response) error {
 	if len(c.htmlCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
 		return nil
 	}
@@ -948,14 +956,14 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				cc.Function(ctx, e)
 			}
 		})
 	}
 	return nil
 }
 
-func (c *Collector) handleOnXML(resp *Response) error {
+func (c *Collector) handleOnXML(ctx context.Context, resp *Response) error {
 	if len(c.xmlCallbacks) == 0 {
 		return nil
 	}
@@ -987,7 +995,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				cc.Function(ctx, e)
 			})
 		}
 	} else if strings.Contains(contentType, "xml") {
@@ -1005,14 +1013,14 @@ func (c *Collector) handleOnXML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				cc.Function(ctx, e)
 			})
 		}
 	}
 	return nil
 }
 
-func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx *Context) error {
+func (c *Collector) handleOnError(callCtx context.Context, response *Response, err error, request *Request, ctx *Context) error {
 	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 203) {
 		return nil
 	}
@@ -1038,19 +1046,19 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 		response.Ctx = request.Ctx
 	}
 	for _, f := range c.errorCallbacks {
-		f(response, err)
+		f(callCtx, response, err)
 	}
 	return err
 }
 
-func (c *Collector) handleOnScraped(r *Response) {
+func (c *Collector) handleOnScraped(ctx context.Context, r *Response) {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("scraped", r.Request.ID, c.ID, map[string]string{
 			"url": r.Request.URL.String(),
 		}))
 	}
 	for _, f := range c.scrapedCallbacks {
-		f(r)
+		f(ctx, r)
 	}
 }
 
