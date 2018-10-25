@@ -7,11 +7,11 @@ go:
   - 1.11.x
   - tip
 script:
-  - mkdir -p $GOPATH/src/github.com/golang.org/x && git clone https://github.com/golang/lint.git $GOPATH/src/github.com/golang.org/x/lint && go get -u github.com/golang.org/x/lint/golint
-  - OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
+  - go get -u golang.org/x/lint/golint
+  - OUT="$(env GO111MODULE=on go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - OUT="$(golint ./...)"; test -z "$OUT" || (echo "$OUT" && return 1)
-  - go vet -v ./...
+  - env GO111MODULE=on go vet -v ./...
   - env GO111MODULE=on go test -race -v -coverprofile=coverage.txt -covermode=atomic ./
   - env GO111MODULE=on go build
 after_success:
