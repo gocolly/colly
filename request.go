@@ -115,6 +115,8 @@ func (r *Request) Visit(URL string) error {
 	return r.VisitWithContext(context.Background(), URL)
 }
 
+// VisitWithContext continues Collector's collecting job, along with
+// a runtime context.
 func (r *Request) VisitWithContext(ctx context.Context, URL string) error {
 	return r.collector.scrape(ctx, r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx, nil, true)
 }
