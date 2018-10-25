@@ -4,9 +4,10 @@ go:
   - 1.8.x
   - 1.9.x
   - 1.10.x
+  - 1.11.x
   - tip
 script:
-  - go get -u github.com/golang/x/lint/golint
+  - go get -u golang/x/lint/golint
   - OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - OUT="$(golint ./...)"; test -z "$OUT" || (echo "$OUT" && return 1)
