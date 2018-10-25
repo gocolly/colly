@@ -1,4 +1,6 @@
 language: go
+env:
+  - GO111MODULE=on
 sudo: false
 go:
   - 1.8.x
@@ -7,12 +9,12 @@ go:
   - 1.11.x
   - tip
 script:
-  - go get -u github.com/golang/lint/golint
-  - OUT="$(env GO111MODULE=on go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
+  - go get -u golang.org/x/lint/golint
+  - OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
   - OUT="$(golint ./...)"; test -z "$OUT" || (echo "$OUT" && return 1)
-  - env GO111MODULE=on go vet -v ./...
-  - env GO111MODULE=on go test -race -v -coverprofile=coverage.txt -covermode=atomic ./
-  - env GO111MODULE=on go build
+  - go vet -v ./...
+  - go test -race -v -coverprofile=coverage.txt -covermode=atomic ./
+  - go build
 after_success:
   - bash <(curl -s https://codecov.io/bash)
