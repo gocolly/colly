@@ -47,8 +47,8 @@ import (
 	"github.com/kennygrant/sanitize"
 	"github.com/temoto/robotstxt"
 
-	"github.com/go-colly/colly/debug"
-	"github.com/go-colly/colly/storage"
+	"github.com/gocolly/colly/debug"
+	"github.com/gocolly/colly/storage"
 )
 
 // Collector provides the scraper instance for a scraping job
@@ -580,6 +580,11 @@ func (c *Collector) fetch(callCtx context.Context, u, method string, depth int, 
 	}
 
 	c.handleOnRequest(callCtx, request)
+	select {
+	case <-callCtx.Done():
+		return callCtx.Err()
+	default:
+	}
 
 	if request.abort {
 		return nil
@@ -615,18 +620,38 @@ func (c *Collector) fetch(callCtx context.Context, u, method string, depth int, 
 	}
 
 	c.handleOnResponse(callCtx, response)
+	select {
+	case <-callCtx.Done():
+		return callCtx.Err()
+	default:
+	}
 
 	err = c.handleOnHTML(callCtx, response)
 	if err != nil {
 		c.handleOnError(callCtx, response, err, request, reqCtx)
+	}
+	select {
+	case <-callCtx.Done():
+		return callCtx.Err()
+	default:
 	}
 
 	err = c.handleOnXML(callCtx, response)
 	if err != nil {
 		c.handleOnError(callCtx, response, err, request, reqCtx)
 	}
+	select {
+	case <-callCtx.Done():
+		return callCtx.Err()
+	default:
+	}
 
 	c.handleOnScraped(callCtx, response)
+	select {
+	case <-callCtx.Done():
+		return callCtx.Err()
+	default:
+	}
 
 	return err
 }
@@ -917,7 +942,12 @@ func (c *Collector) handleOnRequest(ctx context.Context, r *Request) {
 		}))
 	}
 	for _, f := range c.requestCallbacks {
-		f(ctx, r)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			f(ctx, r)
+		}
 	}
 }
 
@@ -929,7 +959,12 @@ func (c *Collector) handleOnResponse(ctx context.Context, r *Response) {
 		}))
 	}
 	for _, f := range c.responseCallbacks {
-		f(ctx, r)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			f(ctx, r)
+		}
 	}
 }
 
@@ -944,9 +979,15 @@ func (c *Collector) handleOnHTML(ctx context.Context, resp *Response) error {
 	if href, found := doc.Find("base[href]").Attr("href"); found {
 		resp.Request.baseURL, _ = url.Parse(href)
 	}
+
+	var exit bool
 	for _, cc := range c.htmlCallbacks {
 		i := 0
 		doc.Find(cc.Selector).Each(func(_ int, s *goquery.Selection) {
+			if exit {
+				return
+			}
+
 			for _, n := range s.Nodes {
 				e := NewHTMLElementFromSelectionNode(resp, s, n, i)
 				i++
@@ -956,9 +997,20 @@ func (c *Collector) handleOnHTML(ctx context.Context, resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(ctx, e)
+				select {
+				case <-ctx.Done():
+					exit = true
+				default:
+					cc.Function(ctx, e)
+				}
+				if exit {
+					return
+				}
 			}
 		})
+		if exit {
+			break
+		}
 	}
 	return nil
 }
@@ -986,8 +1038,13 @@ func (c *Collector) handleOnXML(ctx context.Context, resp *Response) error {
 			}
 		}
 
+		var exit bool
 		for _, cc := range c.xmlCallbacks {
 			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
+				if exit {
+					return
+				}
+
 				e := NewXMLElementFromHTMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -995,8 +1052,16 @@ func (c *Collector) handleOnXML(ctx context.Context, resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(ctx, e)
+				select {
+				case <-ctx.Done():
+					exit = true
+				default:
+					cc.Function(ctx, e)
+				}
 			})
+			if exit {
+				break
+			}
 		}
 	} else if strings.Contains(contentType, "xml") {
 		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))
@@ -1004,8 +1069,13 @@ func (c *Collector) handleOnXML(ctx context.Context, resp *Response) error {
 			return err
 		}
 
+		var exit bool
 		for _, cc := range c.xmlCallbacks {
 			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
+				if exit {
+					return
+				}
+
 				e := NewXMLElementFromXMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -1013,8 +1083,16 @@ func (c *Collector) handleOnXML(ctx context.Context, resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(ctx, e)
+				select {
+				case <-ctx.Done():
+					exit = true
+				default:
+					cc.Function(ctx, e)
+				}
 			})
+			if exit {
+				break
+			}
 		}
 	}
 	return nil
@@ -1046,7 +1124,12 @@ func (c *Collector) handleOnError(callCtx context.Context, response *Response, e
 		response.Ctx = request.Ctx
 	}
 	for _, f := range c.errorCallbacks {
-		f(callCtx, response, err)
+		select {
+		case <-callCtx.Done():
+			return err
+		default:
+			f(callCtx, response, err)
+		}
 	}
 	return err
 }
@@ -1058,7 +1141,12 @@ func (c *Collector) handleOnScraped(ctx context.Context, r *Response) {
 		}))
 	}
 	for _, f := range c.scrapedCallbacks {
-		f(ctx, r)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			f(ctx, r)
+		}
 	}
 }
 
