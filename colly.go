@@ -1030,12 +1030,7 @@ func (c *Collector) handleOnXML(ctx context.Context, resp *Response) error {
 			return err
 		}
 		if e := htmlquery.FindOne(doc, "//base/@href"); e != nil {
-			for _, a := range e.Attr {
-				if a.Key == "href" {
-					resp.Request.baseURL, _ = url.Parse(a.Val)
-					break
-				}
-			}
+			resp.Request.baseURL, _ = url.Parse(e.FirstChild.Data)
 		}
 
 		var exit bool
