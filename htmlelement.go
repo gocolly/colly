@@ -111,9 +111,9 @@ func (h *HTMLElement) ForEachWithBreak(goquerySelector string, callback func(int
 	h.DOM.Find(goquerySelector).EachWithBreak(func(_ int, s *goquery.Selection) bool {
 		for _, n := range s.Nodes {
 			if callback(i, NewHTMLElementFromSelectionNode(h.Response, s, n, i)) {
+			i++
 				return true
 			}
-			i++
 		}
 		return false
 	})
