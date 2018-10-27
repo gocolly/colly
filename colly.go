@@ -970,12 +970,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 			return err
 		}
 		if e := htmlquery.FindOne(doc, "//base/@href"); e != nil {
-			for _, a := range e.Attr {
-				if a.Key == "href" {
-					resp.Request.baseURL, _ = url.Parse(a.Val)
-					break
-				}
-			}
+			resp.Request.baseURL, _ = url.Parse(e.FirstChild.Data)
 		}
 
 		for _, cc := range c.xmlCallbacks {
