@@ -16,6 +16,7 @@ package colly
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -33,7 +34,7 @@ type Response struct {
 	// Body is the content of the Response
 	Body []byte
 	// Ctx is a context between a Request and a Response
-	Ctx *Context
+	Ctx context.Context
 	// Request is the Request object of the response
 	Request *Request
 	// Headers contains the Response's HTTP headers
