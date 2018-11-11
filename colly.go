@@ -610,6 +610,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	}
 
 	origURL := req.URL
+
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err

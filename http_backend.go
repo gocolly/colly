@@ -134,21 +134,29 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 	hash := hex.EncodeToString(sum[:])
 	dir := path.Join(cacheDir, hash[:2])
 	filename := path.Join(dir, hash)
-	if file, err := os.Open(filename); err == nil {
 
+	if _, err := os.Stat(filename); err == nil {
 		r := h.GetMatchingRule(request.URL.Host)
 		if r != nil {
 			r.waitChan <- true
 		}
-
-		resp := new(Response)
-		err := gob.NewDecoder(file).Decode(resp)
-		file.Close()
-		if resp.StatusCode < 500 {
-			if r != nil {
-				<-r.waitChan
+		if file, err := os.Open(filename); err == nil {
+			stats := ContextTimings(request.Context())
+			if stats != nil {
+				stats.DownloadStart = time.Now()
 			}
-			return resp, err
+			resp := new(Response)
+			err := gob.NewDecoder(file).Decode(resp)
+			file.Close()
+			if resp.StatusCode < 500 {
+				if r != nil {
+					<-r.waitChan
+				}
+				if stats != nil {
+					stats.DownloadEnd = time.Now()
+				}
+				return resp, err
+			}
 		}
 		if r != nil {
 			<-r.waitChan
