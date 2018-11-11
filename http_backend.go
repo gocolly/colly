@@ -135,11 +135,23 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 	dir := path.Join(cacheDir, hash[:2])
 	filename := path.Join(dir, hash)
 	if file, err := os.Open(filename); err == nil {
+
+		r := h.GetMatchingRule(request.URL.Host)
+		if r != nil {
+			r.waitChan <- true
+		}
+
 		resp := new(Response)
 		err := gob.NewDecoder(file).Decode(resp)
 		file.Close()
 		if resp.StatusCode < 500 {
+			if r != nil {
+				<-r.waitChan
+			}
 			return resp, err
+		}
+		if r != nil {
+			<-r.waitChan
 		}
 	}
 	resp, err := h.Do(request, bodySize)
