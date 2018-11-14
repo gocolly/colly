@@ -16,6 +16,7 @@ package colly
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -32,7 +33,7 @@ type Request struct {
 	// Headers contains the Request's HTTP headers
 	Headers *http.Header
 	// Ctx is a context between a Request and a Response
-	Ctx *Context
+	Ctx context.Context
 	// Depth is the number of the parents of the request
 	Depth int
 	// Method is the HTTP method of the request
@@ -80,7 +81,9 @@ func (r *Request) New(method, URL string, body io.Reader) (*Request, error) {
 
 // Abort cancels the HTTP request when called in an OnRequest callback
 func (r *Request) Abort() {
-	r.abort = true
+	var cancel context.CancelFunc
+	r.Ctx, cancel = context.WithCancel(r.Ctx)
+	cancel()
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
@@ -152,8 +155,10 @@ func (r *Request) Do() error {
 // Marshal serializes the Request
 func (r *Request) Marshal() ([]byte, error) {
 	ctx := make(map[string]interface{})
-	if r.Ctx != nil {
-		r.Ctx.ForEach(func(k string, v interface{}) interface{} {
+	dataCtx := ContextDataContext(r.Ctx)
+
+	if dataCtx != nil {
+		dataCtx.ForEach(func(k string, v interface{}) interface{} {
 			ctx[k] = v
 			return nil
 		})

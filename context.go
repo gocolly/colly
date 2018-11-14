@@ -15,8 +15,41 @@
 package colly
 
 import (
+	"context"
 	"sync"
+	"time"
 )
+
+type ctxKey uint8
+
+const (
+	dataCtxKey ctxKey = iota + 1
+	nolimitCtxKey
+	timingsCtxKey
+)
+
+var nolimitCtx = true
+
+func WithNolimitRequestContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, nolimitCtxKey, &nolimitCtx)
+}
+func ContextNolimitRequest(ctx context.Context) (ok bool) {
+	_, ok = ctx.Value(nolimitCtxKey).(*bool)
+	return
+}
+
+func WithDataContext(ctx context.Context) context.Context {
+	dataCtx := &Context{
+		contextMap: make(map[string]interface{}),
+		lock:       &sync.RWMutex{},
+	}
+	return context.WithValue(ctx, dataCtxKey, dataCtx)
+}
+
+func ContextDataContext(ctx context.Context) *Context {
+	u, _ := ctx.Value(dataCtxKey).(*Context)
+	return u
+}
 
 // Context provides a tiny layer for passing data between callbacks
 type Context struct {
@@ -84,4 +117,17 @@ func (c *Context) ForEach(fn func(k string, v interface{}) interface{}) []interf
 	}
 
 	return ret
+}
+
+func WithTimingsContext(ctx context.Context) context.Context {
+	t := &Timings{}
+	return context.WithValue(ctx, timingsCtxKey, t)
+}
+
+func ContextTimings(ctx context.Context) *Timings {
+	return ctx.Value(timingsCtxKey).(*Timings)
+}
+
+type Timings struct {
+	RequestStart, DownloadStart, DownloadEnd, ProcessStart, ProcessEnd, CharsetFixStart, CharsetFixEnd time.Time
 }
