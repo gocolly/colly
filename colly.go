@@ -580,12 +580,6 @@ func (c *Collector) fetch(callCtx context.Context, u, method string, depth int, 
 	}
 
 	c.handleOnRequest(callCtx, request)
-	select {
-	case <-callCtx.Done():
-		return callCtx.Err()
-	default:
-	}
-
 	if request.abort {
 		return nil
 	}
@@ -944,6 +938,7 @@ func (c *Collector) handleOnRequest(ctx context.Context, r *Request) {
 	for _, f := range c.requestCallbacks {
 		select {
 		case <-ctx.Done():
+			r.Abort()
 			return
 		default:
 			f(ctx, r)
@@ -1009,7 +1004,7 @@ func (c *Collector) handleOnHTML(ctx context.Context, resp *Response) error {
 			}
 		})
 		if exit {
-			break
+			return ctx.Err()
 		}
 	}
 	return nil
@@ -1055,7 +1050,7 @@ func (c *Collector) handleOnXML(ctx context.Context, resp *Response) error {
 				}
 			})
 			if exit {
-				break
+				return ctx.Err()
 			}
 		}
 	} else if strings.Contains(contentType, "xml") {

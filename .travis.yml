@@ -1,6 +1,4 @@
 language: go
-env:
-  - GO111MODULE=on
 sudo: false
 go:
   - 1.9.x
