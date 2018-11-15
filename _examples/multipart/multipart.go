@@ -62,6 +62,6 @@ func main() {
 	})
 
 	// Start scraping
-	c.PostMultipart("http://localhost:8080/", generateFormData(), nil)
+	c.PostMultipart(nil, "http://localhost:8080/", generateFormData())
 	c.Wait()
 }

@@ -27,6 +27,8 @@ const (
 	timingsCtxKey
 )
 
+// WithDataContext adds a colly.Context to a context.Context derived
+// from the provided one.
 func WithDataContext(ctx context.Context) (context.Context, *Context) {
 	dataCtx := &Context{
 		contextMap: make(map[string]interface{}),
@@ -35,6 +37,8 @@ func WithDataContext(ctx context.Context) (context.Context, *Context) {
 	return context.WithValue(ctx, dataCtxKey, dataCtx), dataCtx
 }
 
+// ContextDataContext returns a colly.Context from a context.Context
+// or returns nil.
 func ContextDataContext(ctx context.Context) *Context {
 	u, _ := ctx.Value(dataCtxKey).(*Context)
 	return u
@@ -108,16 +112,22 @@ func (c *Context) ForEach(fn func(k string, v interface{}) interface{}) []interf
 	return ret
 }
 
+// WithTimingsContext adds derives a context from the provided one
+// in order to record Collector stats on timings
 func WithTimingsContext(ctx context.Context) context.Context {
 	t := &Timings{}
 	return context.WithValue(ctx, timingsCtxKey, t)
 }
 
+// ContextTimings returns a Timings object from the
+// provided context or nil
 func ContextTimings(ctx context.Context) *Timings {
 	tims, _ := ctx.Value(timingsCtxKey).(*Timings) // This avoids the panic
 	return tims
 }
 
+// Timings represents various timing stats
+// for a Collectors life-cycle.
 type Timings struct {
 	RequestStart, DownloadStart, DownloadEnd, ProcessStart, ProcessEnd, CharsetFixStart, CharsetFixEnd time.Time
 }

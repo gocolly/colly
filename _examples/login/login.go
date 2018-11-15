@@ -12,7 +12,7 @@ func main() {
 	c := colly.NewCollector()
 
 	// authenticate
-	err := c.Post("http://example.com/login", map[string]string{"username": "admin", "password": "admin"}, nil)
+	err := c.Post(nil, "http://example.com/login", map[string]string{"username": "admin", "password": "admin"})
 	if err != nil {
 		log.Fatal(err)
 	}

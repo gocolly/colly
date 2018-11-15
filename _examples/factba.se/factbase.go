@@ -63,7 +63,7 @@ func main() {
 			ctx, dctx := colly.WithDataContext(context.Background())
 			dctx.Put("date", res.Date)
 			dctx.Put("slug", res.Slug)
-			d.Request("GET", u, nil, ctx, nil)
+			d.Request(ctx, "GET", u, nil, nil)
 		}
 	})
 

@@ -403,40 +403,40 @@ func (c *Collector) Appengine(ctx context.Context) {
 // request to the URL specified in parameter.
 // Visit also calls the previously provided callbacks
 func (c *Collector) Visit(URL string) error {
-	return c.VisitWithContext(URL, nil)
+	return c.VisitWithContext(nil, URL)
 }
 
 // VisitWithContext functions the same as Visit but allows you
 // to provide a context.Context which the Collector will monitor
 // for completion and terminate collecting early if needed.
-func (c *Collector) VisitWithContext(URL string, ctx context.Context) error {
+func (c *Collector) VisitWithContext(ctx context.Context, URL string) error {
 	if ctx == nil {
 		ctx, _ = WithDataContext(context.Background())
 	}
-	return c.scrape(URL, "GET", 1, nil, ctx, nil, true)
+	return c.scrape(ctx, URL, "GET", 1, nil, nil, true)
 }
 
 // Post starts a collector job by creating a POST request.
 // Post also calls the previously provided callbacks
-func (c *Collector) Post(URL string, requestData map[string]string, ctx context.Context) error {
+func (c *Collector) Post(ctx context.Context, URL string, requestData map[string]string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return c.scrape(URL, "POST", 1, createFormReader(requestData), ctx, nil, true)
+	return c.scrape(ctx, URL, "POST", 1, createFormReader(requestData), nil, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
 // Post also calls the previously provided callbacks
-func (c *Collector) PostRaw(URL string, requestData []byte, ctx context.Context) error {
+func (c *Collector) PostRaw(ctx context.Context, URL string, requestData []byte) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), ctx, nil, true)
+	return c.scrape(ctx, URL, "POST", 1, bytes.NewReader(requestData), nil, true)
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
 // with raw binary data.  PostMultipart also calls the previously provided callbacks
-func (c *Collector) PostMultipart(URL string, requestData map[string][]byte, ctx context.Context) error {
+func (c *Collector) PostMultipart(ctx context.Context, URL string, requestData map[string][]byte) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -444,7 +444,7 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte, ctx
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", c.UserAgent)
-	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, requestData), ctx, hdr, true)
+	return c.scrape(ctx, URL, "POST", 1, createMultipartReader(boundary, requestData), hdr, true)
 }
 
 // Request starts a collector job by creating a custom HTTP request
@@ -457,8 +457,8 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte, ctx
 //   - "DELETE"
 //   - "PATCH"
 //   - "OPTIONS"
-func (c *Collector) Request(method, URL string, requestData io.Reader, ctx context.Context, hdr http.Header) error {
-	return c.scrape(URL, method, 1, requestData, ctx, hdr, true)
+func (c *Collector) Request(ctx context.Context, method, URL string, requestData io.Reader, hdr http.Header) error {
+	return c.scrape(ctx, URL, method, 1, requestData, hdr, true)
 }
 
 // SetDebugger attaches a debugger to the collector
@@ -499,7 +499,7 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	}, nil
 }
 
-func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx context.Context, hdr http.Header, checkRevisit bool) error {
+func (c *Collector) scrape(ctx context.Context, u, method string, depth int, requestData io.Reader, hdr http.Header, checkRevisit bool) error {
 	if err := c.requestCheck(u, method, depth, checkRevisit); err != nil {
 		return err
 	}
@@ -540,10 +540,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
-		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
+		go c.fetch(ctx, u, method, depth, requestData, hdr, req)
 		return nil
 	}
-	return c.fetch(u, method, depth, requestData, ctx, hdr, req)
+	return c.fetch(ctx, u, method, depth, requestData, hdr, req)
 }
 
 func setRequestBody(req *http.Request, body io.Reader) {
@@ -578,7 +578,7 @@ func setRequestBody(req *http.Request, body io.Reader) {
 	}
 }
 
-func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx context.Context, hdr http.Header, req *http.Request) error {
+func (c *Collector) fetch(ctx context.Context, u, method string, depth int, requestData io.Reader, hdr http.Header, req *http.Request) error {
 	defer c.wg.Done()
 	request := &Request{
 		URL:       req.URL,
@@ -613,7 +613,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	origURL := req.URL
 
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
-	if err := c.handleOnError(response, err, request, ctx); err != nil {
+	if err := c.handleOnError(ctx, response, err, request); err != nil {
 		return err
 	}
 	if req.URL != origURL {
@@ -654,7 +654,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	default:
 	}
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		c.handleOnError(ctx, response, err, request)
 	}
 
 	err = c.handleOnXML(response)
@@ -664,7 +664,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	default:
 	}
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		c.handleOnError(ctx, response, err, request)
 	}
 	if stats != nil {
 		stats.ProcessEnd = time.Now()
@@ -1099,7 +1099,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 	return nil
 }
 
-func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx context.Context) error {
+func (c *Collector) handleOnError(ctx context.Context, response *Response, err error, request *Request) error {
 	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 203) {
 		return nil
 	}

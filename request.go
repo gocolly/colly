@@ -114,21 +114,21 @@ func (r *Request) AbsoluteURL(u string) string {
 // request and preserves the Context of the previous request.
 // Visit also calls the previously provided callbacks
 func (r *Request) Visit(URL string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx, nil, true)
+	return r.collector.scrape(r.Ctx, r.AbsoluteURL(URL), "GET", r.Depth+1, nil, nil, true)
 }
 
 // Post continues a collector job by creating a POST request and preserves the Context
 // of the previous request.
 // Post also calls the previously provided callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), r.Ctx, nil, true)
+	return r.collector.scrape(r.Ctx, r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), nil, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
 // PostRaw preserves the Context of the previous request
 // and calls the previously provided callbacks
 func (r *Request) PostRaw(URL string, requestData []byte) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, bytes.NewReader(requestData), r.Ctx, nil, true)
+	return r.collector.scrape(r.Ctx, r.AbsoluteURL(URL), "POST", r.Depth+1, bytes.NewReader(requestData), nil, true)
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
@@ -139,17 +139,17 @@ func (r *Request) PostMultipart(URL string, requestData map[string][]byte) error
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", r.collector.UserAgent)
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, requestData), r.Ctx, hdr, true)
+	return r.collector.scrape(r.Ctx, r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, requestData), hdr, true)
 }
 
 // Retry submits HTTP request again with the same parameters
 func (r *Request) Retry() error {
-	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, false)
+	return r.collector.scrape(r.Ctx, r.URL.String(), r.Method, r.Depth, r.Body, *r.Headers, false)
 }
 
 // Do submits the request
 func (r *Request) Do() error {
-	return r.collector.scrape(r.URL.String(), r.Method, r.Depth, r.Body, r.Ctx, *r.Headers, !r.collector.AllowURLRevisit)
+	return r.collector.scrape(r.Ctx, r.URL.String(), r.Method, r.Depth, r.Body, *r.Headers, !r.collector.AllowURLRevisit)
 }
 
 // Marshal serializes the Request

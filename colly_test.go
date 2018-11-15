@@ -437,9 +437,9 @@ func TestCollectorPost(t *testing.T) {
 		}
 	})
 
-	c.Post(ts.URL+"/login", map[string]string{
+	c.Post(nil, ts.URL+"/login", map[string]string{
 		"name": postValue,
-	}, nil)
+	})
 }
 
 func TestRedirect(t *testing.T) {
