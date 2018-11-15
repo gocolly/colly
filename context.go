@@ -24,26 +24,15 @@ type ctxKey uint8
 
 const (
 	dataCtxKey ctxKey = iota + 1
-	nolimitCtxKey
 	timingsCtxKey
 )
 
-var nolimitCtx = true
-
-func WithNolimitRequestContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, nolimitCtxKey, &nolimitCtx)
-}
-func ContextNolimitRequest(ctx context.Context) (ok bool) {
-	_, ok = ctx.Value(nolimitCtxKey).(*bool)
-	return
-}
-
-func WithDataContext(ctx context.Context) context.Context {
+func WithDataContext(ctx context.Context) (context.Context, *Context) {
 	dataCtx := &Context{
 		contextMap: make(map[string]interface{}),
 		lock:       &sync.RWMutex{},
 	}
-	return context.WithValue(ctx, dataCtxKey, dataCtx)
+	return context.WithValue(ctx, dataCtxKey, dataCtx), dataCtx
 }
 
 func ContextDataContext(ctx context.Context) *Context {
@@ -125,7 +114,8 @@ func WithTimingsContext(ctx context.Context) context.Context {
 }
 
 func ContextTimings(ctx context.Context) *Timings {
-	return ctx.Value(timingsCtxKey).(*Timings)
+	tims, _ := ctx.Value(timingsCtxKey).(*Timings) // This avoids the panic
+	return tims
 }
 
 type Timings struct {

@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 type item struct {
@@ -28,7 +29,7 @@ func main() {
 
 	// On every a element which has .top-matter attribute call callback
 	// This class is unique to the div that holds all information about a story
-	c.OnHTML(".top-matter", func(e *colly.HTMLElement) {
+	c.OnHTML(".top-matter", func(_ context.Context, e *colly.HTMLElement) {
 		temp := item{}
 		temp.StoryURL = e.ChildAttr("a[data-event-action=title]", "href")
 		temp.Source = "https://www.reddit.com/r/programming/"
@@ -39,7 +40,7 @@ func main() {
 	})
 
 	// On every span tag with the class next-button
-	c.OnHTML("span.next-button", func(h *colly.HTMLElement) {
+	c.OnHTML("span.next-button", func(_ context.Context, h *colly.HTMLElement) {
 		t := h.ChildAttr("a", "href")
 		c.Visit(t)
 	})
@@ -51,7 +52,7 @@ func main() {
 	})
 
 	// Before making a request print "Visiting ..."
-	c.OnRequest(func(r *colly.Request) {
+	c.OnRequest(func(_ context.Context, r *colly.Request) {
 		fmt.Println("Visiting", r.URL.String())
 
 	})

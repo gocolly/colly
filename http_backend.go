@@ -184,19 +184,17 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 }
 
 func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {
-	if !ContextNolimitRequest(request.Context()) {
-		r := h.GetMatchingRule(request.URL.Host)
-		if r != nil {
-			r.waitChan <- true
-			defer func(r *LimitRule) {
-				randomDelay := time.Duration(0)
-				if r.RandomDelay != 0 {
-					randomDelay = time.Duration(rand.Int63n(int64(r.RandomDelay)))
-				}
-				time.Sleep(r.Delay + randomDelay)
-				<-r.waitChan
-			}(r)
-		}
+	r := h.GetMatchingRule(request.URL.Host)
+	if r != nil {
+		r.waitChan <- true
+		defer func(r *LimitRule) {
+			randomDelay := time.Duration(0)
+			if r.RandomDelay != 0 {
+				randomDelay = time.Duration(rand.Int63n(int64(r.RandomDelay)))
+			}
+			time.Sleep(r.Delay + randomDelay)
+			<-r.waitChan
+		}(r)
 	}
 
 	stats := ContextTimings(request.Context())

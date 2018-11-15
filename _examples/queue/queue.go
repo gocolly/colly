@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/gocolly/colly"
-	"github.com/gocolly/colly/queue"
+	"github.com/go-colly/colly"
+	"github.com/go-colly/colly/queue"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
 	)
 
-	c.OnRequest(func(r *colly.Request) {
+	c.OnRequest(func(_ context.Context, r *colly.Request) {
 		fmt.Println("visiting", r.URL)
 		if r.ID < 15 {
 			r2, err := r.New("GET", fmt.Sprintf("%s?x=%v", url, r.ID), nil)

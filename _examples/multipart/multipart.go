@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 func generateFormData() map[string][]byte {
@@ -49,18 +50,18 @@ func main() {
 	c := colly.NewCollector(colly.AllowURLRevisit(), colly.MaxDepth(5))
 
 	// On every a element which has href attribute call callback
-	c.OnHTML("html", func(e *colly.HTMLElement) {
+	c.OnHTML("html", func(_ context.Context, e *colly.HTMLElement) {
 		fmt.Println(e.Text)
 		time.Sleep(1 * time.Second)
 		e.Request.PostMultipart("http://localhost:8080/", generateFormData())
 	})
 
 	// Before making a request print "Visiting ..."
-	c.OnRequest(func(r *colly.Request) {
+	c.OnRequest(func(_ context.Context, r *colly.Request) {
 		fmt.Println("Posting gocolly.jpg to", r.URL.String())
 	})
 
 	// Start scraping
-	c.PostMultipart("http://localhost:8080/", generateFormData())
+	c.PostMultipart("http://localhost:8080/", generateFormData(), nil)
 	c.Wait()
 }

@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"log"
 	"os"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 	)
 
 	// Extract product details
-	c.OnHTML(".product-grid-item", func(e *colly.HTMLElement) {
+	c.OnHTML(".product-grid-item", func(_ context.Context, e *colly.HTMLElement) {
 		writer.Write([]string{
 			e.ChildAttr("a", "title"),
 			e.ChildText("span"),
@@ -38,7 +39,7 @@ func main() {
 	})
 
 	// Find and visit next page links
-	c.OnHTML(`.next a[href]`, func(e *colly.HTMLElement) {
+	c.OnHTML(`.next a[href]`, func(_ context.Context, e *colly.HTMLElement) {
 		e.Request.Visit(e.Attr("href"))
 	})
 

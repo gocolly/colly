@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 func main() {
@@ -23,11 +24,11 @@ func main() {
 
 	pages := []string{}
 
-	c.OnHTML("h1", func(e *colly.HTMLElement) {
+	c.OnHTML("h1", func(_ context.Context, e *colly.HTMLElement) {
 		pages = append(pages, e.Text)
 	})
 
-	c.OnHTML("a", func(e *colly.HTMLElement) {
+	c.OnHTML("a", func(_ context.Context, e *colly.HTMLElement) {
 		c.Visit("file://" + dir + "/html" + e.Attr("href"))
 	})
 

@@ -1,10 +1,11 @@
 package extensions
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 var uaGens = []func() string{
@@ -14,7 +15,7 @@ var uaGens = []func() string{
 
 // RandomUserAgent generates a random browser user agent on every request
 func RandomUserAgent(c *colly.Collector) {
-	c.OnRequest(func(r *colly.Request) {
+	c.OnRequest(func(_ context.Context, r *colly.Request) {
 		r.Headers.Set("User-Agent", uaGens[rand.Intn(len(uaGens))]())
 	})
 }

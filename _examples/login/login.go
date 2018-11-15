@@ -1,9 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 func main() {
@@ -11,13 +12,13 @@ func main() {
 	c := colly.NewCollector()
 
 	// authenticate
-	err := c.Post("http://example.com/login", map[string]string{"username": "admin", "password": "admin"})
+	err := c.Post("http://example.com/login", map[string]string{"username": "admin", "password": "admin"}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// attach callbacks after login
-	c.OnResponse(func(r *colly.Response) {
+	c.OnResponse(func(_ context.Context, r *colly.Response) {
 		log.Println("response received", r.StatusCode)
 	})
 

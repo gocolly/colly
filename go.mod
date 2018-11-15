@@ -8,7 +8,6 @@ require (
 	github.com/antchfx/xpath v0.0.0-20180922041825-3de91f3991a1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gobwas/glob v0.2.3
-	github.com/gocolly/colly v1.1.0
 	github.com/jawher/mow.cli v1.0.4
 	github.com/kennygrant/sanitize v1.2.4
 	github.com/pmezard/go-difflib v1.0.0 // indirect

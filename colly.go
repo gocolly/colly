@@ -47,8 +47,8 @@ import (
 	"github.com/kennygrant/sanitize"
 	"github.com/temoto/robotstxt"
 
-	"github.com/gocolly/colly/debug"
-	"github.com/gocolly/colly/storage"
+	"github.com/go-colly/colly/debug"
+	"github.com/go-colly/colly/storage"
 )
 
 // Collector provides the scraper instance for a scraping job
@@ -121,22 +121,22 @@ type Collector struct {
 }
 
 // RequestCallback is a type alias for OnRequest callback functions
-type RequestCallback func(*Request)
+type RequestCallback func(context.Context, *Request)
 
 // ResponseCallback is a type alias for OnResponse callback functions
-type ResponseCallback func(*Response)
+type ResponseCallback func(context.Context, *Response)
 
 // HTMLCallback is a type alias for OnHTML callback functions
-type HTMLCallback func(*HTMLElement)
+type HTMLCallback func(context.Context, *HTMLElement)
 
 // XMLCallback is a type alias for OnXML callback functions
-type XMLCallback func(*XMLElement)
+type XMLCallback func(context.Context, *XMLElement)
 
 // ErrorCallback is a type alias for OnError callback functions
-type ErrorCallback func(*Response, error)
+type ErrorCallback func(context.Context, *Response, error)
 
 // ScrapedCallback is a type alias for OnScraped callback functions
-type ScrapedCallback func(*Response)
+type ScrapedCallback func(context.Context, *Response)
 
 // ProxyFunc is a type alias for proxy setter functions.
 type ProxyFunc func(*http.Request) (*url.URL, error)
@@ -403,15 +403,15 @@ func (c *Collector) Appengine(ctx context.Context) {
 // request to the URL specified in parameter.
 // Visit also calls the previously provided callbacks
 func (c *Collector) Visit(URL string) error {
-	return c.VisitWithContext(URL, context.Background())
+	return c.VisitWithContext(URL, nil)
 }
 
-// Visit starts Collector's collecting job by creating a
-// request to the URL specified in parameter.
-// Visit also calls the previously provided callbacks
+// VisitWithContext functions the same as Visit but allows you
+// to provide a context.Context which the Collector will monitor
+// for completion and terminate collecting early if needed.
 func (c *Collector) VisitWithContext(URL string, ctx context.Context) error {
 	if ctx == nil {
-		ctx = context.Background()
+		ctx, _ = WithDataContext(context.Background())
 	}
 	return c.scrape(URL, "GET", 1, nil, ctx, nil, true)
 }
@@ -480,9 +480,9 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 		return nil, err
 	}
 	ctx := context.Background()
+	var dataCtx *Context
 	if len(req.Ctx) > 0 {
-		ctx = WithDataContext(ctx)
-		dataCtx := ContextDataContext(ctx)
+		ctx, dataCtx = WithDataContext(ctx)
 		for k, v := range req.Ctx {
 			dataCtx.Put(k, v)
 		}
@@ -595,10 +595,11 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		stats.RequestStart = time.Now()
 	}
 
-	err := c.handleOnRequest(request)
-	if err != nil {
-		return err
+	c.handleOnRequest(request)
+	if request.abort {
+		return nil
 	}
+
 	req = req.WithContext(request.Ctx)
 
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
@@ -626,11 +627,11 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	response.Ctx = ctx
 	response.Request = request
 
-	if stats != nil {
+	if c.DetectCharset && stats != nil {
 		stats.CharsetFixStart = time.Now()
 	}
 	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
-	if stats != nil {
+	if c.DetectCharset && stats != nil {
 		stats.CharsetFixEnd = time.Now()
 	}
 	if err != nil {
@@ -639,15 +640,17 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if stats != nil {
 		stats.ProcessStart = time.Now()
 	}
-	err = c.handleOnResponse(response)
-	if err != nil {
-		return err
+	c.handleOnResponse(response)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
 
 	err = c.handleOnHTML(response)
 	select {
-	case <-response.Ctx.Done():
-		return response.Ctx.Err()
+	case <-ctx.Done():
+		return ctx.Err()
 	default:
 	}
 	if err != nil {
@@ -656,8 +659,8 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 
 	err = c.handleOnXML(response)
 	select {
-	case <-response.Ctx.Done():
-		return response.Ctx.Err()
+	case <-ctx.Done():
+		return ctx.Err()
 	default:
 	}
 	if err != nil {
@@ -950,24 +953,24 @@ func createEvent(eventType string, requestID, collectorID uint32, kvargs map[str
 	}
 }
 
-func (c *Collector) handleOnRequest(r *Request) error {
+func (c *Collector) handleOnRequest(r *Request) {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("request", r.ID, c.ID, map[string]string{
 			"url": r.URL.String(),
 		}))
 	}
 	for _, f := range c.requestCallbacks {
-		f(r)
 		select {
 		case <-r.Ctx.Done():
-			return r.Ctx.Err()
+			r.Abort()
+			return
 		default:
+			f(r.Ctx, r)
 		}
 	}
-	return nil
 }
 
-func (c *Collector) handleOnResponse(r *Response) error {
+func (c *Collector) handleOnResponse(r *Response) {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("response", r.Request.ID, c.ID, map[string]string{
 			"url":    r.Request.URL.String(),
@@ -975,14 +978,13 @@ func (c *Collector) handleOnResponse(r *Response) error {
 		}))
 	}
 	for _, f := range c.responseCallbacks {
-		f(r)
 		select {
 		case <-r.Ctx.Done():
-			return r.Ctx.Err()
+			return
 		default:
+			f(r.Ctx, r)
 		}
 	}
-	return nil
 }
 
 func (c *Collector) handleOnHTML(resp *Response) error {
@@ -998,7 +1000,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 	}
 	for _, cc := range c.htmlCallbacks {
 		i := 0
-		doc.Find(cc.Selector).Each(func(_ int, s *goquery.Selection) {
+		doc.Find(cc.Selector).EachWithBreak(func(_ int, s *goquery.Selection) bool {
 			for _, n := range s.Nodes {
 				e := NewHTMLElementFromSelectionNode(resp, s, n, i)
 				i++
@@ -1008,8 +1010,15 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				select {
+				case <-resp.Ctx.Done():
+					return false
+				default:
+					cc.Function(resp.Ctx, e)
+				}
 			}
+
+			return true
 		})
 	}
 	return nil
@@ -1024,6 +1033,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		return nil
 	}
 
+	var ctxComplete bool
 	if strings.Contains(contentType, "html") {
 		doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
 		if err != nil {
@@ -1034,7 +1044,12 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		}
 
 		for _, cc := range c.xmlCallbacks {
+			// TODO: Replace with FindEachWithBreak once PR #2 is merged in
 			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
+				if ctxComplete {
+					return
+				}
+
 				e := NewXMLElementFromHTMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -1042,7 +1057,13 @@ func (c *Collector) handleOnXML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+
+				select {
+				case <-resp.Ctx.Done():
+					ctxComplete = true
+				default:
+					cc.Function(resp.Ctx, e)
+				}
 			})
 		}
 	} else if strings.Contains(contentType, "xml") {
@@ -1052,7 +1073,12 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		}
 
 		for _, cc := range c.xmlCallbacks {
+			// TODO: Replace with FindEachWithBreak once PR #5 is merged in
 			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
+				if ctxComplete {
+					return
+				}
+
 				e := NewXMLElementFromXMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -1060,7 +1086,13 @@ func (c *Collector) handleOnXML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+
+				select {
+				case <-resp.Ctx.Done():
+					ctxComplete = true
+				default:
+					cc.Function(resp.Ctx, e)
+				}
 			})
 		}
 	}
@@ -1093,11 +1125,11 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 		response.Ctx = request.Ctx
 	}
 	for _, f := range c.errorCallbacks {
-		f(response, err)
 		select {
 		case <-response.Ctx.Done():
 			return response.Ctx.Err()
 		default:
+			f(ctx, response, err)
 		}
 	}
 	return err
@@ -1110,7 +1142,12 @@ func (c *Collector) handleOnScraped(r *Response) {
 		}))
 	}
 	for _, f := range c.scrapedCallbacks {
-		f(r)
+		select {
+		case <-r.Ctx.Done():
+			return
+		default:
+			f(r.Ctx, r)
+		}
 	}
 }
 

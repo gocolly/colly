@@ -1,9 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 func main() {
@@ -12,12 +13,12 @@ func main() {
 
 	// Set HTML callback
 	// Won't be called if error occurs
-	c.OnHTML("*", func(e *colly.HTMLElement) {
+	c.OnHTML("*", func(_ context.Context, e *colly.HTMLElement) {
 		fmt.Println(e)
 	})
 
 	// Set error handler
-	c.OnError(func(r *colly.Response, err error) {
+	c.OnError(func(_ context.Context, r *colly.Response, err error) {
 		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
 	})
 

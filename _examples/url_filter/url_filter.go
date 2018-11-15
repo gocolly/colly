@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 func main() {
@@ -18,7 +19,7 @@ func main() {
 	)
 
 	// On every a element which has href attribute call callback
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+	c.OnHTML("a[href]", func(_ context.Context, e *colly.HTMLElement) {
 		link := e.Attr("href")
 		// Print link
 		fmt.Printf("Link found: %q -> %s\n", e.Text, link)
@@ -28,7 +29,7 @@ func main() {
 	})
 
 	// Before making a request print "Visiting ..."
-	c.OnRequest(func(r *colly.Request) {
+	c.OnRequest(func(_ context.Context, r *colly.Request) {
 		fmt.Println("Visiting", r.URL.String())
 	})
 

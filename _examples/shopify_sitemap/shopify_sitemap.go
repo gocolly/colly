@@ -1,9 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 func main() {
@@ -14,7 +15,7 @@ func main() {
 	c := colly.NewCollector(colly.AllowedDomains("www.shopify.com"))
 
 	// Create a callback on the XPath query searching for the URLs
-	c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
+	c.OnXML("//urlset/url/loc", func(_ context.Context, e *colly.XMLElement) {
 		knownUrls = append(knownUrls, e.Text)
 	})
 

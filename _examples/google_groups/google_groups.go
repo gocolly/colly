@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"log"
 	"os"
 	"strings"
 
-	"github.com/gocolly/colly"
+	"github.com/go-colly/colly"
 )
 
 // Mail is the container of a single e-mail
@@ -30,7 +31,7 @@ func main() {
 	mailCollector := colly.NewCollector()
 
 	// Collect threads
-	threadCollector.OnHTML("tr", func(e *colly.HTMLElement) {
+	threadCollector.OnHTML("tr", func(_ context.Context, e *colly.HTMLElement) {
 		ch := e.DOM.Children()
 		author := ch.Eq(1).Text()
 		// deleted topic
@@ -49,13 +50,13 @@ func main() {
 	})
 
 	// Visit next page
-	threadCollector.OnHTML("body > a[href]", func(e *colly.HTMLElement) {
+	threadCollector.OnHTML("body > a[href]", func(_ context.Context, e *colly.HTMLElement) {
 		log.Println("Next page link found:", e.Attr("href"))
 		e.Request.Visit(e.Attr("href"))
 	})
 
 	// Extract mails
-	mailCollector.OnHTML("body", func(e *colly.HTMLElement) {
+	mailCollector.OnHTML("body", func(_ context.Context, e *colly.HTMLElement) {
 		// Find subject
 		threadSubject := e.ChildText("h2")
 		if _, ok := threads[threadSubject]; !ok {
