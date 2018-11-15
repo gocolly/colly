@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-colly/colly"
+	"github.com/gocolly/colly"
 )
 
 // "id": user id, "after": end cursor

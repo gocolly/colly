@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-colly/colly"
+	"github.com/gocolly/colly"
 )
 
 // DATE_FORMAT default format date used in openedx

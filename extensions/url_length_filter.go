@@ -2,7 +2,7 @@ package extensions
 
 import (
 	"context"
-	"github.com/go-colly/colly"
+	"github.com/gocolly/colly"
 )
 
 // URLLengthFilter filters out requests with URLs longer than URLLengthLimit

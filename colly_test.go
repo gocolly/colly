@@ -28,7 +28,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 
-	"github.com/go-colly/colly/debug"
+	"github.com/gocolly/colly/debug"
 )
 
 var serverIndexResponse = []byte("hello world\n")

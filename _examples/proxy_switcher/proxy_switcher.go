@@ -5,8 +5,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/go-colly/colly"
-	"github.com/go-colly/colly/proxy"
+	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/proxy"
 )
 
 func main() {

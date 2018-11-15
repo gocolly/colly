@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/go-colly/colly"
+	"github.com/gocolly/colly"
 )
 
 func main() {

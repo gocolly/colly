@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-colly/colly"
-	"github.com/go-colly/colly/queue"
+	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/queue"
 )
 
 func main() {

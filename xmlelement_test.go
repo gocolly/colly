@@ -16,7 +16,7 @@ package colly_test
 
 import (
 	"github.com/antchfx/htmlquery"
-	"github.com/go-colly/colly"
+	"github.com/gocolly/colly"
 	"reflect"
 	"strings"
 	"testing"

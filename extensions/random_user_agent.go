@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/go-colly/colly"
+	"github.com/gocolly/colly"
 )
 
 var uaGens = []func() string{
