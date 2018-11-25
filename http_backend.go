@@ -134,12 +134,32 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 	hash := hex.EncodeToString(sum[:])
 	dir := path.Join(cacheDir, hash[:2])
 	filename := path.Join(dir, hash)
-	if file, err := os.Open(filename); err == nil {
-		resp := new(Response)
-		err := gob.NewDecoder(file).Decode(resp)
-		file.Close()
-		if resp.StatusCode < 500 {
-			return resp, err
+
+	if _, err := os.Stat(filename); err == nil {
+		r := h.GetMatchingRule(request.URL.Host)
+		if r != nil {
+			r.waitChan <- true
+		}
+		if file, err := os.Open(filename); err == nil {
+			stats := ContextTimings(request.Context())
+			if stats != nil {
+				stats.DownloadStart = time.Now()
+			}
+			resp := new(Response)
+			err := gob.NewDecoder(file).Decode(resp)
+			file.Close()
+			if resp.StatusCode < 500 {
+				if r != nil {
+					<-r.waitChan
+				}
+				if stats != nil {
+					stats.DownloadEnd = time.Now()
+				}
+				return resp, err
+			}
+		}
+		if r != nil {
+			<-r.waitChan
 		}
 	}
 	resp, err := h.Do(request, bodySize)
@@ -177,6 +197,13 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		}(r)
 	}
 
+	stats := ContextTimings(request.Context())
+	if stats != nil {
+		stats.DownloadStart = time.Now()
+		defer func() {
+			stats.DownloadEnd = time.Now()
+		}()
+	}
 	res, err := h.Client.Do(request)
 	if err != nil {
 		return nil, err

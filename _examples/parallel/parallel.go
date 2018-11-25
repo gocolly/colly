@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gocolly/colly"
@@ -24,7 +25,7 @@ func main() {
 	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 2})
 
 	// On every a element which has href attribute call callback
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+	c.OnHTML("a[href]", func(_ context.Context, e *colly.HTMLElement) {
 		link := e.Attr("href")
 		// Print link
 		fmt.Println(link)

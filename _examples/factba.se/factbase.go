@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -33,7 +34,7 @@ func main() {
 
 	d := c.Clone()
 
-	d.OnHTML("body", func(e *colly.HTMLElement) {
+	d.OnHTML("body", func(_ context.Context, e *colly.HTMLElement) {
 		t := make([]transcript, 0)
 		e.ForEach(".topic-media-row", func(_ int, el *colly.HTMLElement) {
 			t = append(t, transcript{
@@ -45,11 +46,12 @@ func main() {
 		if err != nil {
 			return
 		}
-		ioutil.WriteFile(colly.SanitizeFileName(e.Request.Ctx.Get("date")+"_"+e.Request.Ctx.Get("slug"))+".json", jsonData, 0644)
+		dctx := colly.ContextDataContext(e.Request.Ctx)
+		ioutil.WriteFile(colly.SanitizeFileName(dctx.Get("date")+"_"+dctx.Get("slug"))+".json", jsonData, 0644)
 	})
 
 	stop := false
-	c.OnResponse(func(r *colly.Response) {
+	c.OnResponse(func(_ context.Context, r *colly.Response) {
 		rs := &results{}
 		err := json.Unmarshal(r.Body, rs)
 		if err != nil || len(rs.Data) == 0 {
@@ -58,10 +60,10 @@ func main() {
 		}
 		for _, res := range rs.Data {
 			u := baseTranscriptURL + res.Slug
-			ctx := colly.NewContext()
-			ctx.Put("date", res.Date)
-			ctx.Put("slug", res.Slug)
-			d.Request("GET", u, nil, ctx, nil)
+			ctx, dctx := colly.WithDataContext(context.Background())
+			dctx.Put("date", res.Date)
+			dctx.Put("slug", res.Slug)
+			d.Request(ctx, "GET", u, nil, nil)
 		}
 	})
 

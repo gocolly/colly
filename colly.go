@@ -121,22 +121,22 @@ type Collector struct {
 }
 
 // RequestCallback is a type alias for OnRequest callback functions
-type RequestCallback func(*Request)
+type RequestCallback func(context.Context, *Request)
 
 // ResponseCallback is a type alias for OnResponse callback functions
-type ResponseCallback func(*Response)
+type ResponseCallback func(context.Context, *Response)
 
 // HTMLCallback is a type alias for OnHTML callback functions
-type HTMLCallback func(*HTMLElement)
+type HTMLCallback func(context.Context, *HTMLElement)
 
 // XMLCallback is a type alias for OnXML callback functions
-type XMLCallback func(*XMLElement)
+type XMLCallback func(context.Context, *XMLElement)
 
 // ErrorCallback is a type alias for OnError callback functions
-type ErrorCallback func(*Response, error)
+type ErrorCallback func(context.Context, *Response, error)
 
 // ScrapedCallback is a type alias for OnScraped callback functions
-type ScrapedCallback func(*Response)
+type ScrapedCallback func(context.Context, *Response)
 
 // ProxyFunc is a type alias for proxy setter functions.
 type ProxyFunc func(*http.Request) (*url.URL, error)
@@ -403,29 +403,48 @@ func (c *Collector) Appengine(ctx context.Context) {
 // request to the URL specified in parameter.
 // Visit also calls the previously provided callbacks
 func (c *Collector) Visit(URL string) error {
-	return c.scrape(URL, "GET", 1, nil, nil, nil, true)
+	return c.VisitWithContext(nil, URL)
+}
+
+// VisitWithContext functions the same as Visit but allows you
+// to provide a context.Context which the Collector will monitor
+// for completion and terminate collecting early if needed.
+func (c *Collector) VisitWithContext(ctx context.Context, URL string) error {
+	if ctx == nil {
+		ctx, _ = WithDataContext(context.Background())
+	}
+	return c.scrape(ctx, URL, "GET", 1, nil, nil, true)
 }
 
 // Post starts a collector job by creating a POST request.
 // Post also calls the previously provided callbacks
-func (c *Collector) Post(URL string, requestData map[string]string) error {
-	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil, nil, true)
+func (c *Collector) Post(ctx context.Context, URL string, requestData map[string]string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return c.scrape(ctx, URL, "POST", 1, createFormReader(requestData), nil, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
 // Post also calls the previously provided callbacks
-func (c *Collector) PostRaw(URL string, requestData []byte) error {
-	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), nil, nil, true)
+func (c *Collector) PostRaw(ctx context.Context, URL string, requestData []byte) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return c.scrape(ctx, URL, "POST", 1, bytes.NewReader(requestData), nil, true)
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
 // with raw binary data.  PostMultipart also calls the previously provided callbacks
-func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) error {
+func (c *Collector) PostMultipart(ctx context.Context, URL string, requestData map[string][]byte) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	boundary := randomBoundary()
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", c.UserAgent)
-	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, requestData), nil, hdr, true)
+	return c.scrape(ctx, URL, "POST", 1, createMultipartReader(boundary, requestData), hdr, true)
 }
 
 // Request starts a collector job by creating a custom HTTP request
@@ -438,8 +457,8 @@ func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) err
 //   - "DELETE"
 //   - "PATCH"
 //   - "OPTIONS"
-func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Context, hdr http.Header) error {
-	return c.scrape(URL, method, 1, requestData, ctx, hdr, true)
+func (c *Collector) Request(ctx context.Context, method, URL string, requestData io.Reader, hdr http.Header) error {
+	return c.scrape(ctx, URL, method, 1, requestData, hdr, true)
 }
 
 // SetDebugger attaches a debugger to the collector
@@ -460,10 +479,13 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	ctx := NewContext()
-	for k, v := range req.Ctx {
-		ctx.Put(k, v)
+	ctx := context.Background()
+	var dataCtx *Context
+	if len(req.Ctx) > 0 {
+		ctx, dataCtx = WithDataContext(ctx)
+		for k, v := range req.Ctx {
+			dataCtx.Put(k, v)
+		}
 	}
 
 	return &Request{
@@ -477,7 +499,7 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	}, nil
 }
 
-func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {
+func (c *Collector) scrape(ctx context.Context, u, method string, depth int, requestData io.Reader, hdr http.Header, checkRevisit bool) error {
 	if err := c.requestCheck(u, method, depth, checkRevisit); err != nil {
 		return err
 	}
@@ -513,14 +535,15 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Body:       rc,
 		Host:       parsedURL.Host,
 	}
+
 	setRequestBody(req, requestData)
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
-		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
+		go c.fetch(ctx, u, method, depth, requestData, hdr, req)
 		return nil
 	}
-	return c.fetch(u, method, depth, requestData, ctx, hdr, req)
+	return c.fetch(ctx, u, method, depth, requestData, hdr, req)
 }
 
 func setRequestBody(req *http.Request, body io.Reader) {
@@ -555,11 +578,8 @@ func setRequestBody(req *http.Request, body io.Reader) {
 	}
 }
 
-func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request) error {
+func (c *Collector) fetch(ctx context.Context, u, method string, depth int, requestData io.Reader, hdr http.Header, req *http.Request) error {
 	defer c.wg.Done()
-	if ctx == nil {
-		ctx = NewContext()
-	}
 	request := &Request{
 		URL:       req.URL,
 		Headers:   &req.Header,
@@ -570,12 +590,17 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		collector: c,
 		ID:        atomic.AddUint32(&c.requestCount, 1),
 	}
+	stats := ContextTimings(ctx)
+	if stats != nil {
+		stats.RequestStart = time.Now()
+	}
 
 	c.handleOnRequest(request)
-
 	if request.abort {
 		return nil
 	}
+
+	req = req.WithContext(request.Ctx)
 
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -586,8 +611,9 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	}
 
 	origURL := req.URL
+
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
-	if err := c.handleOnError(response, err, request, ctx); err != nil {
+	if err := c.handleOnError(ctx, response, err, request); err != nil {
 		return err
 	}
 	if req.URL != origURL {
@@ -601,23 +627,48 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	response.Ctx = ctx
 	response.Request = request
 
+	if c.DetectCharset && stats != nil {
+		stats.CharsetFixStart = time.Now()
+	}
 	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
+	if c.DetectCharset && stats != nil {
+		stats.CharsetFixEnd = time.Now()
+	}
 	if err != nil {
 		return err
 	}
-
+	if stats != nil {
+		stats.ProcessStart = time.Now()
+	}
 	c.handleOnResponse(response)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 
 	err = c.handleOnHTML(response)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		c.handleOnError(ctx, response, err, request)
 	}
 
 	err = c.handleOnXML(response)
-	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
-
+	if err != nil {
+		c.handleOnError(ctx, response, err, request)
+	}
+	if stats != nil {
+		stats.ProcessEnd = time.Now()
+	}
 	c.handleOnScraped(response)
 
 	return err
@@ -909,7 +960,13 @@ func (c *Collector) handleOnRequest(r *Request) {
 		}))
 	}
 	for _, f := range c.requestCallbacks {
-		f(r)
+		select {
+		case <-r.Ctx.Done():
+			r.Abort()
+			return
+		default:
+			f(r.Ctx, r)
+		}
 	}
 }
 
@@ -921,7 +978,12 @@ func (c *Collector) handleOnResponse(r *Response) {
 		}))
 	}
 	for _, f := range c.responseCallbacks {
-		f(r)
+		select {
+		case <-r.Ctx.Done():
+			return
+		default:
+			f(r.Ctx, r)
+		}
 	}
 }
 
@@ -938,7 +1000,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 	}
 	for _, cc := range c.htmlCallbacks {
 		i := 0
-		doc.Find(cc.Selector).Each(func(_ int, s *goquery.Selection) {
+		doc.Find(cc.Selector).EachWithBreak(func(_ int, s *goquery.Selection) bool {
 			for _, n := range s.Nodes {
 				e := NewHTMLElementFromSelectionNode(resp, s, n, i)
 				i++
@@ -948,8 +1010,15 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				select {
+				case <-resp.Ctx.Done():
+					return false
+				default:
+					cc.Function(resp.Ctx, e)
+				}
 			}
+
+			return true
 		})
 	}
 	return nil
@@ -970,16 +1039,11 @@ func (c *Collector) handleOnXML(resp *Response) error {
 			return err
 		}
 		if e := htmlquery.FindOne(doc, "//base/@href"); e != nil {
-			for _, a := range e.Attr {
-				if a.Key == "href" {
-					resp.Request.baseURL, _ = url.Parse(a.Val)
-					break
-				}
-			}
+			resp.Request.baseURL, _ = url.Parse(e.FirstChild.Data)
 		}
 
 		for _, cc := range c.xmlCallbacks {
-			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
+			htmlquery.FindEachWithBreak(doc, cc.Query, func(i int, n *html.Node) bool {
 				e := NewXMLElementFromHTMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -987,7 +1051,14 @@ func (c *Collector) handleOnXML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+
+				select {
+				case <-resp.Ctx.Done():
+					return false
+				default:
+					cc.Function(resp.Ctx, e)
+				}
+				return true
 			})
 		}
 	} else if strings.Contains(contentType, "xml") {
@@ -997,7 +1068,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		}
 
 		for _, cc := range c.xmlCallbacks {
-			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
+			xmlquery.FindEachWithBreak(doc, cc.Query, func(i int, n *xmlquery.Node) bool {
 				e := NewXMLElementFromXMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -1005,14 +1076,21 @@ func (c *Collector) handleOnXML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+
+				select {
+				case <-resp.Ctx.Done():
+					return false
+				default:
+					cc.Function(resp.Ctx, e)
+				}
+				return true
 			})
 		}
 	}
 	return nil
 }
 
-func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx *Context) error {
+func (c *Collector) handleOnError(ctx context.Context, response *Response, err error, request *Request) error {
 	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 203) {
 		return nil
 	}
@@ -1038,7 +1116,12 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 		response.Ctx = request.Ctx
 	}
 	for _, f := range c.errorCallbacks {
-		f(response, err)
+		select {
+		case <-response.Ctx.Done():
+			return response.Ctx.Err()
+		default:
+			f(ctx, response, err)
+		}
 	}
 	return err
 }
@@ -1050,7 +1133,12 @@ func (c *Collector) handleOnScraped(r *Response) {
 		}))
 	}
 	for _, f := range c.scrapedCallbacks {
-		f(r)
+		select {
+		case <-r.Ctx.Done():
+			return
+		default:
+			f(r.Ctx, r)
+		}
 	}
 }
 

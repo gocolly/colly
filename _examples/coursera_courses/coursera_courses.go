@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
@@ -39,7 +40,7 @@ func main() {
 	courses := make([]Course, 0, 200)
 
 	// On every a element which has href attribute call callback
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+	c.OnHTML("a[href]", func(_ context.Context, e *colly.HTMLElement) {
 		// If attribute class is this long string return from callback
 		// As this a is irrelevant
 		if e.Attr("class") == "Button_1qxkboh-o_O-primary_cv02ee-o_O-md_28awn8-o_O-primaryLink_109aggg" {
@@ -55,12 +56,12 @@ func main() {
 	})
 
 	// Before making a request print "Visiting ..."
-	c.OnRequest(func(r *colly.Request) {
+	c.OnRequest(func(_ context.Context, r *colly.Request) {
 		log.Println("visiting", r.URL.String())
 	})
 
 	// On every a HTML element which has name attribute call callback
-	c.OnHTML(`a[name]`, func(e *colly.HTMLElement) {
+	c.OnHTML(`a[name]`, func(_ context.Context, e *colly.HTMLElement) {
 		// Activate detailCollector if the link contains "coursera.org/learn"
 		courseURL := e.Request.AbsoluteURL(e.Attr("href"))
 		if strings.Index(courseURL, "coursera.org/learn") != -1 {
@@ -69,7 +70,7 @@ func main() {
 	})
 
 	// Extract details of the course
-	detailCollector.OnHTML(`div[id=rendered-content]`, func(e *colly.HTMLElement) {
+	detailCollector.OnHTML(`div[id=rendered-content]`, func(_ context.Context, e *colly.HTMLElement) {
 		log.Println("Course found", e.Request.URL)
 		title := e.ChildText(".course-title")
 		if title == "" {

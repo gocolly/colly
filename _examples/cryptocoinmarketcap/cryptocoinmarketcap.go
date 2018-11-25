@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"log"
 	"os"
@@ -25,7 +26,7 @@ func main() {
 	// Instantiate default collector
 	c := colly.NewCollector()
 
-	c.OnHTML("#currencies-all tbody tr", func(e *colly.HTMLElement) {
+	c.OnHTML("#currencies-all tbody tr", func(_ context.Context, e *colly.HTMLElement) {
 		writer.Write([]string{
 			e.ChildText(".currency-name-container"),
 			e.ChildText(".col-symbol"),

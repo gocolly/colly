@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -37,7 +38,7 @@ func main() {
 	courses := make([]Course, 0, 200)
 
 	// On every a element which has href attribute call callback
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+	c.OnHTML("a[href]", func(_ context.Context, e *colly.HTMLElement) {
 		link := e.Attr("href")
 		if !strings.HasPrefix(link, "/courses/") {
 			return
@@ -46,7 +47,7 @@ func main() {
 		e.Request.Visit(link)
 	})
 
-	c.OnHTML("div[class=content-wrapper]", func(e *colly.HTMLElement) {
+	c.OnHTML("div[class=content-wrapper]", func(_ context.Context, e *colly.HTMLElement) {
 		if e.DOM.Find("section.course-info").Length() == 0 {
 			return
 		}

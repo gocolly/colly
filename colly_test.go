@@ -16,6 +16,7 @@ package colly
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -305,15 +306,16 @@ func TestCollectorVisit(t *testing.T) {
 	onResponseCalled := false
 	onScrapedCalled := false
 
-	c.OnRequest(func(r *Request) {
+	c.OnRequest(func(_ context.Context, r *Request) {
 		onRequestCalled = true
-		r.Ctx.Put("x", "y")
+		dctx := ContextDataContext(r.Ctx)
+		dctx.Put("x", "y")
 	})
 
-	c.OnResponse(func(r *Response) {
+	c.OnResponse(func(_ context.Context, r *Response) {
 		onResponseCalled = true
 
-		if r.Ctx.Get("x") != "y" {
+		if ContextDataContext(r.Ctx).Get("x") != "y" {
 			t.Error("Failed to retrieve context value for key 'x'")
 		}
 
@@ -322,7 +324,7 @@ func TestCollectorVisit(t *testing.T) {
 		}
 	})
 
-	c.OnScraped(func(r *Response) {
+	c.OnScraped(func(_ context.Context, r *Response) {
 		if !onResponseCalled {
 			t.Error("OnScraped called before OnResponse")
 		}
@@ -358,21 +360,21 @@ func TestCollectorOnHTML(t *testing.T) {
 	titleCallbackCalled := false
 	paragraphCallbackCount := 0
 
-	c.OnHTML("title", func(e *HTMLElement) {
+	c.OnHTML("title", func(_ context.Context, e *HTMLElement) {
 		titleCallbackCalled = true
 		if e.Text != "Test Page" {
 			t.Error("Title element text does not match, got", e.Text)
 		}
 	})
 
-	c.OnHTML("p", func(e *HTMLElement) {
+	c.OnHTML("p", func(_ context.Context, e *HTMLElement) {
 		paragraphCallbackCount++
 		if e.Attr("class") != "description" {
 			t.Error("Failed to get paragraph's class attribute")
 		}
 	})
 
-	c.OnHTML("body", func(e *HTMLElement) {
+	c.OnHTML("body", func(_ context.Context, e *HTMLElement) {
 		if e.ChildAttr("p", "class") != "description" {
 			t.Error("Invalid class value")
 		}
@@ -401,7 +403,7 @@ func TestCollectorURLRevisit(t *testing.T) {
 
 	visitCount := 0
 
-	c.OnRequest(func(r *Request) {
+	c.OnRequest(func(_ context.Context, r *Request) {
 		visitCount++
 	})
 
@@ -429,13 +431,13 @@ func TestCollectorPost(t *testing.T) {
 	postValue := "hello"
 	c := NewCollector()
 
-	c.OnResponse(func(r *Response) {
+	c.OnResponse(func(_ context.Context, r *Response) {
 		if postValue != string(r.Body) {
 			t.Error("Failed to send data with POST")
 		}
 	})
 
-	c.Post(ts.URL+"/login", map[string]string{
+	c.Post(nil, ts.URL+"/login", map[string]string{
 		"name": postValue,
 	})
 }
@@ -445,13 +447,13 @@ func TestRedirect(t *testing.T) {
 	defer ts.Close()
 
 	c := NewCollector()
-	c.OnHTML("a[href]", func(e *HTMLElement) {
+	c.OnHTML("a[href]", func(_ context.Context, e *HTMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
 		if !strings.HasSuffix(u, "/redirected/test") {
 			t.Error("Invalid URL after redirect: " + u)
 		}
 	})
-	c.OnResponse(func(r *Response) {
+	c.OnResponse(func(_ context.Context, r *Response) {
 		if !strings.HasSuffix(r.Request.URL.String(), "/redirected/") {
 			t.Error("Invalid URL in Request after redirect: " + r.Request.URL.String())
 		}
@@ -464,7 +466,7 @@ func TestBaseTag(t *testing.T) {
 	defer ts.Close()
 
 	c := NewCollector()
-	c.OnHTML("a[href]", func(e *HTMLElement) {
+	c.OnHTML("a[href]", func(_ context.Context, e *HTMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
 		if u != "http://xy.com/z" {
 			t.Error("Invalid <base /> tag handling in OnHTML: expected https://xy.com/z, got " + u)
@@ -473,8 +475,8 @@ func TestBaseTag(t *testing.T) {
 	c.Visit(ts.URL + "/base")
 
 	c2 := NewCollector()
-	c2.OnXML("//a/@href", func(e *XMLElement) {
-		u := e.Request.AbsoluteURL(e.Attr("href"))
+	c2.OnXML("//a/@href", func(_ context.Context, e *XMLElement) {
+		u := e.Request.AbsoluteURL(e.Text)
 		if u != "http://xy.com/z" {
 			t.Error("Invalid <base /> tag handling in OnXML: expected https://xy.com/z, got " + u)
 		}
@@ -504,7 +506,7 @@ func TestRobotsWhenAllowed(t *testing.T) {
 	c := NewCollector()
 	c.IgnoreRobotsTxt = false
 
-	c.OnResponse(func(resp *Response) {
+	c.OnResponse(func(_ context.Context, resp *Response) {
 		if resp.StatusCode != 200 {
 			t.Fatalf("Wrong response code: %d", resp.StatusCode)
 		}
@@ -524,7 +526,7 @@ func TestRobotsWhenDisallowed(t *testing.T) {
 	c := NewCollector()
 	c.IgnoreRobotsTxt = false
 
-	c.OnResponse(func(resp *Response) {
+	c.OnResponse(func(_ context.Context, resp *Response) {
 		t.Fatalf("Received response: %d", resp.StatusCode)
 	})
 
@@ -541,7 +543,7 @@ func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 	c := NewCollector()
 	c.IgnoreRobotsTxt = true
 
-	c.OnResponse(func(resp *Response) {
+	c.OnResponse(func(_ context.Context, resp *Response) {
 		if resp.StatusCode != 200 {
 			t.Fatalf("Wrong response code: %d", resp.StatusCode)
 		}
@@ -579,7 +581,7 @@ func TestEnvSettings(t *testing.T) {
 
 	valid := false
 
-	c.OnResponse(func(resp *Response) {
+	c.OnResponse(func(_ context.Context, resp *Response) {
 		if string(resp.Body) == "test" {
 			valid = true
 		}
@@ -601,7 +603,7 @@ func TestParseHTTPErrorResponse(t *testing.T) {
 		AllowURLRevisit(),
 	)
 
-	c.OnHTML("p", func(e *HTMLElement) {
+	c.OnHTML("p", func(_ context.Context, e *HTMLElement) {
 		if e.Text == "error" {
 			contentCount++
 		}
@@ -624,12 +626,11 @@ func TestParseHTTPErrorResponse(t *testing.T) {
 }
 
 func TestHTMLElement(t *testing.T) {
-	ctx := &Context{}
 	resp := &Response{
 		Request: &Request{
-			Ctx: ctx,
+			Ctx: context.Background(),
 		},
-		Ctx: ctx,
+		Ctx: context.Background(),
 	}
 
 	in := `<a href="http://go-colly.org">Colly</a>`
@@ -671,21 +672,21 @@ func TestCollectorOnXML(t *testing.T) {
 	titleCallbackCalled := false
 	paragraphCallbackCount := 0
 
-	c.OnXML("/html/head/title", func(e *XMLElement) {
+	c.OnXML("/html/head/title", func(_ context.Context, e *XMLElement) {
 		titleCallbackCalled = true
 		if e.Text != "Test Page" {
 			t.Error("Title element text does not match, got", e.Text)
 		}
 	})
 
-	c.OnXML("/html/body/p", func(e *XMLElement) {
+	c.OnXML("/html/body/p", func(_ context.Context, e *XMLElement) {
 		paragraphCallbackCount++
 		if e.Attr("class") != "description" {
 			t.Error("Failed to get paragraph's class attribute")
 		}
 	})
 
-	c.OnXML("/html/body", func(e *XMLElement) {
+	c.OnXML("/html/body", func(_ context.Context, e *XMLElement) {
 		if e.ChildAttr("p", "class") != "description" {
 			t.Error("Invalid class value")
 		}
@@ -711,7 +712,7 @@ func BenchmarkOnHTML(b *testing.B) {
 	defer ts.Close()
 
 	c := NewCollector()
-	c.OnHTML("p", func(_ *HTMLElement) {})
+	c.OnHTML("p", func(_ context.Context, _ *HTMLElement) {})
 
 	for n := 0; n < b.N; n++ {
 		c.Visit(fmt.Sprintf("%s/html?q=%d", ts.URL, n))
@@ -723,7 +724,7 @@ func BenchmarkOnXML(b *testing.B) {
 	defer ts.Close()
 
 	c := NewCollector()
-	c.OnXML("//p", func(_ *XMLElement) {})
+	c.OnXML("//p", func(_ context.Context, _ *XMLElement) {})
 
 	for n := 0; n < b.N; n++ {
 		c.Visit(fmt.Sprintf("%s/html?q=%d", ts.URL, n))
@@ -736,7 +737,7 @@ func BenchmarkOnResponse(b *testing.B) {
 
 	c := NewCollector()
 	c.AllowURLRevisit = true
-	c.OnResponse(func(_ *Response) {})
+	c.OnResponse(func(_ context.Context, _ *Response) {})
 
 	for n := 0; n < b.N; n++ {
 		c.Visit(ts.URL)

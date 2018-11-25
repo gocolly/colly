@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -26,7 +27,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	p := &pageInfo{Links: make(map[string]int)}
 
 	// count links
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+	c.OnHTML("a[href]", func(_ context.Context, e *colly.HTMLElement) {
 		link := e.Request.AbsoluteURL(e.Attr("href"))
 		if link != "" {
 			p.Links[link]++
@@ -34,11 +35,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// extract status code
-	c.OnResponse(func(r *colly.Response) {
+	c.OnResponse(func(_ context.Context, r *colly.Response) {
 		log.Println("response received", r.StatusCode)
 		p.StatusCode = r.StatusCode
 	})
-	c.OnError(func(r *colly.Response, err error) {
+	c.OnError(func(_ context.Context, r *colly.Response, err error) {
 		log.Println("error:", r.StatusCode, err)
 		p.StatusCode = r.StatusCode
 	})

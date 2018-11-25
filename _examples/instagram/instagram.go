@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -44,7 +45,7 @@ type mainPageData struct {
 									Width  int `json:"width"`
 									Height int `json:"height"`
 								} `json:"dimensions"`
-							} `json::node"`
+							} `json:"node"`
 						} `json:"edges"`
 						PageInfo pageInfo `json:"page_info"`
 					} `json:"edge_owner_to_timeline_media"`
@@ -91,11 +92,12 @@ func main() {
 		colly.UserAgent("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"),
 	)
 
-	c.OnRequest(func(r *colly.Request) {
+	c.OnRequest(func(_ context.Context, r *colly.Request) {
 		r.Headers.Set("X-Requested-With", "XMLHttpRequest")
 		r.Headers.Set("Referrer", "https://www.instagram.com/"+instagramAccount)
-		if r.Ctx.Get("gis") != "" {
-			gis := fmt.Sprintf("%s:%s", r.Ctx.Get("gis"), r.Ctx.Get("variables"))
+		dctx := colly.ContextDataContext(r.Ctx)
+		if dctx.Get("gis") != "" {
+			gis := fmt.Sprintf("%s:%s", dctx.Get("gis"), dctx.Get("variables"))
 			h := md5.New()
 			h.Write([]byte(gis))
 			gisHash := fmt.Sprintf("%x", h.Sum(nil))
@@ -103,9 +105,9 @@ func main() {
 		}
 	})
 
-	c.OnHTML("html", func(e *colly.HTMLElement) {
+	c.OnHTML("html", func(_ context.Context, e *colly.HTMLElement) {
 		d := c.Clone()
-		d.OnResponse(func(r *colly.Response) {
+		d.OnResponse(func(_ context.Context, r *colly.Response) {
 			requestIds = queryIdPattern.FindAll(r.Body, -1)
 			requestID = string(requestIds[1][9:41])
 		})
@@ -132,7 +134,8 @@ func main() {
 			c.Visit(obj.Node.ImageURL)
 		}
 		nextPageVars := fmt.Sprintf(nextPagePayload, actualUserId, page.Graphql.User.Media.PageInfo.EndCursor)
-		e.Request.Ctx.Put("variables", nextPageVars)
+		dctx := colly.ContextDataContext(e.Request.Ctx)
+		dctx.Put("variables", nextPageVars)
 		if page.Graphql.User.Media.PageInfo.NextPage {
 			u := fmt.Sprintf(
 				nextPageURL,
@@ -140,16 +143,16 @@ func main() {
 				url.QueryEscape(nextPageVars),
 			)
 			log.Println("Next page found", u)
-			e.Request.Ctx.Put("gis", data.Rhxgis)
+			dctx.Put("gis", data.Rhxgis)
 			e.Request.Visit(u)
 		}
 	})
 
-	c.OnError(func(r *colly.Response, e error) {
+	c.OnError(func(_ context.Context, r *colly.Response, e error) {
 		log.Println("error:", e, r.Request.URL, string(r.Body))
 	})
 
-	c.OnResponse(func(r *colly.Response) {
+	c.OnResponse(func(_ context.Context, r *colly.Response) {
 		if strings.Index(r.Headers.Get("Content-Type"), "image") > -1 {
 			r.Save(outputDir + r.FileName())
 			return
@@ -174,7 +177,8 @@ func main() {
 		}
 		if data.Data.User.Container.PageInfo.NextPage {
 			nextPageVars := fmt.Sprintf(nextPagePayload, actualUserId, data.Data.User.Container.PageInfo.EndCursor)
-			r.Request.Ctx.Put("variables", nextPageVars)
+			dctx := colly.ContextDataContext(r.Request.Ctx)
+			dctx.Put("variables", nextPageVars)
 			u := fmt.Sprintf(
 				nextPageURL,
 				requestID,

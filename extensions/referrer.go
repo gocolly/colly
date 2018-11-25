@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"context"
 	"github.com/gocolly/colly"
 )
 
@@ -8,11 +9,13 @@ import (
 // Warning: this extension works only if you use Request.Visit
 // from callbacks instead of Collector.Visit.
 func Referrer(c *colly.Collector) {
-	c.OnResponse(func(r *colly.Response) {
-		r.Ctx.Put("_referrer", r.Request.URL.String())
+	c.OnResponse(func(_ context.Context, r *colly.Response) {
+		dctx := colly.ContextDataContext(r.Ctx)
+		dctx.Put("_referrer", r.Request.URL.String())
 	})
-	c.OnRequest(func(r *colly.Request) {
-		if ref := r.Ctx.Get("_referrer"); ref != "" {
+	c.OnRequest(func(_ context.Context, r *colly.Request) {
+		dctx := colly.ContextDataContext(r.Ctx)
+		if ref := dctx.Get("_referrer"); ref != "" {
 			r.Headers.Set("Referrer", ref)
 		}
 	})

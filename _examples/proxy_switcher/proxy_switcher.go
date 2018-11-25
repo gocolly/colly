@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"log"
 
 	"github.com/gocolly/colly"
@@ -20,7 +21,7 @@ func main() {
 	c.SetProxyFunc(rp)
 
 	// Print the response
-	c.OnResponse(func(r *colly.Response) {
+	c.OnResponse(func(_ context.Context, r *colly.Response) {
 		log.Printf("Proxy Address: %s\n", r.Request.ProxyURL)
 		log.Printf("%s\n", bytes.Replace(r.Body, []byte("\n"), nil, -1))
 	})
