@@ -1033,7 +1033,6 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		return nil
 	}
 
-	var ctxComplete bool
 	if strings.Contains(contentType, "html") {
 		doc, err := htmlquery.Parse(bytes.NewBuffer(resp.Body))
 		if err != nil {
@@ -1044,12 +1043,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		}
 
 		for _, cc := range c.xmlCallbacks {
-			// TODO: Replace with FindEachWithBreak once PR #2 is merged in
-			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
-				if ctxComplete {
-					return
-				}
-
+			htmlquery.FindEachWithBreak(doc, cc.Query, func(i int, n *html.Node) bool {
 				e := NewXMLElementFromHTMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -1060,10 +1054,11 @@ func (c *Collector) handleOnXML(resp *Response) error {
 
 				select {
 				case <-resp.Ctx.Done():
-					ctxComplete = true
+					return false
 				default:
 					cc.Function(resp.Ctx, e)
 				}
+				return true
 			})
 		}
 	} else if strings.Contains(contentType, "xml") {
@@ -1073,12 +1068,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		}
 
 		for _, cc := range c.xmlCallbacks {
-			// TODO: Replace with FindEachWithBreak once PR #5 is merged in
-			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
-				if ctxComplete {
-					return
-				}
-
+			xmlquery.FindEachWithBreak(doc, cc.Query, func(i int, n *xmlquery.Node) bool {
 				e := NewXMLElementFromXMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -1089,10 +1079,11 @@ func (c *Collector) handleOnXML(resp *Response) error {
 
 				select {
 				case <-resp.Ctx.Done():
-					ctxComplete = true
+					return false
 				default:
 					cc.Function(resp.Ctx, e)
 				}
+				return true
 			})
 		}
 	}

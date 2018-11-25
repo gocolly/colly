@@ -3,8 +3,8 @@ module github.com/gocolly/colly
 require (
 	github.com/PuerkitoBio/goquery v1.4.1
 	github.com/andybalholm/cascadia v1.0.0 // indirect
-	github.com/antchfx/htmlquery v0.0.0-20180925020018-98389addba3d
-	github.com/antchfx/xmlquery v0.0.0-20181024140136-98cdbc3221ed
+	github.com/antchfx/htmlquery v0.0.0-20181125090355-f40d0ac44926
+	github.com/antchfx/xmlquery v0.0.0-20181125090337-d9e365014937
 	github.com/antchfx/xpath v0.0.0-20180922041825-3de91f3991a1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gobwas/glob v0.2.3

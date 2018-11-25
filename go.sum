@@ -2,10 +2,10 @@ github.com/PuerkitoBio/goquery v1.4.1 h1:smcIRGdYm/w7JSbcdeLHEMzxmsBQvl8lhf0dSw2
 github.com/PuerkitoBio/goquery v1.4.1/go.mod h1:T9ezsOHcCrDCgA8aF1Cqr3sSYbO/xgdy8/R/XiIMAhA=
 github.com/andybalholm/cascadia v1.0.0 h1:hOCXnnZ5A+3eVDX8pvgl4kofXv2ELss0bKcqRySc45o=
 github.com/andybalholm/cascadia v1.0.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9PqHO0sqidkEA4Y=
-github.com/antchfx/htmlquery v0.0.0-20180925020018-98389addba3d h1:BzVCjAnYYfpdD01lzVKlZ8mCJu+l4IdGGHjye+R8qgQ=
-github.com/antchfx/htmlquery v0.0.0-20180925020018-98389addba3d/go.mod h1:MS9yksVSQXls00iXkiMqXr0J+umL/AmxXKuP28SUJM8=
-github.com/antchfx/xmlquery v0.0.0-20181024140136-98cdbc3221ed h1:RaoFHh2ENW0KnEWqTVLHWQ1KB2WMbEduM51FQNKpZBs=
-github.com/antchfx/xmlquery v0.0.0-20181024140136-98cdbc3221ed/go.mod h1:/+CnyD/DzHRnv2eRxrVbieRU/FIF6N0C+7oTtyUtCKk=
+github.com/antchfx/htmlquery v0.0.0-20181125090355-f40d0ac44926 h1:D1vXEh1GA6OEGh8tANkYT9c6OvFAE5ygqg5dPojJvjo=
+github.com/antchfx/htmlquery v0.0.0-20181125090355-f40d0ac44926/go.mod h1:MS9yksVSQXls00iXkiMqXr0J+umL/AmxXKuP28SUJM8=
+github.com/antchfx/xmlquery v0.0.0-20181125090337-d9e365014937 h1:e8A2IxAEMAQt5kf7nUlAqZ+TofZJHAK+X1zIWazpHwM=
+github.com/antchfx/xmlquery v0.0.0-20181125090337-d9e365014937/go.mod h1:/+CnyD/DzHRnv2eRxrVbieRU/FIF6N0C+7oTtyUtCKk=
 github.com/antchfx/xpath v0.0.0-20180922041825-3de91f3991a1 h1:nt4RMjvM9pJ5HR7WkCeAnDz1pgHbLT2vxICalUTWcJU=
 github.com/antchfx/xpath v0.0.0-20180922041825-3de91f3991a1/go.mod h1:Yee4kTMuNiPYJ7nSNorELQMr1J33uOpXDMByNYhvtNk=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
