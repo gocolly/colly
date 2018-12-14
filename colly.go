@@ -587,15 +587,15 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 
 	origURL := req.URL
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
+	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
+		request.ProxyURL = proxyURL
+	}
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
 	if req.URL != origURL {
 		request.URL = req.URL
 		request.Headers = &req.Header
-	}
-	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
-		request.ProxyURL = proxyURL
 	}
 	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx
