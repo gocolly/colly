@@ -416,21 +416,21 @@ func (c *Collector) Head(URL string) error {
 
 // Post starts a collector job by creating a POST request.
 // Post also calls the previously provided callbacks
-func (c *Collector) Post(URL string, requestData map[string]string) error {
-	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil, nil, true)
+func (c *Collector) Post(URL string, requestData map[string]string, header http.Header) error {
+	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil, header, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
 // Post also calls the previously provided callbacks
-func (c *Collector) PostRaw(URL string, requestData []byte) error {
-	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), nil, nil, true)
+func (c *Collector) PostRaw(URL string, requestData []byte, header http.Header) error {
+	return c.scrape(URL, "POST", 1, bytes.NewReader(requestData), nil, header, true)
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
 // with raw binary data.  PostMultipart also calls the previously provided callbacks
-func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) error {
+func (c *Collector) PostMultipart(URL string, requestData map[string][]byte, header http.Header) error {
 	boundary := randomBoundary()
-	hdr := http.Header{}
+	hdr := header
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", c.UserAgent)
 	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, requestData), nil, hdr, true)
