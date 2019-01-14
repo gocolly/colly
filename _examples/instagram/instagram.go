@@ -93,7 +93,7 @@ func main() {
 
 	c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("X-Requested-With", "XMLHttpRequest")
-		r.Headers.Set("Referrer", "https://www.instagram.com/"+instagramAccount)
+		r.Headers.Set("Referer", "https://www.instagram.com/"+instagramAccount)
 		if r.Ctx.Get("gis") != "" {
 			gis := fmt.Sprintf("%s:%s", r.Ctx.Get("gis"), r.Ctx.Get("variables"))
 			h := md5.New()
