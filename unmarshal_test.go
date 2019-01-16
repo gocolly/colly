@@ -48,6 +48,40 @@ func TestBasicUnmarshal(t *testing.T) {
 	}
 }
 
+func TestNestedUnmarshalMap(t *testing.T) {
+	doc, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(nestedTestData))
+	e := &HTMLElement{
+		DOM: doc.First(),
+	}
+	doc2, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(basicTestData))
+	e2 := &HTMLElement{
+		DOM: doc2.First(),
+	}
+	type nested struct {
+		String string
+	}
+	mapSelector := make(map[string]string)
+	mapSelector["String"] = "div > p"
+
+	mapSelector2 := make(map[string]string)
+	mapSelector2["String"] = "span"
+
+	s := nested{}
+	s2 := nested{}
+	if err := e.UnmarshalWithMap(&s, mapSelector); err != nil {
+		t.Error("Cannot unmarshal struct: " + err.Error())
+	}
+	if err := e2.UnmarshalWithMap(&s2, mapSelector2); err != nil {
+		t.Error("Cannot unmarshal struct: " + err.Error())
+	}
+	if s.String != "a" {
+		t.Errorf(`Invalid data for String: %q, expected "a"`, s.String)
+	}
+	if s2.String != "item" {
+		t.Errorf(`Invalid data for String: %q, expected "a"`, s.String)
+	}
+}
+
 func TestNestedUnmarshal(t *testing.T) {
 	doc, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(nestedTestData))
 	e := &HTMLElement{

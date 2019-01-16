@@ -24,7 +24,12 @@ import (
 
 // Unmarshal is a shorthand for colly.UnmarshalHTML
 func (h *HTMLElement) Unmarshal(v interface{}) error {
-	return UnmarshalHTML(v, h.DOM)
+	return UnmarshalHTML(v, h.DOM, nil)
+}
+
+// UnmarshalWithMap is a shorthand for colly.UnmarshalHTML, extended to allow maps to be passed in.
+func (h *HTMLElement) UnmarshalWithMap(v interface{}, structMap map[string]string) error {
+	return UnmarshalHTML(v, h.DOM, structMap)
 }
 
 // UnmarshalHTML declaratively extracts text or attributes to a struct from
@@ -43,7 +48,7 @@ func (h *HTMLElement) Unmarshal(v interface{}) error {
 //   }
 //
 // Supported types: struct, *struct, string, []string
-func UnmarshalHTML(v interface{}, s *goquery.Selection) error {
+func UnmarshalHTML(v interface{}, s *goquery.Selection, structMap map[string]string) error {
 	rv := reflect.ValueOf(v)
 
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
@@ -52,15 +57,57 @@ func UnmarshalHTML(v interface{}, s *goquery.Selection) error {
 
 	sv := rv.Elem()
 	st := reflect.TypeOf(v).Elem()
-
-	for i := 0; i < sv.NumField(); i++ {
-		attrV := sv.Field(i)
-		if !attrV.CanAddr() || !attrV.CanSet() {
-			continue
+	if structMap != nil {
+		for k, v := range structMap {
+			attrV := sv.FieldByName(k)
+			if !attrV.CanAddr() || !attrV.CanSet() {
+				continue
+			}
+			if err := unmarshalSelector(s, attrV, v); err != nil {
+				return err
+			}
 		}
-		if err := unmarshalAttr(s, attrV, st.Field(i)); err != nil {
+	} else {
+		for i := 0; i < sv.NumField(); i++ {
+			attrV := sv.Field(i)
+			if !attrV.CanAddr() || !attrV.CanSet() {
+				continue
+			}
+			if err := unmarshalAttr(s, attrV, st.Field(i)); err != nil {
+				return err
+			}
+
+		}
+	}
+
+	return nil
+}
+
+func unmarshalSelector(s *goquery.Selection, attrV reflect.Value, selector string) error {
+	//selector is "-" specify that field should ignore.
+	if selector == "-" {
+		return nil
+	}
+	htmlAttr := ""
+	// TODO support more types
+	switch attrV.Kind() {
+	case reflect.Slice:
+		if err := unmarshalSlice(s, selector, htmlAttr, attrV); err != nil {
 			return err
 		}
+	case reflect.String:
+		val := getDOMValue(s.Find(selector), htmlAttr)
+		attrV.Set(reflect.Indirect(reflect.ValueOf(val)))
+	case reflect.Struct:
+		if err := unmarshalStruct(s, selector, attrV); err != nil {
+			return err
+		}
+	case reflect.Ptr:
+		if err := unmarshalPtr(s, selector, attrV); err != nil {
+			return err
+		}
+	default:
+		return errors.New("Invalid type: " + attrV.String())
 	}
 	return nil
 }
@@ -104,7 +151,7 @@ func unmarshalStruct(s *goquery.Selection, selector string, attrV reflect.Value)
 		return nil
 	}
 	v := reflect.New(attrV.Type())
-	err := UnmarshalHTML(v.Interface(), newS)
+	err := UnmarshalHTML(v.Interface(), newS, nil)
 	if err != nil {
 		return err
 	}
@@ -125,7 +172,7 @@ func unmarshalPtr(s *goquery.Selection, selector string, attrV reflect.Value) er
 		return errors.New("Invalid slice type")
 	}
 	v := reflect.New(e)
-	err := UnmarshalHTML(v.Interface(), newS)
+	err := UnmarshalHTML(v.Interface(), newS, nil)
 	if err != nil {
 		return err
 	}
@@ -147,13 +194,13 @@ func unmarshalSlice(s *goquery.Selection, selector, htmlAttr string, attrV refle
 	case reflect.Ptr:
 		s.Find(selector).Each(func(_ int, innerSel *goquery.Selection) {
 			someVal := reflect.New(attrV.Type().Elem().Elem())
-			UnmarshalHTML(someVal.Interface(), innerSel)
+			UnmarshalHTML(someVal.Interface(), innerSel, nil)
 			attrV.Set(reflect.Append(attrV, someVal))
 		})
 	case reflect.Struct:
 		s.Find(selector).Each(func(_ int, innerSel *goquery.Selection) {
 			someVal := reflect.New(attrV.Type().Elem())
-			UnmarshalHTML(someVal.Interface(), innerSel)
+			UnmarshalHTML(someVal.Interface(), innerSel, nil)
 			attrV.Set(reflect.Append(attrV, reflect.Indirect(someVal)))
 		})
 	default:
