@@ -21,8 +21,8 @@ func main() {
 	stories := []item{}
 	// Instantiate default collector
 	c := colly.NewCollector(
-		// Visit only domains: reddit.com
-		colly.AllowedDomains("www.reddit.com"),
+		// Visit only domains: old.reddit.com
+		colly.AllowedDomains("old.reddit.com"),
 		colly.Async(true),
 	)
 
@@ -31,7 +31,7 @@ func main() {
 	c.OnHTML(".top-matter", func(e *colly.HTMLElement) {
 		temp := item{}
 		temp.StoryURL = e.ChildAttr("a[data-event-action=title]", "href")
-		temp.Source = "https://www.reddit.com/r/programming/"
+		temp.Source = "https://old.reddit.com/r/programming/"
 		temp.Title = e.ChildText("a[data-event-action=title]")
 		temp.Comments = e.ChildAttr("a[data-event-action=comments]", "href")
 		temp.CrawledAt = time.Now()
