@@ -837,6 +837,11 @@ func (c *Collector) OnScraped(f ScrapedCallback) {
 	c.lock.Unlock()
 }
 
+// SetClient overrides the previously set client
+func (c *Collector) SetClient(c *http.Client) {
+	c.backend.Client = c
+}
+
 // WithTransport allows you to set a custom http.RoundTripper (transport)
 func (c *Collector) WithTransport(transport http.RoundTripper) {
 	c.backend.Client.Transport = transport
