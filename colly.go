@@ -38,7 +38,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/net/html"
 	"google.golang.org/appengine/urlfetch"
 
 	"github.com/PuerkitoBio/goquery"
@@ -988,7 +987,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		}
 
 		for _, cc := range c.xmlCallbacks {
-			htmlquery.FindEach(doc, cc.Query, func(i int, n *html.Node) {
+			for _, n := range htmlquery.Find(doc, cc.Query) {
 				e := NewXMLElementFromHTMLNode(resp, n)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
@@ -997,7 +996,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 					}))
 				}
 				cc.Function(e)
-			})
+			}
 		}
 	} else if strings.Contains(contentType, "xml") {
 		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))

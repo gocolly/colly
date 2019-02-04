@@ -134,13 +134,13 @@ func (h *XMLElement) ChildAttr(xpathQuery, attrName string) string {
 func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
 	var res []string
 	if h.isHTML {
-		htmlquery.FindEach(h.DOM.(*html.Node), xpathQuery, func(i int, child *html.Node) {
+		for _, child := range htmlquery.Find(h.DOM.(*html.Node), xpathQuery) {
 			for _, attr := range child.Attr {
 				if attr.Key == attrName {
 					res = append(res, strings.TrimSpace(attr.Val))
 				}
 			}
-		})
+		}
 	} else {
 		xmlquery.FindEach(h.DOM.(*xmlquery.Node), xpathQuery, func(i int, child *xmlquery.Node) {
 			for _, attr := range child.Attr {
@@ -158,9 +158,9 @@ func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
 func (h *XMLElement) ChildTexts(xpathQuery string) []string {
 	texts := make([]string, 0)
 	if h.isHTML {
-		htmlquery.FindEach(h.DOM.(*html.Node), xpathQuery, func(i int, child *html.Node) {
+		for _, child := range htmlquery.Find(h.DOM.(*html.Node), xpathQuery) {
 			texts = append(texts, strings.TrimSpace(htmlquery.InnerText(child)))
-		})
+		}
 	} else {
 		xmlquery.FindEach(h.DOM.(*xmlquery.Node), xpathQuery, func(i int, child *xmlquery.Node) {
 			texts = append(texts, strings.TrimSpace(child.InnerText()))
