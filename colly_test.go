@@ -473,7 +473,7 @@ func TestBaseTag(t *testing.T) {
 	c.Visit(ts.URL + "/base")
 
 	c2 := NewCollector()
-	c2.OnXML("//a/@href", func(e *XMLElement) {
+	c2.OnXML("//a", func(e *XMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
 		if u != "http://xy.com/z" {
 			t.Error("Invalid <base /> tag handling in OnXML: expected https://xy.com/z, got " + u)

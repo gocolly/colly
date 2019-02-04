@@ -102,7 +102,9 @@ type Collector struct {
 	// without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
 	DetectCharset bool
 	// RedirectHandler allows control on how a redirect will be managed
-	RedirectHandler   func(req *http.Request, via []*http.Request) error
+	RedirectHandler func(req *http.Request, via []*http.Request) error
+	// CheckHead performs a HEAD request before every GET to pre-validate the response
+	CheckHead         bool
 	store             storage.Storage
 	debugger          debug.Debugger
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -402,8 +404,10 @@ func (c *Collector) Appengine(ctx context.Context) {
 // request to the URL specified in parameter.
 // Visit also calls the previously provided callbacks
 func (c *Collector) Visit(URL string) error {
-	if check := c.scrape(URL, "HEAD", 1, nil, nil, nil, true); check != nil {
-		return check
+	if c.CheckHead {
+		if check := c.scrape(URL, "HEAD", 1, nil, nil, nil, true); check != nil {
+			return check
+		}
 	}
 	return c.scrape(URL, "GET", 1, nil, nil, nil, true)
 }
@@ -977,7 +981,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		if err != nil {
 			return err
 		}
-		if e := htmlquery.FindOne(doc, "//base/@href"); e != nil {
+		if e := htmlquery.FindOne(doc, "//base"); e != nil {
 			for _, a := range e.Attr {
 				if a.Key == "href" {
 					resp.Request.baseURL, _ = url.Parse(a.Val)
