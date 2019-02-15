@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gocolly/colly"
+	"github.com/ezoic/colly"
 )
 
 func main() {
