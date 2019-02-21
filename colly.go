@@ -1123,6 +1123,7 @@ func (c *Collector) Clone() *Collector {
 		MaxDepth:               c.MaxDepth,
 		DisallowedURLFilters:   c.DisallowedURLFilters,
 		URLFilters:             c.URLFilters,
+		CheckHead:              c.CheckHead,
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
 		store:                  c.store,
