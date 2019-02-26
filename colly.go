@@ -189,6 +189,8 @@ var (
 	ErrNoCookieJar = errors.New("Cookie jar is not available")
 	// ErrNoPattern is the error type for LimitRules without patterns
 	ErrNoPattern = errors.New("No pattern defined in LimitRule")
+	// ErrEmptyProxyURL is the error type for empty Proxy URL list
+	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
 )
 
 var envMap = map[string]func(*Collector, string){
