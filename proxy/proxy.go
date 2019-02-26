@@ -43,7 +43,7 @@ func (r *roundRobinSwitcher) GetProxy(pr *http.Request) (*url.URL, error) {
 // "http" is assumed.
 func RoundRobinProxySwitcher(ProxyURLs ...string) (colly.ProxyFunc, error) {
 	if len(ProxyURLs) < 1 {
-		return colly.ErrEmptyProxyURL
+		return nil,colly.ErrEmptyProxyURL
 	}
 	urls := make([]*url.URL, len(ProxyURLs))
 	for i, u := range ProxyURLs {
