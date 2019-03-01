@@ -460,6 +460,38 @@ func (c *Collector) SetDebugger(d debug.Debugger) {
 	c.debugger = d
 }
 
+// HasVisited checks to see if the URL has been visited before.
+// If checkRevisit is false then this function always returns false
+func (c *Collector) HasVisited(method, URL string) bool {
+	if URL == "" {
+		return false
+	}
+
+	if c.AllowURLRevisit == true {
+		return false
+	}
+
+	if method != http.MethodGet {
+		return false
+	}
+
+	uHash := c.generateURLHash(URL)
+	visited, err := c.store.IsVisited(uHash)
+
+	if err != nil {
+		return false
+	}
+
+	return visited
+}
+
+func (c *Collector) generateURLHash(URL string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(URL))
+
+	return h.Sum64()
+}
+
 // UnmarshalRequest creates a Request from serialized data
 func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	req := &serializableRequest{}
@@ -659,9 +691,7 @@ func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool)
 		}
 	}
 	if checkRevisit && !c.AllowURLRevisit && method == "GET" {
-		h := fnv.New64a()
-		h.Write([]byte(u))
-		uHash := h.Sum64()
+		uHash := c.generateURLHash(u)
 		visited, err := c.store.IsVisited(uHash)
 		if err != nil {
 			return err
