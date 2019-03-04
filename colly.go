@@ -716,7 +716,11 @@ func (c *Collector) checkRobots(u *url.URL) error {
 		return nil
 	}
 
-	if !uaGroup.Test(u.EscapedPath()) {
+	eu := u.EscapedPath()
+	if u.RawQuery != "" {
+		eu += "?" + u.Query().Encode()
+	}
+	if !uaGroup.Test(eu) {
 		return ErrRobotsTxtBlocked
 	}
 	return nil

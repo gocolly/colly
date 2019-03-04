@@ -35,6 +35,7 @@ var robotsFile = `
 User-agent: *
 Allow: /allowed
 Disallow: /disallowed
+Disallow: /allowed*q=
 `
 
 func newTestServer() *httptest.Server {
@@ -529,6 +530,23 @@ func TestRobotsWhenDisallowed(t *testing.T) {
 	})
 
 	err := c.Visit(ts.URL + "/disallowed")
+	if err.Error() != "URL blocked by robots.txt" {
+		t.Fatalf("wrong error message: %v", err)
+	}
+}
+
+func TestRobotsWhenDisallowedWithQueryParameter(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.IgnoreRobotsTxt = false
+
+	c.OnResponse(func(resp *Response) {
+		t.Fatalf("Received response: %d", resp.StatusCode)
+	})
+
+	err := c.Visit(ts.URL + "/allowed?q=1")
 	if err.Error() != "URL blocked by robots.txt" {
 		t.Fatalf("wrong error message: %v", err)
 	}
