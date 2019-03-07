@@ -861,7 +861,7 @@ func (c *Collector) DisableCookies() {
 }
 
 // SetCookieJar overrides the previously set cookie jar
-func (c *Collector) SetCookieJar(j *cookiejar.Jar) {
+func (c *Collector) SetCookieJar(j http.CookieJar) {
 	c.backend.Client.Jar = j
 }
 
