@@ -178,3 +178,9 @@ func (r *Request) Marshal() ([]byte, error) {
 	}
 	return json.Marshal(sr)
 }
+
+// HasVisited checks to see if the URL has been visited before.
+// If checkRevisit is false then this function always returns false
+func (r *Request) HasVisited(URL string) bool {
+	return r.collector.HasVisited(URL)
+}
