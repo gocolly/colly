@@ -350,6 +350,43 @@ func TestCollectorVisit(t *testing.T) {
 	}
 }
 
+func TestCollectorVisitWithAllowedDomains(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(AllowedDomains("localhost", "127.0.0.1", "::1"))
+	err := c.Visit(ts.URL)
+	if err != nil {
+		t.Errorf("Failed to visit url %s", ts.URL)
+	}
+
+	err = c.Visit("http://example.com")
+	if err != ErrForbiddenDomain {
+		t.Errorf("c.Visit should return ErrForbiddenDomain, but got %v", err)
+	}
+}
+
+func TestCollectorVisitWithDisallowedDomains(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(DisallowedDomains("localhost", "127.0.0.1", "::1"))
+	err := c.Visit(ts.URL)
+	if err != ErrForbiddenDomain {
+		t.Errorf("c.Visit should return ErrForbiddenDomain, but got %v", err)
+	}
+
+	c2 := NewCollector(DisallowedDomains("example.com"))
+	err = c2.Visit("http://example.com:8080")
+	if err != ErrForbiddenDomain {
+		t.Errorf("c.Visit should return ErrForbiddenDomain, but got %v", err)
+	}
+	err = c2.Visit(ts.URL)
+	if err != nil {
+		t.Errorf("Failed to visit url %s", ts.URL)
+	}
+}
+
 func TestCollectorOnHTML(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
