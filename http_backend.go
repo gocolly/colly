@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -189,7 +190,8 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
-	if !res.Uncompressed && res.Header.Get("Content-Encoding") == "gzip" {
+	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
+	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower((res.Header.Get("Content-Type"))), "gzip"))) {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
 			return nil, err
