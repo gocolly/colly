@@ -60,6 +60,8 @@ type Collector struct {
 	// AllowedDomains is a domain whitelist.
 	// Leave it blank to allow any domains to be visited
 	AllowedDomains []string
+	// AllowedDomainFilters is a regular expression based domain whitelist
+	AllowedDomainFilters []*regexp.Regexp
 	// DisallowedDomains is a domain blacklist.
 	DisallowedDomains []string
 	// DisallowedURLFilters is a list of regular expressions which restricts
@@ -269,6 +271,13 @@ func MaxDepth(depth int) func(*Collector) {
 func AllowedDomains(domains ...string) func(*Collector) {
 	return func(c *Collector) {
 		c.AllowedDomains = domains
+	}
+}
+
+// AllowedDomainFilters sets the domain filter whitelist used by the Collector
+func AllowedDomainFilters(filters ...*regexp.Regexp) func(*Collector) {
+	return func(c *Collector) {
+		c.AllowedDomainFilters = filters
 	}
 }
 
@@ -706,11 +715,16 @@ func (c *Collector) isDomainAllowed(domain string) bool {
 			return false
 		}
 	}
-	if c.AllowedDomains == nil || len(c.AllowedDomains) == 0 {
+	if len(c.AllowedDomains) == 0 && len(c.AllowedDomainFilters) == 0 {
 		return true
 	}
 	for _, d2 := range c.AllowedDomains {
 		if d2 == domain {
+			return true
+		}
+	}
+	for _, re := range c.AllowedDomainFilters {
+		if re.MatchString(domain) {
 			return true
 		}
 	}
