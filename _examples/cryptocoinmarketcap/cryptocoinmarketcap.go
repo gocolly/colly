@@ -32,9 +32,9 @@ func main() {
 			e.ChildAttr("a.price", "data-usd"),
 			e.ChildAttr("a.volume", "data-usd"),
 			e.ChildAttr(".market-cap", "data-usd"),
-			e.ChildText(".percent-1h"),
-			e.ChildText(".percent-24h"),
-			e.ChildText(".percent-7d"),
+			e.ChildAttr(".percent-change[data-timespan=\"1h\"]", "data-percentusd"),
+			e.ChildAttr(".percent-change[data-timespan=\"24h\"]", "data-percentusd"),
+			e.ChildAttr(".percent-change[data-timespan=\"7d\"]", "data-percentusd"),
 		})
 	})
 
