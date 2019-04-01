@@ -182,6 +182,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	if res.Request != nil {
 		*request = *res.Request
 	}
@@ -198,7 +199,6 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		}
 	}
 	body, err := ioutil.ReadAll(bodyReader)
-	defer res.Body.Close()
 	if err != nil {
 		return nil, err
 	}

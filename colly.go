@@ -702,6 +702,8 @@ func (c *Collector) checkRobots(u *url.URL) error {
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
+
 		robot, err = robotstxt.FromResponse(resp)
 		if err != nil {
 			return err
