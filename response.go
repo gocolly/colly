@@ -68,6 +68,16 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		return nil
 	}
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
+
+	if strings.Contains(contentType, "image/") ||
+		strings.Contains(contentType, "video/") ||
+		strings.Contains(contentType, "audio/") ||
+		strings.Contains(contentType, "font/") {
+		// These MIME types should not have textual data.
+
+		return nil
+	}
+
 	if !strings.Contains(contentType, "charset") {
 		if !detectCharset {
 			return nil
