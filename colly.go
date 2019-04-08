@@ -189,6 +189,8 @@ var (
 	ErrNoCookieJar = errors.New("Cookie jar is not available")
 	// ErrNoPattern is the error type for LimitRules without patterns
 	ErrNoPattern = errors.New("No pattern defined in LimitRule")
+	// ErrEmptyProxyURL is the error type for empty Proxy URL list
+	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -702,6 +704,8 @@ func (c *Collector) checkRobots(u *url.URL) error {
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
+
 		robot, err = robotstxt.FromResponse(resp)
 		if err != nil {
 			return err
@@ -1164,13 +1168,6 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 		}
 
 		lastRequest := via[len(via)-1]
-
-		// Copy the headers from last request
-		for hName, hValues := range lastRequest.Header {
-			for _, hValue := range hValues {
-				req.Header.Set(hName, hValue)
-			}
-		}
 
 		// If domain has changed, remove the Authorization-header if it exists
 		if req.URL.Host != lastRequest.URL.Host {
