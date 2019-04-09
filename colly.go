@@ -57,6 +57,11 @@ type Collector struct {
 	// MaxDepth limits the recursion depth of visited URLs.
 	// Set it to 0 for infinite recursion (default).
 	MaxDepth int
+	// MaxRedirects limits the number of allowed redirects.
+	// Defaults to 10 which is also the http.Client default.
+	// Set it to 0 for infinite redirects.
+	// Setting a custom RedirectHandler will override this setting.
+	MaxRedirects int
 	// AllowedDomains is a domain whitelist.
 	// Leave it blank to allow any domains to be visited
 	AllowedDomains []string
@@ -231,6 +236,12 @@ var envMap = map[string]func(*Collector, string){
 			c.MaxDepth = maxDepth
 		}
 	},
+	"MAX_REDIRECTS": func(c *Collector, val string) {
+		maxRedirects, err := strconv.Atoi(val)
+		if err != nil {
+			c.MaxRedirects = maxRedirects
+		}
+	},
 	"PARSE_HTTP_ERROR_RESPONSE": func(c *Collector, val string) {
 		c.ParseHTTPErrorResponse = isYesString(val)
 	},
@@ -264,6 +275,13 @@ func UserAgent(ua string) func(*Collector) {
 func MaxDepth(depth int) func(*Collector) {
 	return func(c *Collector) {
 		c.MaxDepth = depth
+	}
+}
+
+// MaxRedirects sets the maximum number of redirects for a request.
+func MaxRedirects(redirects int) func(*Collector) {
+	return func(c *Collector) {
+		c.MaxRedirects = redirects
 	}
 }
 
@@ -368,6 +386,7 @@ func Debugger(d debug.Debugger) func(*Collector) {
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
+	c.MaxRedirects = 10
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
@@ -1130,6 +1149,7 @@ func (c *Collector) Clone() *Collector {
 		IgnoreRobotsTxt:        c.IgnoreRobotsTxt,
 		MaxBodySize:            c.MaxBodySize,
 		MaxDepth:               c.MaxDepth,
+		MaxRedirects:           c.MaxRedirects,
 		DisallowedURLFilters:   c.DisallowedURLFilters,
 		URLFilters:             c.URLFilters,
 		CheckHead:              c.CheckHead,
@@ -1163,7 +1183,7 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 		}
 
 		// Honor golangs default of maximum of 10 redirects
-		if len(via) >= 10 {
+		if len(via) >= c.MaxRedirects && c.MaxRedirects > 0 {
 			return http.ErrUseLastResponse
 		}
 

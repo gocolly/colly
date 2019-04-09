@@ -93,6 +93,11 @@ func newTestServer() *httptest.Server {
 		fmt.Fprintf(w, `<a href="test">test</a>`)
 	}))
 
+	mux.Handle("/redirectloop", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/redirectloop", http.StatusSeeOther)
+
+	}))
+
 	mux.HandleFunc("/set_cookie", func(w http.ResponseWriter, r *http.Request) {
 		c := &http.Cookie{Name: "test", Value: "testv", HttpOnly: false}
 		http.SetCookie(w, c)
@@ -163,6 +168,17 @@ var newCollectorTests = map[string]func(*testing.T){
 
 			if got, want := c.MaxDepth, depth; got != want {
 				t.Fatalf("c.MaxDepth = %d, want %d", got, want)
+			}
+		}
+	},
+	"MaxRedirects": func(t *testing.T) {
+		for _, redirects := range []int{
+			10,
+			0,
+		} {
+			c := NewCollector(MaxRedirects(redirects))
+			if got, want := c.MaxRedirects, redirects; got != want {
+				t.Fatalf("c.MaxRedirects = %d, want %d", got, want)
 			}
 		}
 	},
@@ -495,6 +511,18 @@ func TestRedirect(t *testing.T) {
 		}
 	})
 	c.Visit(ts.URL + "/redirect")
+}
+
+func TestMaxRedirect(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+	for _, redirects := range []int{5, 10} {
+		c := NewCollector()
+		c.MaxRedirects = redirects
+		c.Visit(ts.URL + "/redirectloop")
+		// HELP HERE
+		// NO WAY TO GET NUMBER OF TIMES REDIRECTED FROM COLLECTOR?
+	}
 }
 
 func TestBaseTag(t *testing.T) {
