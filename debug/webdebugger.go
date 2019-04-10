@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -28,6 +29,7 @@ type WebDebugger struct {
 	initialized     bool
 	CurrentRequests map[uint32]requestInfo
 	RequestLog      []requestInfo
+	sync.Mutex
 }
 
 type requestInfo struct {
@@ -61,6 +63,9 @@ func (w *WebDebugger) Init() error {
 
 // Event updates the debugger's status
 func (w *WebDebugger) Event(e *Event) {
+	w.Lock()
+	defer w.Unlock()
+
 	switch e.Type {
 	case "request":
 		w.CurrentRequests[e.RequestID] = requestInfo{
