@@ -10,6 +10,7 @@ import (
 var uaGens = []func() string{
 	genFirefoxUA,
 	genChromeUA,
+	genOperaUA,
 }
 
 // RandomUserAgent generates a random browser user agent on every request
@@ -37,6 +38,15 @@ var chromeVersions = []string{
 	"37.0.2062.124",
 }
 
+var operaVersions = []string{
+	"2.7.62 Version/11.00",
+	"2.2.15 Version/10.10",
+	"2.9.168 Version/11.50",
+	"2.2.15 Version/10.00",
+	"2.8.131 Version/11.11",
+	"2.5.24 Version/10.54",
+}
+
 var osStrings = []string{
 	"Macintosh; Intel Mac OS X 10_10",
 	"Windows NT 10.0",
@@ -56,4 +66,10 @@ func genChromeUA() string {
 	version := chromeVersions[rand.Intn(len(chromeVersions))]
 	os := osStrings[rand.Intn(len(osStrings))]
 	return fmt.Sprintf("Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36", os, version)
+}
+
+func genOperaUA() string {
+	version := operaVersions[rand.Intn(len(operaVersions))]
+	os := osStrings[rand.Intn(len(osStrings))]
+	return fmt.Sprintf("Opera/9.80 (%s; U; en) Presto/%s", os, version)
 }
