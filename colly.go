@@ -499,9 +499,6 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err != nil {
 		return err
 	}
-	if parsedURL.Scheme == "" {
-		parsedURL.Scheme = "http"
-	}
 	if !c.isDomainAllowed(parsedURL.Hostname()) {
 		return ErrForbiddenDomain
 	}
