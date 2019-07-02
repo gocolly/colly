@@ -74,6 +74,7 @@ Below is a list of public, open source projects that use Colly:
  * [jivesearch/jivesearch](https://github.com/jivesearch/jivesearch) A search engine that doesn't track you.
  * [Leagify/colly-draft-prospects](https://github.com/Leagify/colly-draft-prospects) A scraper for future NFL Draft prospects.
  * [lucasepe/go-ps4](https://github.com/lucasepe/go-ps4) Search playstation store for your favorite PS4 games using the command line.
+ * [yringler/inside-chassidus-scraper](https://github.com/yringler/inside-chassidus-scraper) Scrapes Rabbi Paltiel's web site for lesson metadata
 
 If you are using Colly in a project please send a pull request to add it to the list.
 
