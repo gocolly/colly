@@ -197,6 +197,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		if err != nil {
 			return nil, err
 		}
+		defer bodyReader.(*gzip.Reader).Close()
 	}
 	body, err := ioutil.ReadAll(bodyReader)
 	if err != nil {
