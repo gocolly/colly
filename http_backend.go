@@ -177,7 +177,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 			<-r.waitChan
 		}(r)
 	}
-
+	println("DERP")
 	res, err := h.Client.Do(request)
 	if err != nil {
 		return nil, err
