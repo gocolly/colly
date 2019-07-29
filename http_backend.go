@@ -18,6 +18,7 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
+	"errors"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -35,9 +36,10 @@ import (
 )
 
 type httpBackend struct {
-	LimitRules []*LimitRule
-	Client     *http.Client
-	lock       *sync.RWMutex
+	LimitRules   []*LimitRule
+	Client       *http.Client
+	ReadDeadline time.Duration
+	lock         *sync.RWMutex
 }
 
 // LimitRule provides connection restrictions for domains.
@@ -99,6 +101,7 @@ func (h *httpBackend) Init(jar http.CookieJar) {
 		Timeout: 10 * time.Second,
 	}
 	h.lock = &sync.RWMutex{}
+	h.ReadDeadline = 10 * time.Second
 }
 
 // Match checks that the domain parameter triggers the rule
@@ -177,7 +180,6 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 			<-r.waitChan
 		}(r)
 	}
-	println("DERP")
 	res, err := h.Client.Do(request)
 	if err != nil {
 		return nil, err
@@ -191,6 +193,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
+
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower((res.Header.Get("Content-Type"))), "gzip"))) {
 		bodyReader, err = gzip.NewReader(bodyReader)
@@ -199,7 +202,19 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		}
 		defer bodyReader.(*gzip.Reader).Close()
 	}
-	body, err := ioutil.ReadAll(bodyReader)
+
+	rch := make(chan error, 1)
+	var body []byte
+	go func() {
+		body, err = ioutil.ReadAll(bodyReader)
+		rch <- err
+	}()
+	select {
+	case err = <-rch:
+	case <-time.After(h.ReadDeadline):
+		err = errors.New("read deadline reached")
+	}
+
 	if err != nil {
 		return nil, err
 	}

@@ -871,6 +871,11 @@ func (c *Collector) SetRequestTimeout(timeout time.Duration) {
 	c.backend.Client.Timeout = timeout
 }
 
+// SetReadDeadline sets the duration of time to allow for reading the response body
+func (c *Collector) SetReadDeadline(deadline time.Duration) {
+	c.backend.ReadDeadline = deadline
+}
+
 // SetStorage overrides the default in-memory storage.
 // Storage stores scraping related data like cookies and visited urls
 func (c *Collector) SetStorage(s storage.Storage) error {
