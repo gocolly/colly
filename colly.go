@@ -50,6 +50,9 @@ import (
 	"github.com/gocolly/colly/storage"
 )
 
+// A CollectorOption sets an option on a Collector.
+type CollectorOption func(*Collector)
+
 // Collector provides the scraper instance for a scraping job
 type Collector struct {
 	// UserAgent is the User-Agent string used by HTTP requests
@@ -240,7 +243,7 @@ var envMap = map[string]func(*Collector, string){
 }
 
 // NewCollector creates a new Collector instance with default configuration
-func NewCollector(options ...func(*Collector)) *Collector {
+func NewCollector(options ...CollectorOption) *Collector {
 	c := &Collector{}
 	c.Init()
 
@@ -254,35 +257,35 @@ func NewCollector(options ...func(*Collector)) *Collector {
 }
 
 // UserAgent sets the user agent used by the Collector.
-func UserAgent(ua string) func(*Collector) {
+func UserAgent(ua string) CollectorOption {
 	return func(c *Collector) {
 		c.UserAgent = ua
 	}
 }
 
 // MaxDepth limits the recursion depth of visited URLs.
-func MaxDepth(depth int) func(*Collector) {
+func MaxDepth(depth int) CollectorOption {
 	return func(c *Collector) {
 		c.MaxDepth = depth
 	}
 }
 
 // AllowedDomains sets the domain whitelist used by the Collector.
-func AllowedDomains(domains ...string) func(*Collector) {
+func AllowedDomains(domains ...string) CollectorOption {
 	return func(c *Collector) {
 		c.AllowedDomains = domains
 	}
 }
 
 // ParseHTTPErrorResponse allows parsing responses with HTTP errors
-func ParseHTTPErrorResponse() func(*Collector) {
+func ParseHTTPErrorResponse() CollectorOption {
 	return func(c *Collector) {
 		c.ParseHTTPErrorResponse = true
 	}
 }
 
 // DisallowedDomains sets the domain blacklist used by the Collector.
-func DisallowedDomains(domains ...string) func(*Collector) {
+func DisallowedDomains(domains ...string) CollectorOption {
 	return func(c *Collector) {
 		c.DisallowedDomains = domains
 	}
@@ -290,7 +293,7 @@ func DisallowedDomains(domains ...string) func(*Collector) {
 
 // DisallowedURLFilters sets the list of regular expressions which restricts
 // visiting URLs. If any of the rules matches to a URL the request will be stopped.
-func DisallowedURLFilters(filters ...*regexp.Regexp) func(*Collector) {
+func DisallowedURLFilters(filters ...*regexp.Regexp) CollectorOption {
 	return func(c *Collector) {
 		c.DisallowedURLFilters = filters
 	}
@@ -298,28 +301,28 @@ func DisallowedURLFilters(filters ...*regexp.Regexp) func(*Collector) {
 
 // URLFilters sets the list of regular expressions which restricts
 // visiting URLs. If any of the rules matches to a URL the request won't be stopped.
-func URLFilters(filters ...*regexp.Regexp) func(*Collector) {
+func URLFilters(filters ...*regexp.Regexp) CollectorOption {
 	return func(c *Collector) {
 		c.URLFilters = filters
 	}
 }
 
 // AllowURLRevisit instructs the Collector to allow multiple downloads of the same URL
-func AllowURLRevisit() func(*Collector) {
+func AllowURLRevisit() CollectorOption {
 	return func(c *Collector) {
 		c.AllowURLRevisit = true
 	}
 }
 
 // MaxBodySize sets the limit of the retrieved response body in bytes.
-func MaxBodySize(sizeInBytes int) func(*Collector) {
+func MaxBodySize(sizeInBytes int) CollectorOption {
 	return func(c *Collector) {
 		c.MaxBodySize = sizeInBytes
 	}
 }
 
 // CacheDir specifies the location where GET requests are cached as files.
-func CacheDir(path string) func(*Collector) {
+func CacheDir(path string) CollectorOption {
 	return func(c *Collector) {
 		c.CacheDir = path
 	}
@@ -327,21 +330,21 @@ func CacheDir(path string) func(*Collector) {
 
 // IgnoreRobotsTxt instructs the Collector to ignore any restrictions
 // set by the target host's robots.txt file.
-func IgnoreRobotsTxt() func(*Collector) {
+func IgnoreRobotsTxt() CollectorOption {
 	return func(c *Collector) {
 		c.IgnoreRobotsTxt = true
 	}
 }
 
 // ID sets the unique identifier of the Collector.
-func ID(id uint32) func(*Collector) {
+func ID(id uint32) CollectorOption {
 	return func(c *Collector) {
 		c.ID = id
 	}
 }
 
 // Async turns on asynchronous network requests.
-func Async(a bool) func(*Collector) {
+func Async(a bool) CollectorOption {
 	return func(c *Collector) {
 		c.Async = a
 	}
@@ -349,14 +352,14 @@ func Async(a bool) func(*Collector) {
 
 // DetectCharset enables character encoding detection for non-utf8 response bodies
 // without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
-func DetectCharset() func(*Collector) {
+func DetectCharset() CollectorOption {
 	return func(c *Collector) {
 		c.DetectCharset = true
 	}
 }
 
 // Debugger sets the debugger used by the Collector.
-func Debugger(d debug.Debugger) func(*Collector) {
+func Debugger(d debug.Debugger) CollectorOption {
 	return func(c *Collector) {
 		d.Init()
 		c.debugger = d
