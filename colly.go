@@ -591,6 +591,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		ID:        atomic.AddUint32(&c.requestCount, 1),
 	}
 
+	t := time.Now()
 	c.handleOnRequest(request)
 
 	if request.abort {
@@ -611,6 +612,9 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		request.ProxyURL = proxyURL
 	}
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
+		if time.Now().Sub(t) > c.backend.Client.Timeout {
+			fmt.Println("Request canceled (Client.Timeout exceeded while reading body), Current timeout limit:", c.backend.Client.Timeout)
+		}
 		return err
 	}
 	if req.URL != origURL {
