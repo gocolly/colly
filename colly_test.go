@@ -761,6 +761,23 @@ func TestCollectorOnXML(t *testing.T) {
 	}
 }
 
+func TestCollectorVisitWithTrace(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(AllowedDomains("localhost", "127.0.0.1", "::1"))
+	c.OnResponse(func(resp *Response) {
+		if resp.Trace == nil {
+			t.Error("Failed to initialize trace")
+		}
+	})
+
+	err := c.Visit(ts.URL)
+	if err != nil {
+		t.Errorf("Failed to visit url %s", ts.URL)
+	}
+}
+
 func BenchmarkOnHTML(b *testing.B) {
 	ts := newTestServer()
 	defer ts.Close()

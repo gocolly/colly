@@ -38,6 +38,8 @@ type Response struct {
 	Request *Request
 	// Headers contains the Response's HTTP headers
 	Headers *http.Header
+	// Trace contains the HTTPTrace for the request.
+	Trace *HTTPTrace
 }
 
 // Save writes response body to disk
