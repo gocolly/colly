@@ -68,13 +68,14 @@ Bugs or suggestions? Visit the [issue tracker](https://github.com/gocolly/colly/
 
 Below is a list of public, open source projects that use Colly:
 
- * [greenpeace/check-my-pages](https://github.com/greenpeace/check-my-pages) Scraping script to test the Spanish Greenpeace web archive
- * [altsab/gowap](https://github.com/altsab/gowap) Wappalyzer implementation in Go
+ * [greenpeace/check-my-pages](https://github.com/greenpeace/check-my-pages) Scraping script to test the Spanish Greenpeace web archive.
+ * [altsab/gowap](https://github.com/altsab/gowap) Wappalyzer implementation in Go.
  * [jesuiscamille/goquotes](https://github.com/jesuiscamille/goquotes) A quotes scrapper, making your day a little better!
  * [jivesearch/jivesearch](https://github.com/jivesearch/jivesearch) A search engine that doesn't track you.
  * [Leagify/colly-draft-prospects](https://github.com/Leagify/colly-draft-prospects) A scraper for future NFL Draft prospects.
  * [lucasepe/go-ps4](https://github.com/lucasepe/go-ps4) Search playstation store for your favorite PS4 games using the command line.
- * [yringler/inside-chassidus-scraper](https://github.com/yringler/inside-chassidus-scraper) Scrapes Rabbi Paltiel's web site for lesson metadata
+ * [yringler/inside-chassidus-scraper](https://github.com/yringler/inside-chassidus-scraper) Scrapes Rabbi Paltiel's web site for lesson metadata.
+ * [gamedb/gamedb](https://github.com/gamedb/gamedb) A database of Steam games.
 
 If you are using Colly in a project please send a pull request to add it to the list.
 
