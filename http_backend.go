@@ -49,7 +49,7 @@ type httpBackend struct {
 type LimitRule struct {
 	// DomainRegexp is a regular expression to match against domains
 	DomainRegexp string
-	// DomainRegexp is a glob pattern to match against domains
+	// DomainGlob is a glob pattern to match against domains
 	DomainGlob string
 	// Delay is the duration to wait before creating a new request to the matching domains
 	Delay time.Duration
