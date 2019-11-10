@@ -460,6 +460,35 @@ func TestCollectorURLRevisit(t *testing.T) {
 	}
 }
 
+func TestCollectorURLRevisitCheck(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	visited, err := c.HasVisited(ts.URL)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if visited != false {
+		t.Error("Expected URL to NOT have been visited")
+	}
+
+	c.Visit(ts.URL)
+
+	visited, err := c.HasVisited(ts.URL)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if visited != true {
+		t.Error("Expected URL to have been visited")
+	}
+}
+
 func TestCollectorPost(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()

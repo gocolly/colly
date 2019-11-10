@@ -417,6 +417,14 @@ func (c *Collector) Visit(URL string) error {
 	return c.scrape(URL, "GET", 1, nil, nil, nil, true)
 }
 
+// HasVisited checks if the provided URL has been visited
+func (c *Collector) HasVisited(URL string) (bool, error) {
+	h := fnv.New64a()
+	h.Write([]byte(URL))
+
+	return c.store.IsVisited(h.Sum64())
+}
+
 // Head starts a collector job by creating a HEAD request.
 func (c *Collector) Head(URL string) error {
 	return c.scrape(URL, "HEAD", 1, nil, nil, nil, false)
