@@ -478,7 +478,7 @@ func TestCollectorURLRevisitCheck(t *testing.T) {
 
 	c.Visit(ts.URL)
 
-	visited, err := c.HasVisited(ts.URL)
+	visited, err = c.HasVisited(ts.URL)
 
 	if err != nil {
 		t.Error(err.Error())
