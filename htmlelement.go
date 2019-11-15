@@ -68,6 +68,17 @@ func (h *HTMLElement) ChildText(goquerySelector string) string {
 	return strings.TrimSpace(h.DOM.Find(goquerySelector).Text())
 }
 
+// ChildTexts returns the stripped text content of all the matching
+// elements.
+func (h *HTMLElement) ChildTexts(goquerySelector string) []string {
+	var res []string
+	h.DOM.Find(goquerySelector).Each(func(_ int, s *goquery.Selection) {
+
+		res = append(res, strings.TrimSpace(s.Text()))
+	})
+	return res
+}
+
 // ChildAttr returns the stripped text content of the first matching
 // element's attribute.
 func (h *HTMLElement) ChildAttr(goquerySelector, attrName string) string {
