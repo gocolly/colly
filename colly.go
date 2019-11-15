@@ -230,7 +230,7 @@ var envMap = map[string]func(*Collector, string){
 	},
 	"MAX_DEPTH": func(c *Collector, val string) {
 		maxDepth, err := strconv.Atoi(val)
-		if err != nil {
+		if err == nil {
 			c.MaxDepth = maxDepth
 		}
 	},
