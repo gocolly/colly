@@ -77,6 +77,7 @@ Below is a list of public, open source projects that use Colly:
  * [yringler/inside-chassidus-scraper](https://github.com/yringler/inside-chassidus-scraper) Scrapes Rabbi Paltiel's web site for lesson metadata.
  * [gamedb/gamedb](https://github.com/gamedb/gamedb) A database of Steam games.
  * [lawzava/scrape](https://github.com/lawzava/scrape) CLI for email scraping from any website.
+ * [eureka101v/WeiboSpiderGo](https://github.com/eureka101v/WeiboSpiderGo) A sina weibo(chinese twitter) scrapper
 
 If you are using Colly in a project please send a pull request to add it to the list.
 
