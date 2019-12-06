@@ -493,6 +493,7 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	return &Request{
 		Method:    req.Method,
 		URL:       u,
+		Depth:     req.Depth,
 		Body:      bytes.NewReader(req.Body),
 		Ctx:       ctx,
 		ID:        atomic.AddUint32(&c.requestCount, 1),
