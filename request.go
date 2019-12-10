@@ -55,6 +55,7 @@ type Request struct {
 type serializableRequest struct {
 	URL     string
 	Method  string
+	Depth   int
 	Body    []byte
 	ID      uint32
 	Ctx     map[string]interface{}
@@ -174,6 +175,7 @@ func (r *Request) Marshal() ([]byte, error) {
 	sr := &serializableRequest{
 		URL:    r.URL.String(),
 		Method: r.Method,
+		Depth:  r.Depth,
 		Body:   body,
 		ID:     r.ID,
 		Ctx:    ctx,
