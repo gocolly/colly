@@ -28,6 +28,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -104,7 +105,10 @@ type Collector struct {
 	// RedirectHandler allows control on how a redirect will be managed
 	RedirectHandler func(req *http.Request, via []*http.Request) error
 	// CheckHead performs a HEAD request before every GET to pre-validate the response
-	CheckHead         bool
+	CheckHead bool
+	// GetClientTrace provides an option to track DNS, TLS Handshake and Connect time
+	GetClientTrace func(req *http.Request) *httptrace.ClientTrace
+
 	store             storage.Storage
 	debugger          debug.Debugger
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -525,6 +529,11 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Body:       rc,
 		Host:       parsedURL.Host,
 	}
+
+	if c.GetClientTrace != nil {
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), c.GetClientTrace(req)))
+	}
+
 	setRequestBody(req, requestData)
 	u = parsedURL.String()
 	c.wg.Add(1)
