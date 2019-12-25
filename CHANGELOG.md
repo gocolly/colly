@@ -1,3 +1,13 @@
+# 2.0.0 - 2019.11.28
+
+ - Breaking change: Change Collector.RedirectHandler member to Collector.SetRedirectHandler function
+ - Go module support
+ - Collector.HasVisited method added to be able to check if an url has been visited
+ - Collector.SetClient method introduced
+ - HTMLElement.ChildTexts method added
+ - New user agents
+ - Multiple bugfixes
+
 # 1.2.0 - 2019.02.13
 
  - Compatibility with the latest htmlquery package

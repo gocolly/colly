@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -48,7 +49,7 @@ type httpBackend struct {
 type LimitRule struct {
 	// DomainRegexp is a regular expression to match against domains
 	DomainRegexp string
-	// DomainRegexp is a glob pattern to match against domains
+	// DomainGlob is a glob pattern to match against domains
 	DomainGlob string
 	// Delay is the duration to wait before creating a new request to the matching domains
 	Delay time.Duration
@@ -181,6 +182,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 	if res.Request != nil {
 		*request = *res.Request
 	}
@@ -189,14 +191,15 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
-	if !res.Uncompressed && res.Header.Get("Content-Encoding") == "gzip" {
+	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
+	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(res.Request.URL.Path), ".xml.gz")) {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
 			return nil, err
 		}
+		defer bodyReader.(*gzip.Reader).Close()
 	}
 	body, err := ioutil.ReadAll(bodyReader)
-	defer res.Body.Close()
 	if err != nil {
 		return nil, err
 	}

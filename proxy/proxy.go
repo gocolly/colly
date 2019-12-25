@@ -20,7 +20,7 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/v2"
 )
 
 type roundRobinSwitcher struct {
@@ -42,6 +42,9 @@ func (r *roundRobinSwitcher) GetProxy(pr *http.Request) (*url.URL, error) {
 // and "socks5" are supported. If the scheme is empty,
 // "http" is assumed.
 func RoundRobinProxySwitcher(ProxyURLs ...string) (colly.ProxyFunc, error) {
+	if len(ProxyURLs) < 1 {
+		return nil, colly.ErrEmptyProxyURL
+	}
 	urls := make([]*url.URL, len(ProxyURLs))
 	for i, u := range ProxyURLs {
 		parsedU, err := url.Parse(u)

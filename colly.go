@@ -39,17 +39,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"google.golang.org/appengine/urlfetch"
-
 	"github.com/PuerkitoBio/goquery"
 	"github.com/antchfx/htmlquery"
 	"github.com/antchfx/xmlquery"
+	"github.com/gocolly/colly/v2/debug"
+	"github.com/gocolly/colly/v2/storage"
 	"github.com/kennygrant/sanitize"
 	"github.com/temoto/robotstxt"
-
-	"github.com/gocolly/colly/debug"
-	"github.com/gocolly/colly/storage"
+	"google.golang.org/appengine/urlfetch"
 )
+
+// A CollectorOption sets an option on a Collector.
+type CollectorOption func(*Collector)
 
 // Collector provides the scraper instance for a scraping job
 type Collector struct {
@@ -103,7 +104,8 @@ type Collector struct {
 	// without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
 	DetectCharset bool
 	// RedirectHandler allows control on how a redirect will be managed
-	RedirectHandler func(req *http.Request, via []*http.Request) error
+	// use c.SetRedirectHandler to set this value
+	redirectHandler func(req *http.Request, via []*http.Request) error
 	// CheckHead performs a HEAD request before every GET to pre-validate the response
 	CheckHead bool
 	// GetClientTrace provides an option to track DNS, TLS Handshake and Connect time
@@ -193,6 +195,8 @@ var (
 	ErrNoCookieJar = errors.New("Cookie jar is not available")
 	// ErrNoPattern is the error type for LimitRules without patterns
 	ErrNoPattern = errors.New("No pattern defined in LimitRule")
+	// ErrEmptyProxyURL is the error type for empty Proxy URL list
+	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -216,7 +220,7 @@ var envMap = map[string]func(*Collector, string){
 	},
 	"FOLLOW_REDIRECTS": func(c *Collector, val string) {
 		if !isYesString(val) {
-			c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
+			c.redirectHandler = func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			}
 		}
@@ -229,7 +233,7 @@ var envMap = map[string]func(*Collector, string){
 	},
 	"MAX_DEPTH": func(c *Collector, val string) {
 		maxDepth, err := strconv.Atoi(val)
-		if err != nil {
+		if err == nil {
 			c.MaxDepth = maxDepth
 		}
 	},
@@ -242,7 +246,7 @@ var envMap = map[string]func(*Collector, string){
 }
 
 // NewCollector creates a new Collector instance with default configuration
-func NewCollector(options ...func(*Collector)) *Collector {
+func NewCollector(options ...CollectorOption) *Collector {
 	c := &Collector{}
 	c.Init()
 
@@ -256,35 +260,35 @@ func NewCollector(options ...func(*Collector)) *Collector {
 }
 
 // UserAgent sets the user agent used by the Collector.
-func UserAgent(ua string) func(*Collector) {
+func UserAgent(ua string) CollectorOption {
 	return func(c *Collector) {
 		c.UserAgent = ua
 	}
 }
 
 // MaxDepth limits the recursion depth of visited URLs.
-func MaxDepth(depth int) func(*Collector) {
+func MaxDepth(depth int) CollectorOption {
 	return func(c *Collector) {
 		c.MaxDepth = depth
 	}
 }
 
 // AllowedDomains sets the domain whitelist used by the Collector.
-func AllowedDomains(domains ...string) func(*Collector) {
+func AllowedDomains(domains ...string) CollectorOption {
 	return func(c *Collector) {
 		c.AllowedDomains = domains
 	}
 }
 
 // ParseHTTPErrorResponse allows parsing responses with HTTP errors
-func ParseHTTPErrorResponse() func(*Collector) {
+func ParseHTTPErrorResponse() CollectorOption {
 	return func(c *Collector) {
 		c.ParseHTTPErrorResponse = true
 	}
 }
 
 // DisallowedDomains sets the domain blacklist used by the Collector.
-func DisallowedDomains(domains ...string) func(*Collector) {
+func DisallowedDomains(domains ...string) CollectorOption {
 	return func(c *Collector) {
 		c.DisallowedDomains = domains
 	}
@@ -292,7 +296,7 @@ func DisallowedDomains(domains ...string) func(*Collector) {
 
 // DisallowedURLFilters sets the list of regular expressions which restricts
 // visiting URLs. If any of the rules matches to a URL the request will be stopped.
-func DisallowedURLFilters(filters ...*regexp.Regexp) func(*Collector) {
+func DisallowedURLFilters(filters ...*regexp.Regexp) CollectorOption {
 	return func(c *Collector) {
 		c.DisallowedURLFilters = filters
 	}
@@ -300,28 +304,28 @@ func DisallowedURLFilters(filters ...*regexp.Regexp) func(*Collector) {
 
 // URLFilters sets the list of regular expressions which restricts
 // visiting URLs. If any of the rules matches to a URL the request won't be stopped.
-func URLFilters(filters ...*regexp.Regexp) func(*Collector) {
+func URLFilters(filters ...*regexp.Regexp) CollectorOption {
 	return func(c *Collector) {
 		c.URLFilters = filters
 	}
 }
 
 // AllowURLRevisit instructs the Collector to allow multiple downloads of the same URL
-func AllowURLRevisit() func(*Collector) {
+func AllowURLRevisit() CollectorOption {
 	return func(c *Collector) {
 		c.AllowURLRevisit = true
 	}
 }
 
 // MaxBodySize sets the limit of the retrieved response body in bytes.
-func MaxBodySize(sizeInBytes int) func(*Collector) {
+func MaxBodySize(sizeInBytes int) CollectorOption {
 	return func(c *Collector) {
 		c.MaxBodySize = sizeInBytes
 	}
 }
 
 // CacheDir specifies the location where GET requests are cached as files.
-func CacheDir(path string) func(*Collector) {
+func CacheDir(path string) CollectorOption {
 	return func(c *Collector) {
 		c.CacheDir = path
 	}
@@ -329,21 +333,21 @@ func CacheDir(path string) func(*Collector) {
 
 // IgnoreRobotsTxt instructs the Collector to ignore any restrictions
 // set by the target host's robots.txt file.
-func IgnoreRobotsTxt() func(*Collector) {
+func IgnoreRobotsTxt() CollectorOption {
 	return func(c *Collector) {
 		c.IgnoreRobotsTxt = true
 	}
 }
 
 // ID sets the unique identifier of the Collector.
-func ID(id uint32) func(*Collector) {
+func ID(id uint32) CollectorOption {
 	return func(c *Collector) {
 		c.ID = id
 	}
 }
 
 // Async turns on asynchronous network requests.
-func Async(a bool) func(*Collector) {
+func Async(a bool) CollectorOption {
 	return func(c *Collector) {
 		c.Async = a
 	}
@@ -351,14 +355,14 @@ func Async(a bool) func(*Collector) {
 
 // DetectCharset enables character encoding detection for non-utf8 response bodies
 // without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
-func DetectCharset() func(*Collector) {
+func DetectCharset() CollectorOption {
 	return func(c *Collector) {
 		c.DetectCharset = true
 	}
 }
 
 // Debugger sets the debugger used by the Collector.
-func Debugger(d debug.Debugger) func(*Collector) {
+func Debugger(d debug.Debugger) CollectorOption {
 	return func(c *Collector) {
 		d.Init()
 		c.debugger = d
@@ -368,7 +372,7 @@ func Debugger(d debug.Debugger) func(*Collector) {
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
-	c.UserAgent = "colly - https://github.com/gocolly/colly"
+	c.UserAgent = "colly - https://github.com/gocolly/colly/v2"
 	c.MaxDepth = 0
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
@@ -414,6 +418,14 @@ func (c *Collector) Visit(URL string) error {
 		}
 	}
 	return c.scrape(URL, "GET", 1, nil, nil, nil, true)
+}
+
+// HasVisited checks if the provided URL has been visited
+func (c *Collector) HasVisited(URL string) (bool, error) {
+	h := fnv.New64a()
+	h.Write([]byte(URL))
+
+	return c.store.IsVisited(h.Sum64())
 }
 
 // Head starts a collector job by creating a HEAD request.
@@ -485,6 +497,7 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	return &Request{
 		Method:    req.Method,
 		URL:       u,
+		Depth:     req.Depth,
 		Body:      bytes.NewReader(req.Body),
 		Ctx:       ctx,
 		ID:        atomic.AddUint32(&c.requestCount, 1),
@@ -501,10 +514,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err != nil {
 		return err
 	}
-	if parsedURL.Scheme == "" {
-		parsedURL.Scheme = "http"
-	}
-	if !c.isDomainAllowed(parsedURL.Host) {
+	if !c.isDomainAllowed(parsedURL.Hostname()) {
 		return ErrForbiddenDomain
 	}
 	if method != "HEAD" && !c.IgnoreRobotsTxt {
@@ -519,6 +529,12 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if !ok && requestData != nil {
 		rc = ioutil.NopCloser(requestData)
 	}
+	// The Go HTTP API ignores "Host" in the headers, preferring the client
+	// to use the Host field on Request.
+	host := parsedURL.Host
+	if hostHeader := hdr.Get("Host"); hostHeader != "" {
+		host = hostHeader
+	}
 	req := &http.Request{
 		Method:     method,
 		URL:        parsedURL,
@@ -527,7 +543,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		ProtoMinor: 1,
 		Header:     hdr,
 		Body:       rc,
-		Host:       parsedURL.Host,
+		Host:       host,
 	}
 
 	if c.GetClientTrace != nil {
@@ -705,6 +721,8 @@ func (c *Collector) checkRobots(u *url.URL) error {
 		if err != nil {
 			return err
 		}
+		defer resp.Body.Close()
+
 		robot, err = robotstxt.FromResponse(resp)
 		if err != nil {
 			return err
@@ -719,7 +737,11 @@ func (c *Collector) checkRobots(u *url.URL) error {
 		return nil
 	}
 
-	if !uaGroup.Test(u.EscapedPath()) {
+	eu := u.EscapedPath()
+	if u.RawQuery != "" {
+		eu += "?" + u.Query().Encode()
+	}
+	if !uaGroup.Test(eu) {
 		return ErrRobotsTxtBlocked
 	}
 	return nil
@@ -849,6 +871,11 @@ func (c *Collector) OnScraped(f ScrapedCallback) {
 	c.lock.Unlock()
 }
 
+// SetClient will override the previously set http.Client
+func (c *Collector) SetClient(client *http.Client) {
+	c.backend.Client = client
+}
+
 // WithTransport allows you to set a custom http.RoundTripper (transport)
 func (c *Collector) WithTransport(transport http.RoundTripper) {
 	c.backend.Client.Transport = transport
@@ -860,7 +887,7 @@ func (c *Collector) DisableCookies() {
 }
 
 // SetCookieJar overrides the previously set cookie jar
-func (c *Collector) SetCookieJar(j *cookiejar.Jar) {
+func (c *Collector) SetCookieJar(j http.CookieJar) {
 	c.backend.Client.Jar = j
 }
 
@@ -981,7 +1008,8 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		return nil
 	}
 	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
-	if !strings.Contains(contentType, "html") && !strings.Contains(contentType, "xml") {
+	isXMLFile := strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml") || strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml.gz")
+	if !strings.Contains(contentType, "html") && (!strings.Contains(contentType, "xml") && !isXMLFile) {
 		return nil
 	}
 
@@ -1011,7 +1039,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 				cc.Function(e)
 			}
 		}
-	} else if strings.Contains(contentType, "xml") {
+	} else if strings.Contains(contentType, "xml") || isXMLFile {
 		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))
 		if err != nil {
 			return err
@@ -1085,6 +1113,12 @@ func (c *Collector) Limits(rules []*LimitRule) error {
 	return c.backend.Limits(rules)
 }
 
+// SetRedirectHandler instructs the Collector to allow multiple downloads of the same URL
+func (c *Collector) SetRedirectHandler(f func(req *http.Request, via []*http.Request) error) {
+	c.redirectHandler = f
+	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
+}
+
 // SetCookies handles the receipt of the cookies in a reply for the given URL
 func (c *Collector) SetCookies(URL string, cookies []*http.Cookie) error {
 	if c.backend.Client.Jar == nil {
@@ -1126,13 +1160,14 @@ func (c *Collector) Clone() *Collector {
 		MaxDepth:               c.MaxDepth,
 		DisallowedURLFilters:   c.DisallowedURLFilters,
 		URLFilters:             c.URLFilters,
+		CheckHead:              c.CheckHead,
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
 		store:                  c.store,
 		backend:                c.backend,
 		debugger:               c.debugger,
 		Async:                  c.Async,
-		RedirectHandler:        c.RedirectHandler,
+		redirectHandler:        c.redirectHandler,
 		errorCallbacks:         make([]ErrorCallback, 0, 8),
 		htmlCallbacks:          make([]*htmlCallbackContainer, 0, 8),
 		xmlCallbacks:           make([]*xmlCallbackContainer, 0, 8),
@@ -1147,12 +1182,12 @@ func (c *Collector) Clone() *Collector {
 
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
-		if !c.isDomainAllowed(req.URL.Host) {
+		if !c.isDomainAllowed(req.URL.Hostname()) {
 			return fmt.Errorf("Not following redirect to %s because its not in AllowedDomains", req.URL.Host)
 		}
 
-		if c.RedirectHandler != nil {
-			return c.RedirectHandler(req, via)
+		if c.redirectHandler != nil {
+			return c.redirectHandler(req, via)
 		}
 
 		// Honor golangs default of maximum of 10 redirects
@@ -1161,13 +1196,6 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 		}
 
 		lastRequest := via[len(via)-1]
-
-		// Copy the headers from last request
-		for hName, hValues := range lastRequest.Header {
-			for _, hValue := range hValues {
-				req.Header.Set(hName, hValue)
-			}
-		}
 
 		// If domain has changed, remove the Authorization-header if it exists
 		if req.URL.Host != lastRequest.URL.Host {

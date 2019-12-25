@@ -55,6 +55,7 @@ type Request struct {
 type serializableRequest struct {
 	URL     string
 	Method  string
+	Depth   int
 	Body    []byte
 	ID      uint32
 	Ctx     map[string]interface{}
@@ -114,6 +115,11 @@ func (r *Request) Visit(URL string) error {
 	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx, nil, true)
 }
 
+// HasVisited checks if the provided URL has been visited
+func (r *Request) HasVisited(URL string) (bool, error) {
+	return r.collector.HasVisited(URL)
+}
+
 // Post continues a collector job by creating a POST request and preserves the Context
 // of the previous request.
 // Post also calls the previously provided callbacks
@@ -169,6 +175,7 @@ func (r *Request) Marshal() ([]byte, error) {
 	sr := &serializableRequest{
 		URL:    r.URL.String(),
 		Method: r.Method,
+		Depth:  r.Depth,
 		Body:   body,
 		ID:     r.ID,
 		Ctx:    ctx,
