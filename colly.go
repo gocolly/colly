@@ -109,25 +109,29 @@ type Collector struct {
 	CheckHead bool
 	// TraceHTTP enables capturing and reporting request performance for crawler tuning.
 	// When set to true, the Response.Trace will be filled in with an HTTPTrace object.
-	TraceHTTP         bool
-	store             storage.Storage
-	debugger          debug.Debugger
-	robotsMap         map[string]*robotstxt.RobotsData
-	htmlCallbacks     []*htmlCallbackContainer
-	xmlCallbacks      []*xmlCallbackContainer
-	requestCallbacks  []RequestCallback
-	responseCallbacks []ResponseCallback
-	errorCallbacks    []ErrorCallback
-	scrapedCallbacks  []ScrapedCallback
-	requestCount      uint32
-	responseCount     uint32
-	backend           *httpBackend
-	wg                *sync.WaitGroup
-	lock              *sync.RWMutex
+	TraceHTTP                bool
+	store                    storage.Storage
+	debugger                 debug.Debugger
+	robotsMap                map[string]*robotstxt.RobotsData
+	htmlCallbacks            []*htmlCallbackContainer
+	xmlCallbacks             []*xmlCallbackContainer
+	requestCallbacks         []RequestCallback
+	responseCallbacks        []ResponseCallback
+	responseHeadersCallbacks []ResponseHeadersCallback
+	errorCallbacks           []ErrorCallback
+	scrapedCallbacks         []ScrapedCallback
+	requestCount             uint32
+	responseCount            uint32
+	backend                  *httpBackend
+	wg                       *sync.WaitGroup
+	lock                     *sync.RWMutex
 }
 
 // RequestCallback is a type alias for OnRequest callback functions
 type RequestCallback func(*Request)
+
+// ResponseHeadersCallback is a type alias for OnResponseHeaders callback functions
+type ResponseHeadersCallback func(*Response)
 
 // ResponseCallback is a type alias for OnResponse callback functions
 type ResponseCallback func(*Response)
@@ -196,6 +200,8 @@ var (
 	ErrNoPattern = errors.New("No pattern defined in LimitRule")
 	// ErrEmptyProxyURL is the error type for empty Proxy URL list
 	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
+	// ErrAbortedAfterHeaders is the error returned when OnResponseHeaders aborts the transfer.
+	ErrAbortedAfterHeaders = errors.New("Aborted after receiving response headers")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -626,9 +632,13 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		hTrace = &HTTPTrace{}
 		req = hTrace.WithTrace(req)
 	}
+	checkHeadersFunc := func(statusCode int, headers http.Header) bool {
+		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
+		return !request.abort
+	}
 
 	origURL := req.URL
-	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
+	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}
@@ -788,6 +798,23 @@ func (c *Collector) OnRequest(f RequestCallback) {
 		c.requestCallbacks = make([]RequestCallback, 0, 4)
 	}
 	c.requestCallbacks = append(c.requestCallbacks, f)
+	c.lock.Unlock()
+}
+
+// OnResponseHeaders registers a function. Function will be executed on every response
+// when headers and status are already received, but body is not yet read.
+//
+// Like in OnRequest, you can call Request.Abort to abort the transfer. This might be
+// useful if, for example, you're following all hyperlinks, but want to avoid
+// downloading files.
+//
+// Be aware that using this will prevent HTTP/1.1 connection reuse, as
+// the only way to abort a download is to immediately close the connection.
+// HTTP/2 doesn't suffer from this problem, as it's possible to close
+// specific stream inside the connection.
+func (c *Collector) OnResponseHeaders(f ResponseHeadersCallback) {
+	c.lock.Lock()
+	c.responseHeadersCallbacks = append(c.responseHeadersCallbacks, f)
 	c.lock.Unlock()
 }
 
@@ -983,6 +1010,18 @@ func (c *Collector) handleOnResponse(r *Response) {
 		}))
 	}
 	for _, f := range c.responseCallbacks {
+		f(r)
+	}
+}
+
+func (c *Collector) handleOnResponseHeaders(r *Response) {
+	if c.debugger != nil {
+		c.debugger.Event(createEvent("responseHeaders", r.Request.ID, c.ID, map[string]string{
+			"url":    r.Request.URL.String(),
+			"status": http.StatusText(r.StatusCode),
+		}))
+	}
+	for _, f := range c.responseHeadersCallbacks {
 		f(r)
 	}
 }
