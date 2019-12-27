@@ -27,7 +27,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 
-	"github.com/gocolly/colly/debug"
+	"github.com/gocolly/colly/v2/debug"
 )
 
 var serverIndexResponse = []byte("hello world\n")
@@ -35,6 +35,7 @@ var robotsFile = `
 User-agent: *
 Allow: /allowed
 Disallow: /disallowed
+Disallow: /allowed*q=
 `
 
 func newTestServer() *httptest.Server {
@@ -349,6 +350,43 @@ func TestCollectorVisit(t *testing.T) {
 	}
 }
 
+func TestCollectorVisitWithAllowedDomains(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(AllowedDomains("localhost", "127.0.0.1", "::1"))
+	err := c.Visit(ts.URL)
+	if err != nil {
+		t.Errorf("Failed to visit url %s", ts.URL)
+	}
+
+	err = c.Visit("http://example.com")
+	if err != ErrForbiddenDomain {
+		t.Errorf("c.Visit should return ErrForbiddenDomain, but got %v", err)
+	}
+}
+
+func TestCollectorVisitWithDisallowedDomains(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(DisallowedDomains("localhost", "127.0.0.1", "::1"))
+	err := c.Visit(ts.URL)
+	if err != ErrForbiddenDomain {
+		t.Errorf("c.Visit should return ErrForbiddenDomain, but got %v", err)
+	}
+
+	c2 := NewCollector(DisallowedDomains("example.com"))
+	err = c2.Visit("http://example.com:8080")
+	if err != ErrForbiddenDomain {
+		t.Errorf("c.Visit should return ErrForbiddenDomain, but got %v", err)
+	}
+	err = c2.Visit(ts.URL)
+	if err != nil {
+		t.Errorf("Failed to visit url %s", ts.URL)
+	}
+}
+
 func TestCollectorOnHTML(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
@@ -419,6 +457,35 @@ func TestCollectorURLRevisit(t *testing.T) {
 
 	if visitCount != 3 {
 		t.Error("URL not revisited")
+	}
+}
+
+func TestCollectorURLRevisitCheck(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	visited, err := c.HasVisited(ts.URL)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if visited != false {
+		t.Error("Expected URL to NOT have been visited")
+	}
+
+	c.Visit(ts.URL)
+
+	visited, err = c.HasVisited(ts.URL)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if visited != true {
+		t.Error("Expected URL to have been visited")
 	}
 }
 
@@ -529,6 +596,23 @@ func TestRobotsWhenDisallowed(t *testing.T) {
 	})
 
 	err := c.Visit(ts.URL + "/disallowed")
+	if err.Error() != "URL blocked by robots.txt" {
+		t.Fatalf("wrong error message: %v", err)
+	}
+}
+
+func TestRobotsWhenDisallowedWithQueryParameter(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.IgnoreRobotsTxt = false
+
+	c.OnResponse(func(resp *Response) {
+		t.Fatalf("Received response: %d", resp.StatusCode)
+	})
+
+	err := c.Visit(ts.URL + "/allowed?q=1")
 	if err.Error() != "URL blocked by robots.txt" {
 		t.Fatalf("wrong error message: %v", err)
 	}
