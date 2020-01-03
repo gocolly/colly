@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"regexp"
@@ -487,6 +488,28 @@ func TestCollectorURLRevisitCheck(t *testing.T) {
 	if visited != true {
 		t.Error("Expected URL to have been visited")
 	}
+}
+
+// TestCollectorURLRevisitDisallowed ensures that disallowed URL is not considered visited.
+func TestCollectorURLRevisitDomainDisallowed(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	parsedURL, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewCollector(DisallowedDomains(parsedURL.Hostname()))
+	err = c.Visit(ts.URL)
+	if got, want := err, ErrForbiddenDomain; got != want {
+		t.Fatalf("wrong error on first visit: got=%v want=%v", got, want)
+	}
+	err = c.Visit(ts.URL)
+	if got, want := err, ErrForbiddenDomain; got != want {
+		t.Fatalf("wrong error on second visit: got=%v want=%v", got, want)
+	}
+
 }
 
 func TestCollectorPost(t *testing.T) {
