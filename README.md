@@ -55,7 +55,7 @@ See [examples folder](https://github.com/gocolly/colly/tree/master/_examples) fo
 ## Installation
 
 ```
-go get -u github.com/gocolly/colly/...
+go get -u github.com/gocolly/colly/v2/...
 ```
 
 
