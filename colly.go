@@ -198,7 +198,8 @@ var (
 	// ErrEmptyProxyURL is the error type for empty Proxy URL list
 	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
 
-	ErrUnknownJsonStart = errors.New("Unknown Json start character")
+	// ErrUnknownJSONStart is the err type for Unknown json character
+	ErrUnknownJSONStart = errors.New("Unknown Json start character")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -990,20 +991,20 @@ func (c *Collector) handleOnJSON(resp *Response) error {
 	if len(c.jsonCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "application/json") {
 		return nil
 	}
-	JsonT, err := ParseJson(resp.Body)
+	JSONT, err := ParseJSON(resp.Body)
 	if err != nil {
 		return err
 	}
 	if c.debugger != nil {
-		JsonStr, _ := json.Marshal(JsonT)
+		JSONStr, _ := json.Marshal(JSONT)
 		c.debugger.Event(createEvent("json", resp.Request.ID, c.ID, map[string]string{
 			"url":    resp.Request.URL.String(),
-			"json":   string(JsonStr),
+			"json":   string(JSONStr),
 			"status": http.StatusText(resp.StatusCode),
 		}))
 	}
 	for _, ff := range c.jsonCallbacks {
-		ff(JsonT)
+		ff(JSONT)
 	}
 	return nil
 }
