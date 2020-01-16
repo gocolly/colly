@@ -112,6 +112,7 @@ type Collector struct {
 	robotsMap         map[string]*robotstxt.RobotsData
 	htmlCallbacks     []*htmlCallbackContainer
 	xmlCallbacks      []*xmlCallbackContainer
+	jsonCallbacks     []JSONCallback
 	requestCallbacks  []RequestCallback
 	responseCallbacks []ResponseCallback
 	errorCallbacks    []ErrorCallback
@@ -134,6 +135,9 @@ type HTMLCallback func(*HTMLElement)
 
 // XMLCallback is a type alias for OnXML callback functions
 type XMLCallback func(*XMLElement)
+
+// JSONCallback is a type alias for OnJSON callback functions
+type JSONCallback func([]map[string]interface{})
 
 // ErrorCallback is a type alias for OnError callback functions
 type ErrorCallback func(*Response, error)
@@ -193,6 +197,8 @@ var (
 	ErrNoPattern = errors.New("No pattern defined in LimitRule")
 	// ErrEmptyProxyURL is the error type for empty Proxy URL list
 	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
+
+	ErrUnknownJsonStart = errors.New("Unknown Json start character")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -634,6 +640,11 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		c.handleOnError(response, err, request, ctx)
 	}
 
+	err = c.handleOnJSON(response)
+	if err != nil {
+		c.handleOnError(response, err, request, ctx)
+	}
+
 	err = c.handleOnXML(response)
 	if err != nil {
 		c.handleOnError(response, err, request, ctx)
@@ -776,6 +787,16 @@ func (c *Collector) OnResponse(f ResponseCallback) {
 		c.responseCallbacks = make([]ResponseCallback, 0, 4)
 	}
 	c.responseCallbacks = append(c.responseCallbacks, f)
+	c.lock.Unlock()
+}
+
+// OnJSON registers a function. Function will be executed on JSON
+func (c *Collector) OnJSON(f JSONCallback) {
+	c.lock.Lock()
+	if c.jsonCallbacks == nil {
+		c.jsonCallbacks = make([]JSONCallback, 0, 4)
+	}
+	c.jsonCallbacks = append(c.jsonCallbacks, f)
 	c.lock.Unlock()
 }
 
@@ -963,6 +984,28 @@ func (c *Collector) handleOnResponse(r *Response) {
 	for _, f := range c.responseCallbacks {
 		f(r)
 	}
+}
+
+func (c *Collector) handleOnJSON(resp *Response) error {
+	if len(c.jsonCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "application/json") {
+		return nil
+	}
+	JsonT, err := ParseJson(resp.Body)
+	if err != nil {
+		return err
+	}
+	if c.debugger != nil {
+		JsonStr, _ := json.Marshal(JsonT)
+		c.debugger.Event(createEvent("json", resp.Request.ID, c.ID, map[string]string{
+			"url":    resp.Request.URL.String(),
+			"json":   string(JsonStr),
+			"status": http.StatusText(resp.StatusCode),
+		}))
+	}
+	for _, ff := range c.jsonCallbacks {
+		ff(JsonT)
+	}
+	return nil
 }
 
 func (c *Collector) handleOnHTML(resp *Response) error {
