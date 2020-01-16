@@ -36,6 +36,8 @@ type Response struct {
 	Ctx *Context
 	// Request is the Request object of the response
 	Request *Request
+	// ResponseDump is the dump of the HTTP response
+	ResponseDump []byte
 	// Headers contains the Response's HTTP headers
 	Headers *http.Header
 }

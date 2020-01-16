@@ -28,6 +28,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -581,6 +582,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if ctx == nil {
 		ctx = NewContext()
 	}
+
 	request := &Request{
 		URL:       req.URL,
 		Headers:   &req.Header,
@@ -605,6 +607,13 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if req.Header.Get("Accept") == "" {
 		req.Header.Set("Accept", "*/*")
 	}
+
+	dump, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		return err
+	}
+
+	request.RequestDump = dump
 
 	origURL := req.URL
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)

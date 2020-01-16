@@ -50,6 +50,8 @@ type Request struct {
 	baseURL   *url.URL
 	// ProxyURL is the proxy address that handles the request
 	ProxyURL string
+	// RequestDump is the dump of the HTTP request
+	RequestDump []byte
 }
 
 type serializableRequest struct {

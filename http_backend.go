@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"path"
 	"regexp"
@@ -203,10 +204,17 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	if err != nil {
 		return nil, err
 	}
+
+	dump, err := httputil.DumpResponse(res, true)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Response{
-		StatusCode: res.StatusCode,
-		Body:       body,
-		Headers:    &res.Header,
+		StatusCode:   res.StatusCode,
+		Body:         body,
+		ResponseDump: dump,
+		Headers:      &res.Header,
 	}, nil
 }
 
