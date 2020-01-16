@@ -2,7 +2,7 @@ package colly
 
 import "encoding/json"
 
-// AutoCheck and parse Json data
+// ParseJSON is the function to auto check and parse Json data
 func ParseJSON(resp []byte) ([]map[string]interface{}, error) {
 	var retJSONL []map[string]interface{}
 	if resp[0] == 123 {
