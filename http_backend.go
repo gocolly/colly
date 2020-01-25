@@ -63,6 +63,15 @@ type LimitRule struct {
 	compiledGlob   glob.Glob
 }
 
+type readCloser struct {
+	io.Reader
+	closer io.Closer
+}
+
+func (r *readCloser) Close() error {
+	return r.closer.Close()
+}
+
 // Init initializes the private members of LimitRule
 func (r *LimitRule) Init() error {
 	waitChanSize := 1
@@ -188,10 +197,18 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		*request = *res.Request
 	}
 
-	var bodyReader io.Reader = res.Body
+	var bodyReader io.Reader
 	if bodySize > 0 {
-		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
+		res.Body = &readCloser{Reader: io.LimitReader(res.Body, int64(bodySize)), closer: res.Body}
 	}
+
+	dump, err := httputil.DumpResponse(res, true)
+	if err != nil {
+		return nil, err
+	}
+
+	bodyReader = res.Body
+
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(res.Request.URL.Path), ".xml.gz")) {
 		bodyReader, err = gzip.NewReader(bodyReader)
@@ -200,12 +217,8 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 		}
 		defer bodyReader.(*gzip.Reader).Close()
 	}
-	body, err := ioutil.ReadAll(bodyReader)
-	if err != nil {
-		return nil, err
-	}
 
-	dump, err := httputil.DumpResponse(res, true)
+	body, err := ioutil.ReadAll(bodyReader)
 	if err != nil {
 		return nil, err
 	}
