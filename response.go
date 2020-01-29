@@ -38,7 +38,8 @@ type Response struct {
 	Request *Request
 	// Headers contains the Response's HTTP headers
 	Headers *http.Header
-	// Trace contains the HTTPTrace for the request.
+	// Trace contains the HTTPTrace for the request. Will only be set by the
+	// collector if Collector.TraceHTTP is set to true.
 	Trace *HTTPTrace
 }
 
