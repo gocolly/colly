@@ -106,7 +106,10 @@ type Collector struct {
 	// use c.SetRedirectHandler to set this value
 	redirectHandler func(req *http.Request, via []*http.Request) error
 	// CheckHead performs a HEAD request before every GET to pre-validate the response
-	CheckHead         bool
+	CheckHead bool
+	// TraceHTTP enables capturing and reporting request performance for crawler tuning.
+	// When set to true, the Response.Trace will be filled in with an HTTPTrace object.
+	TraceHTTP         bool
 	store             storage.Storage
 	debugger          debug.Debugger
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -236,6 +239,9 @@ var envMap = map[string]func(*Collector, string){
 	"PARSE_HTTP_ERROR_RESPONSE": func(c *Collector, val string) {
 		c.ParseHTTPErrorResponse = isYesString(val)
 	},
+	"TRACE_HTTP": func(c *Collector, val string) {
+		c.TraceHTTP = isYesString(val)
+	},
 	"USER_AGENT": func(c *Collector, val string) {
 		c.UserAgent = val
 	},
@@ -335,6 +341,14 @@ func IgnoreRobotsTxt() CollectorOption {
 	}
 }
 
+// TraceHTTP instructs the Collector to collect and report request trace data
+// on the Response.Trace.
+func TraceHTTP() CollectorOption {
+	return func(c *Collector) {
+		c.TraceHTTP = true
+	}
+}
+
 // ID sets the unique identifier of the Collector.
 func ID(id uint32) CollectorOption {
 	return func(c *Collector) {
@@ -382,6 +396,7 @@ func (c *Collector) Init() {
 	c.robotsMap = make(map[string]*robotstxt.RobotsData)
 	c.IgnoreRobotsTxt = true
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
+	c.TraceHTTP = false
 }
 
 // Appengine will replace the Collector's backend http.Client
@@ -606,6 +621,12 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req.Header.Set("Accept", "*/*")
 	}
 
+	var hTrace *HTTPTrace
+	if c.TraceHTTP {
+		hTrace = &HTTPTrace{}
+		req = hTrace.WithTrace(req)
+	}
+
 	origURL := req.URL
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
@@ -621,6 +642,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx
 	response.Request = request
+	response.Trace = hTrace
 
 	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
 	if err != nil {
@@ -1155,6 +1177,7 @@ func (c *Collector) Clone() *Collector {
 		CheckHead:              c.CheckHead,
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
+		TraceHTTP:              c.TraceHTTP,
 		store:                  c.store,
 		backend:                c.backend,
 		debugger:               c.debugger,
