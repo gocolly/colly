@@ -110,7 +110,10 @@ type Collector struct {
 	CheckHead bool
 	// TraceHTTP enables capturing and reporting request performance for crawler tuning.
 	// When set to true, the Response.Trace will be filled in with an HTTPTrace object.
-	TraceHTTP         bool
+	TraceHTTP bool
+	// Dump enables dumping of requests and responses,
+	// dumps are stored in Request.Dump and Response.Dump.
+	Dump              bool
 	store             storage.Storage
 	debugger          debug.Debugger
 	robotsMap         map[string]*robotstxt.RobotsData
@@ -623,12 +626,14 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req.Header.Set("Accept", "*/*")
 	}
 
-	dump, err := httputil.DumpRequestOut(req, true)
-	if err != nil {
-		return err
-	}
+	if c.Dump {
+		dump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			return err
+		}
 
-	request.RequestDump = dump
+		request.RequestDump = dump
+	}
 
 	var hTrace *HTTPTrace
 	if c.TraceHTTP {
@@ -637,7 +642,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	}
 
 	origURL := req.URL
-	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
+	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir, c.Dump)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}

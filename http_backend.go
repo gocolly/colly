@@ -137,9 +137,9 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string) (*Response, error) {
+func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string, dump bool) (*Response, error) {
 	if cacheDir == "" || request.Method != "GET" {
-		return h.Do(request, bodySize)
+		return h.Do(request, bodySize, dump)
 	}
 	sum := sha1.Sum([]byte(request.URL.String()))
 	hash := hex.EncodeToString(sum[:])
@@ -153,7 +153,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 			return resp, err
 		}
 	}
-	resp, err := h.Do(request, bodySize)
+	resp, err := h.Do(request, bodySize, dump)
 	if err != nil || resp.StatusCode >= 500 {
 		return resp, err
 	}
@@ -174,7 +174,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string
 	return resp, os.Rename(filename+"~", filename)
 }
 
-func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {
+func (h *httpBackend) Do(request *http.Request, bodySize int, dump bool) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
 		r.waitChan <- true
@@ -198,13 +198,20 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	}
 
 	var bodyReader io.Reader
+	var dumpData []byte
 	if bodySize > 0 {
-		res.Body = &readCloser{Reader: io.LimitReader(res.Body, int64(bodySize)), closer: res.Body}
+		if dump {
+			res.Body = &readCloser{Reader: io.LimitReader(res.Body, int64(bodySize)), closer: res.Body}
+		} else {
+			bodyReader = io.LimitReader(bodyReader, int64(bodySize))
+		}
 	}
 
-	dump, err := httputil.DumpResponse(res, true)
-	if err != nil {
-		return nil, err
+	if dump {
+		dumpData, err = httputil.DumpResponse(res, true)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	bodyReader = res.Body
@@ -226,7 +233,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error)
 	return &Response{
 		StatusCode:   res.StatusCode,
 		Body:         body,
-		ResponseDump: dump,
+		ResponseDump: dumpData,
 		Headers:      &res.Header,
 	}, nil
 }
