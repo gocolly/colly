@@ -246,6 +246,9 @@ var envMap = map[string]func(*Collector, string){
 	"TRACE_HTTP": func(c *Collector, val string) {
 		c.TraceHTTP = isYesString(val)
 	},
+	"DUMP": func(c *Collector, val string) {
+		c.Dump = isYesString(val)
+	},
 	"USER_AGENT": func(c *Collector, val string) {
 		c.UserAgent = val
 	},
@@ -353,6 +356,13 @@ func TraceHTTP() CollectorOption {
 	}
 }
 
+// Dump instructs the Collector to generate dumps of requests and responses
+func Dump() CollectorOption {
+	return func(c *Collector) {
+		c.Dump = true
+	}
+}
+
 // ID sets the unique identifier of the Collector.
 func ID(id uint32) CollectorOption {
 	return func(c *Collector) {
@@ -401,6 +411,7 @@ func (c *Collector) Init() {
 	c.IgnoreRobotsTxt = true
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
+	c.Dump = false
 }
 
 // Appengine will replace the Collector's backend http.Client
@@ -1192,6 +1203,7 @@ func (c *Collector) Clone() *Collector {
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
 		TraceHTTP:              c.TraceHTTP,
+		Dump:                   c.Dump,
 		store:                  c.store,
 		backend:                c.backend,
 		debugger:               c.debugger,
