@@ -15,6 +15,7 @@
 package colly
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"net/http"
@@ -136,6 +137,18 @@ func newTestServer() *httptest.Server {
 </body>
 </html>
 		`))
+	})
+
+	mux.HandleFunc("/large_binary", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		ww := bufio.NewWriter(w)
+		defer ww.Flush()
+		for {
+			// have to check error to detect client aborting download
+			if _, err := ww.Write([]byte{0x41}); err != nil {
+				return
+			}
+		}
 	})
 
 	return httptest.NewServer(mux)
@@ -385,6 +398,28 @@ func TestCollectorVisitWithDisallowedDomains(t *testing.T) {
 	err = c2.Visit(ts.URL)
 	if err != nil {
 		t.Errorf("Failed to visit url %s", ts.URL)
+	}
+}
+
+func TestCollectorVisitResponseHeaders(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	var onResponseHeadersCalled bool
+
+	c := NewCollector()
+	c.OnResponseHeaders(func(r *Response) {
+		onResponseHeadersCalled = true
+		if r.Headers.Get("Content-Type") == "application/octet-stream" {
+			r.Request.Abort()
+		}
+	})
+	c.OnResponse(func(r *Response) {
+		t.Error("OnResponse was called")
+	})
+	c.Visit(ts.URL + "/large_binary")
+	if !onResponseHeadersCalled {
+		t.Error("OnResponseHeaders was not called")
 	}
 }
 
