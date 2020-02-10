@@ -28,7 +28,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -110,10 +109,7 @@ type Collector struct {
 	CheckHead bool
 	// TraceHTTP enables capturing and reporting request performance for crawler tuning.
 	// When set to true, the Response.Trace will be filled in with an HTTPTrace object.
-	TraceHTTP bool
-	// Dump enables dumping of requests and responses,
-	// dumps are stored in Request.Dump and Response.Dump.
-	Dump                     bool
+	TraceHTTP                bool
 	store                    storage.Storage
 	debugger                 debug.Debugger
 	robotsMap                map[string]*robotstxt.RobotsData
@@ -252,9 +248,6 @@ var envMap = map[string]func(*Collector, string){
 	"TRACE_HTTP": func(c *Collector, val string) {
 		c.TraceHTTP = isYesString(val)
 	},
-	"DUMP": func(c *Collector, val string) {
-		c.Dump = isYesString(val)
-	},
 	"USER_AGENT": func(c *Collector, val string) {
 		c.UserAgent = val
 	},
@@ -362,13 +355,6 @@ func TraceHTTP() CollectorOption {
 	}
 }
 
-// Dump instructs the Collector to generate dumps of requests and responses
-func Dump() CollectorOption {
-	return func(c *Collector) {
-		c.Dump = true
-	}
-}
-
 // ID sets the unique identifier of the Collector.
 func ID(id uint32) CollectorOption {
 	return func(c *Collector) {
@@ -417,7 +403,6 @@ func (c *Collector) Init() {
 	c.IgnoreRobotsTxt = true
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
-	c.Dump = false
 }
 
 // Appengine will replace the Collector's backend http.Client
@@ -617,7 +602,6 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if ctx == nil {
 		ctx = NewContext()
 	}
-
 	request := &Request{
 		URL:       req.URL,
 		Headers:   &req.Header,
@@ -643,15 +627,6 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req.Header.Set("Accept", "*/*")
 	}
 
-	if c.Dump {
-		dump, err := httputil.DumpRequestOut(req, true)
-		if err != nil {
-			return err
-		}
-
-		request.RequestDump = dump
-	}
-
 	var hTrace *HTTPTrace
 	if c.TraceHTTP {
 		hTrace = &HTTPTrace{}
@@ -663,7 +638,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	}
 
 	origURL := req.URL
-	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir, c.Dump)
+	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}
@@ -1242,7 +1217,6 @@ func (c *Collector) Clone() *Collector {
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
 		TraceHTTP:              c.TraceHTTP,
-		Dump:                   c.Dump,
 		store:                  c.store,
 		backend:                c.backend,
 		debugger:               c.debugger,

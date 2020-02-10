@@ -865,27 +865,6 @@ func TestCollectorVisitWithTrace(t *testing.T) {
 	}
 }
 
-func TestCollectorWithDump(t *testing.T) {
-	ts := newTestServer()
-	defer ts.Close()
-
-	c := NewCollector(AllowedDomains("localhost", "127.0.0.1", "::1"), Dump())
-
-	c.OnResponse(func(resp *Response) {
-		if len(resp.ResponseDump) == 0 {
-			t.Error("Failed to dump response")
-		}
-		if len(resp.Request.RequestDump) == 0 {
-			t.Error("Failed to dump request")
-		}
-	})
-
-	err := c.Visit(ts.URL)
-	if err != nil {
-		t.Errorf("Failed to visit url %s", ts.URL)
-	}
-}
-
 func BenchmarkOnHTML(b *testing.B) {
 	ts := newTestServer()
 	defer ts.Close()

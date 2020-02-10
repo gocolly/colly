@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"path"
 	"regexp"
@@ -63,15 +62,6 @@ type LimitRule struct {
 	waitChan       chan bool
 	compiledRegexp *regexp.Regexp
 	compiledGlob   glob.Glob
-}
-
-type readCloser struct {
-	io.Reader
-	closer io.Closer
-}
-
-func (r *readCloser) Close() error {
-	return r.closer.Close()
 }
 
 // Init initializes the private members of LimitRule
@@ -139,9 +129,9 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string, dump bool) (*Response, error) {
+func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
 	if cacheDir == "" || request.Method != "GET" {
-		return h.Do(request, bodySize, dump, checkHeadersFunc)
+		return h.Do(request, bodySize, checkHeadersFunc)
 	}
 	sum := sha1.Sum([]byte(request.URL.String()))
 	hash := hex.EncodeToString(sum[:])
@@ -155,7 +145,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 			return resp, err
 		}
 	}
-	resp, err := h.Do(request, bodySize, dump, checkHeadersFunc)
+	resp, err := h.Do(request, bodySize, checkHeadersFunc)
 	if err != nil || resp.StatusCode >= 500 {
 		return resp, err
 	}
@@ -176,7 +166,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 	return resp, os.Rename(filename+"~", filename)
 }
 
-func (h *httpBackend) Do(request *http.Request, bodySize int, dump bool, checkHeadersFunc checkHeadersFunc) (*Response, error) {
+func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
 		r.waitChan <- true
@@ -204,25 +194,10 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, dump bool, checkHe
 		return nil, ErrAbortedAfterHeaders
 	}
 
-	var bodyReader io.Reader
-	var dumpData []byte
+	var bodyReader io.Reader = res.Body
 	if bodySize > 0 {
-		if dump {
-			res.Body = &readCloser{Reader: io.LimitReader(res.Body, int64(bodySize)), closer: res.Body}
-		} else {
-			bodyReader = io.LimitReader(bodyReader, int64(bodySize))
-		}
+		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
-
-	if dump {
-		dumpData, err = httputil.DumpResponse(res, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	bodyReader = res.Body
-
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(res.Request.URL.Path), ".xml.gz")) {
 		bodyReader, err = gzip.NewReader(bodyReader)
@@ -231,17 +206,14 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, dump bool, checkHe
 		}
 		defer bodyReader.(*gzip.Reader).Close()
 	}
-
 	body, err := ioutil.ReadAll(bodyReader)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Response{
-		StatusCode:   res.StatusCode,
-		Body:         body,
-		ResponseDump: dumpData,
-		Headers:      &res.Header,
+		StatusCode: res.StatusCode,
+		Body:       body,
+		Headers:    &res.Header,
 	}, nil
 }
 
