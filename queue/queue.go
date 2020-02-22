@@ -124,7 +124,7 @@ func (q *Queue) Run(c *colly.Collector) error {
 		defer wg.Done()
 		for {
 			if q.IsEmpty() {
-				if q.activeThreadCount == 0 {
+				if atomic.LoadInt32(&q.activeThreadCount) == 0 {
 					q.finish()
 					break
 				}
