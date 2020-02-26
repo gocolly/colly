@@ -10,6 +10,7 @@ import (
 const stop = true
 
 // Storage is the interface of the queue's storage backend
+// Storage must be concurrently safe for multiple goroutines.
 type Storage interface {
 	// Init initializes the storage
 	Init() error
