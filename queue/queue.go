@@ -158,10 +158,12 @@ func (q *Queue) loop(c *colly.Collector, requestc chan<- *colly.Request, complet
 		var req *colly.Request
 		if size > 0 {
 			req, err = q.loadRequest(c)
-		}
-		if size == 0 || err != nil {
-			// ignore an error returned by GetRequest() or
-			// UnmarshalRequest()
+			if err != nil {
+				// ignore an error returned by GetRequest() or
+				// UnmarshalRequest()
+				continue
+			}
+		} else {
 			sent = nil
 		}
 	Sent:
