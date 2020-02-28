@@ -22,7 +22,8 @@ func TestQueue(t *testing.T) {
 		success  uint32
 		failure  uint32
 	)
-	q, err := New(10, nil)
+	storage := &InMemoryQueueStorage{MaxSize: 100000}
+	q, err := New(10, storage)
 	if err != nil {
 		panic(err)
 	}
@@ -34,6 +35,7 @@ func TestQueue(t *testing.T) {
 	}
 	for i := 0; i < 3000; i++ {
 		put()
+		storage.AddRequest([]byte("error request"))
 	}
 	c := colly.NewCollector(
 		colly.AllowURLRevisit(),
