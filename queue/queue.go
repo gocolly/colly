@@ -165,7 +165,7 @@ func (q *InMemoryQueueStorage) AddRequest(r []byte) error {
 	defer q.lock.Unlock()
 	// Discard URLs if size limit exceeded
 	if q.MaxSize > 0 && q.size >= q.MaxSize {
-		return nil
+		return colly.ErrQueueFull
 	}
 	i := &inMemoryQueueItem{Request: r}
 	if q.first == nil {
