@@ -202,6 +202,8 @@ var (
 	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
 	// ErrAbortedAfterHeaders is the error returned when OnResponseHeaders aborts the transfer.
 	ErrAbortedAfterHeaders = errors.New("Aborted after receiving response headers")
+	// ErrQueueFull is the error returned when the queue is full
+	ErrQueueFull = errors.New("Queue MaxSize reached")
 )
 
 var envMap = map[string]func(*Collector, string){
