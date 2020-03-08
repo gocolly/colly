@@ -387,6 +387,13 @@ func Debugger(d debug.Debugger) CollectorOption {
 	}
 }
 
+// CheckHead performs a HEAD request before every GET to pre-validate the response
+func CheckHead() CollectorOption {
+	return func(c *Collector) {
+		c.CheckHead = true
+	}
+}
+
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {

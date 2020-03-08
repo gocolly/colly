@@ -300,6 +300,13 @@ var newCollectorTests = map[string]func(*testing.T){
 			t.Fatalf("c.debugger = %v, want %v", got, want)
 		}
 	},
+	"CheckHead": func(t *testing.T) {
+		c := NewCollector(CheckHead())
+
+		if !c.CheckHead {
+			t.Fatal("c.CheckHead = false, want true")
+		}
+	},
 }
 
 func TestNewCollector(t *testing.T) {
@@ -862,6 +869,25 @@ func TestCollectorVisitWithTrace(t *testing.T) {
 	err := c.Visit(ts.URL)
 	if err != nil {
 		t.Errorf("Failed to visit url %s", ts.URL)
+	}
+}
+
+func TestCollectorVisitWithCheckHead(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(CheckHead())
+	var requestMethodChain []string
+	c.OnResponse(func(resp *Response) {
+		requestMethodChain = append(requestMethodChain, resp.Request.Method)
+	})
+
+	err := c.Visit(ts.URL)
+	if err != nil {
+		t.Errorf("Failed to visit url %s", ts.URL)
+	}
+	if requestMethodChain[0] != "HEAD" && requestMethodChain[1] != "GET" {
+		t.Errorf("Failed to perform a HEAD request before GET")
 	}
 }
 
