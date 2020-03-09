@@ -13,7 +13,7 @@ func main() {
 	// Instantiate default collector
 	c := colly.NewCollector(
 		// Turn on asynchronous requests
-		colly.Async(true),
+		colly.Async(),
 		// Attach a debugger to the collector
 		colly.Debugger(&debug.LogDebugger{}),
 	)

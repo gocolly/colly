@@ -23,7 +23,7 @@ func main() {
 	c := colly.NewCollector(
 		// Visit only domains: old.reddit.com
 		colly.AllowedDomains("old.reddit.com"),
-		colly.Async(true),
+		colly.Async(),
 	)
 
 	// On every a element which has .top-matter attribute call callback
