@@ -365,9 +365,9 @@ func ID(id uint32) CollectorOption {
 }
 
 // Async turns on asynchronous network requests.
-func Async(a bool) CollectorOption {
+func Async() CollectorOption {
 	return func(c *Collector) {
-		c.Async = a
+		c.Async = true
 	}
 }
 
