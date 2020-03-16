@@ -12,7 +12,7 @@ func main() {
 		// MaxDepth is 2, so only the links on the scraped page
 		// and links on those pages are visited
 		colly.MaxDepth(2),
-		colly.Async(true),
+		colly.Async(),
 	)
 
 	// Limit the maximum parallelism to 2

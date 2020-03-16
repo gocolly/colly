@@ -307,6 +307,13 @@ var newCollectorTests = map[string]func(*testing.T){
 			t.Fatal("c.CheckHead = false, want true")
 		}
 	},
+	"Async": func(t *testing.T) {
+		c := NewCollector(Async())
+
+		if !c.Async {
+			t.Fatal("c.Async = false, want true")
+		}
+	},
 }
 
 func TestNewCollector(t *testing.T) {

@@ -15,7 +15,7 @@ func main() {
 	c := colly.NewCollector(
 		// Attach a debugger to the collector
 		colly.Debugger(&debug.LogDebugger{}),
-		colly.Async(true),
+		colly.Async(),
 	)
 
 	// Limit the number of threads started by colly to two
