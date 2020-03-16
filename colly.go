@@ -504,7 +504,7 @@ func (c *Collector) SetDebugger(d debug.Debugger) {
 
 // UnmarshalRequest creates a Request from serialized data
 func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
-	req := &serializableRequest{}
+	req := &SerializableRequest{}
 	err := json.Unmarshal(r, req)
 	if err != nil {
 		return nil, err

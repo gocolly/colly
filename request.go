@@ -52,7 +52,8 @@ type Request struct {
 	ProxyURL string
 }
 
-type serializableRequest struct {
+// Serializable representation of Request
+type SerializableRequest struct {
 	URL     string
 	Method  string
 	Depth   int
@@ -173,7 +174,7 @@ func (r *Request) Marshal() ([]byte, error) {
 			return nil, err
 		}
 	}
-	sr := &serializableRequest{
+	sr := &SerializableRequest{
 		URL:    r.URL.String(),
 		Method: r.Method,
 		Depth:  r.Depth,

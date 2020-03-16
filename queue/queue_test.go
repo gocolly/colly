@@ -28,14 +28,20 @@ func TestQueue(t *testing.T) {
 		panic(err)
 	}
 	put := func() {
-		t := time.Duration(rng.Intn(50)) * time.Microsecond
-		url := server.URL + "/delay?t=" + t.String()
+		d := time.Duration(rng.Intn(50)) * time.Microsecond
+		url := server.URL + "/delay?t=" + d.String()
 		atomic.AddUint32(&items, 1)
-		q.AddURL(url)
+		err := q.AddURL(url)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 	for i := 0; i < 3000; i++ {
 		put()
-		storage.AddRequest([]byte("error request"))
+		err := storage.AddRequest([]byte("error request"))
+		if err == nil {
+			t.Errorf("Adding an error request shoud result in an error")
+		}
 	}
 	c := colly.NewCollector(
 		colly.AllowURLRevisit(),

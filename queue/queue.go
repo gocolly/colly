@@ -1,11 +1,11 @@
 package queue
 
 import (
+	"bytes"
 	"encoding/json"
+	"github.com/gocolly/colly/v2"
 	"net/url"
 	"sync"
-
-	"github.com/gocolly/colly/v2"
 )
 
 const stop = true
@@ -189,7 +189,7 @@ func (q *Queue) loop(c *colly.Collector, requestc chan<- *colly.Request, complet
 
 func independentRunner(requestc <-chan *colly.Request, complete chan<- struct{}) {
 	for req := range requestc {
-		_ = req.Do() //explicitly ignore the unhandled error
+		req.Do()
 		complete <- struct{}{}
 	}
 }
@@ -213,25 +213,32 @@ func (q *InMemoryQueueStorage) Init() error {
 // AddRequest implements Storage.AddRequest() function
 // Request must be serializable
 func (q *InMemoryQueueStorage) AddRequest(r []byte) error {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-	// Discard URLs if size limit exceeded
-	if q.MaxSize > 0 && q.size >= q.MaxSize {
-		return colly.ErrQueueFull
-	}
-	var req colly.Request
-	if err := json.Unmarshal(r, req); err != nil {
+	sreq := &colly.SerializableRequest{}
+	err := json.Unmarshal(r, sreq)
+	if err != nil {
 		return err
 	}
-	i := &inMemoryQueueItem{Request: &req}
-	if q.first == nil {
-		q.first = i
-	} else {
-		q.last.Next = i
+
+	u, err := url.Parse(sreq.URL)
+	if err != nil {
+		return err
 	}
-	q.last = i
-	q.size++
-	return nil
+
+	ctx := colly.NewContext()
+	for k, v := range sreq.Ctx {
+		ctx.Put(k, v)
+	}
+
+	req := &colly.Request{
+		Method:  sreq.Method,
+		URL:     u,
+		Depth:   sreq.Depth,
+		Body:    bytes.NewReader(sreq.Body),
+		Ctx:     ctx,
+		Headers: &sreq.Headers,
+	}
+
+	return q.AddRequestPointer(req)
 }
 
 // AddRequestPointer Adds a request to InMemoryQueueStorage via pointer to the request without JSON serialization
@@ -256,19 +263,11 @@ func (q *InMemoryQueueStorage) AddRequestPointer(r *colly.Request) error {
 // GetRequest implements Storage.GetRequest() function
 // returns the serialized request as []byte and any error when encountered
 func (q *InMemoryQueueStorage) GetRequest() ([]byte, error) {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-	if q.size == 0 {
-		return nil, nil
-	}
-	r := q.first.Request
-	q.first = q.first.Next
-	q.size--
-	b, err := json.Marshal(r)
+	r, err := q.GetRequestPointer()
 	if err != nil {
-		return b, err
+		return []byte{}, nil
 	}
-	return b, nil
+	return r.Marshal()
 }
 
 // GetRequestPointer request to InMemoryQueueStorage via pointer without without JSON serialization
