@@ -40,7 +40,7 @@ func TestQueue(t *testing.T) {
 		put()
 		err := storage.AddRequest([]byte("error request"))
 		if err == nil {
-			t.Errorf("Adding an error request shoud result in an error")
+			t.Errorf("Adding an error request should result in an error")
 		}
 	}
 	c := colly.NewCollector(
