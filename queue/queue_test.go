@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestQueue(t *testing.T) {
 		put()
 		err := storage.AddRequest([]byte("error request"))
 		if err == nil {
-			t.Errorf("Adding an error request should result in an error")
+			t.Fail()
 		}
 	}
 	c := colly.NewCollector(
@@ -71,6 +72,33 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("wrong Queue implementation: "+
 			"items = %d, requests = %d, success = %d, failure = %d",
 			items, requests, success, failure)
+	}
+
+}
+
+func TestInMemoryQueueStorage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(serverHandler))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := &colly.Request{URL: u, Method: "GET"}
+
+	storage := &InMemoryQueueStorage{MaxSize: 100000}
+	_, err = New(10, storage)
+	if err != nil {
+		panic(err)
+	}
+
+	storage.AddRequestPointer(req)
+	req2, err := storage.GetRequestPointer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req != req2 {
+		t.Fail()
 	}
 }
 
