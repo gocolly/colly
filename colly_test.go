@@ -510,6 +510,41 @@ func TestCollectorURLRevisit(t *testing.T) {
 	}
 }
 
+func TestCollectorPostRevisit(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	postValue := "hello"
+	postData := map[string]string{
+		"name": postValue,
+	}
+	visitCount := 0
+
+	c := NewCollector()
+	c.OnResponse(func(r *Response) {
+		if postValue != string(r.Body) {
+			t.Error("Failed to send data with POST")
+		}
+		visitCount++
+	})
+
+	c.Post(ts.URL+"/login", postData)
+	c.Post(ts.URL+"/login", postData)
+
+	if visitCount != 1 {
+		t.Error("URL POST revisited")
+	}
+
+	c.AllowURLRevisit = true
+
+	c.Post(ts.URL+"/login", postData)
+	c.Post(ts.URL+"/login", postData)
+
+	if visitCount != 3 {
+		t.Error("URL POST not revisited")
+	}
+}
+
 func TestCollectorURLRevisitCheck(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
