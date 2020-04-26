@@ -16,7 +16,6 @@
 package colly
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -449,10 +448,13 @@ func (c *Collector) Visit(URL string) error {
 
 // HasVisited checks if the provided URL has been visited
 func (c *Collector) HasVisited(URL string) (bool, error) {
-	h := fnv.New64a()
-	h.Write([]byte(URL))
+	return c.checkHasVisited(URL, nil)
+}
 
-	return c.store.IsVisited(h.Sum64())
+// HasPosted checks if the provided URL and requestData has been visited
+// This method is useful more likely to prevent re-visit same URL and POST body
+func (c *Collector) HasPosted(URL string, requestData map[string]string) (bool, error) {
+	return c.checkHasVisited(URL, requestData)
 }
 
 // Head starts a collector job by creating a HEAD request.
@@ -719,7 +721,7 @@ func (c *Collector) requestCheck(u string, parsedURL *url.URL, method string, re
 		if method == "GET" {
 			uHash = h.Sum64()
 		} else if requestData != nil {
-			h.Write(bufio.NewScanner(requestData).Bytes())
+			h.Write(streamToByte(requestData))
 			uHash = h.Sum64()
 		} else {
 			return nil
@@ -1294,6 +1296,17 @@ func (c *Collector) parseSettingsFromEnv() {
 	}
 }
 
+func (c *Collector) checkHasVisited(URL string, requestData map[string]string) (bool, error) {
+	h := fnv.New64a()
+	h.Write([]byte(URL))
+
+	if requestData != nil {
+		h.Write(streamToByte(createFormReader(requestData)))
+	}
+
+	return c.store.IsVisited(h.Sum64())
+}
+
 // SanitizeFileName replaces dangerous characters in a string
 // so the return value can be used as a safe file name.
 func SanitizeFileName(fileName string) string {
@@ -1401,4 +1414,17 @@ func isMatchingFilter(fs []*regexp.Regexp, d []byte) bool {
 		}
 	}
 	return false
+}
+
+func streamToByte(r io.Reader) []byte {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r)
+
+	if strReader, k := r.(*strings.Reader); k {
+		strReader.Seek(0, 0)
+	} else if bReader, kb := r.(*bytes.Reader); kb {
+		bReader.Seek(0, 0)
+	}
+
+	return buf.Bytes()
 }

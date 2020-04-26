@@ -530,8 +530,12 @@ func TestCollectorPostRevisit(t *testing.T) {
 
 	c.Post(ts.URL+"/login", postData)
 	c.Post(ts.URL+"/login", postData)
+	c.Post(ts.URL+"/login", map[string]string{
+		"name":     postValue,
+		"lastname": "world",
+	})
 
-	if visitCount != 1 {
+	if visitCount != 2 {
 		t.Error("URL POST revisited")
 	}
 
@@ -540,7 +544,7 @@ func TestCollectorPostRevisit(t *testing.T) {
 	c.Post(ts.URL+"/login", postData)
 	c.Post(ts.URL+"/login", postData)
 
-	if visitCount != 3 {
+	if visitCount != 4 {
 		t.Error("URL POST not revisited")
 	}
 }
@@ -570,6 +574,63 @@ func TestCollectorURLRevisitCheck(t *testing.T) {
 	}
 
 	if visited != true {
+		t.Error("Expected URL to have been visited")
+	}
+}
+
+func TestCollectorPostURLRevisitCheck(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	postValue := "hello"
+	postData := map[string]string{
+		"name": postValue,
+	}
+
+	posted, err := c.HasPosted(ts.URL+"/login", postData)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if posted != false {
+		t.Error("Expected URL to NOT have been visited")
+	}
+
+	c.Post(ts.URL+"/login", postData)
+
+	posted, err = c.HasPosted(ts.URL+"/login", postData)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if posted != true {
+		t.Error("Expected URL to have been visited")
+	}
+
+	postData["lastname"] = "world"
+	posted, err = c.HasPosted(ts.URL+"/login", postData)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if posted != false {
+		t.Error("Expected URL to NOT have been visited")
+	}
+
+	c.Post(ts.URL+"/login", postData)
+
+	posted, err = c.HasPosted(ts.URL+"/login", postData)
+
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	if posted != true {
 		t.Error("Expected URL to have been visited")
 	}
 }
@@ -612,6 +673,56 @@ func TestCollectorPost(t *testing.T) {
 	c.Post(ts.URL+"/login", map[string]string{
 		"name": postValue,
 	})
+}
+
+func TestCollectorPostRaw(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	postValue := "hello"
+	c := NewCollector()
+
+	c.OnResponse(func(r *Response) {
+		if postValue != string(r.Body) {
+			t.Error("Failed to send data with POST")
+		}
+	})
+
+	c.PostRaw(ts.URL+"/login", []byte("name="+postValue))
+}
+
+func TestCollectorPostRawRevisit(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	postValue := "hello"
+	postData := "name=" + postValue
+	visitCount := 0
+
+	c := NewCollector()
+	c.OnResponse(func(r *Response) {
+		if postValue != string(r.Body) {
+			t.Error("Failed to send data with POST RAW")
+		}
+		visitCount++
+	})
+
+	c.PostRaw(ts.URL+"/login", []byte(postData))
+	c.PostRaw(ts.URL+"/login", []byte(postData))
+	c.PostRaw(ts.URL+"/login", []byte(postData+"&lastname=world"))
+
+	if visitCount != 2 {
+		t.Error("URL POST RAW revisited")
+	}
+
+	c.AllowURLRevisit = true
+
+	c.PostRaw(ts.URL+"/login", []byte(postData))
+	c.PostRaw(ts.URL+"/login", []byte(postData))
+
+	if visitCount != 4 {
+		t.Error("URL POST RAW not revisited")
+	}
 }
 
 func TestRedirect(t *testing.T) {
