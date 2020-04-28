@@ -23,6 +23,7 @@ func main() {
 	c := colly.NewCollector(
 		// Visit only domains: old.reddit.com
 		colly.AllowedDomains("old.reddit.com"),
+		// Parallelism
 		colly.Async(true),
 	)
 
