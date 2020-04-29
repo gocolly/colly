@@ -139,6 +139,21 @@ func newTestServer() *httptest.Server {
 		`))
 	})
 
+	mux.HandleFunc("/base_relative", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<!DOCTYPE html>
+<html>
+<head>
+<title>Test Page</title>
+<base href="/foobar/" />
+</head>
+<body>
+<a href="z">link</a>
+</body>
+</html>
+		`))
+	})
+
 	mux.HandleFunc("/large_binary", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		ww := bufio.NewWriter(w)
@@ -765,6 +780,31 @@ func TestBaseTag(t *testing.T) {
 		}
 	})
 	c2.Visit(ts.URL + "/base")
+}
+
+func TestBaseTagRelative(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.OnHTML("a[href]", func(e *HTMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		expected := ts.URL + "/foobar/z"
+		if u != expected {
+			t.Errorf("Invalid <base /> tag handling in OnHTML: expected %q, got %q", expected, u)
+		}
+	})
+	c.Visit(ts.URL + "/base_relative")
+
+	c2 := NewCollector()
+	c2.OnXML("//a", func(e *XMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		expected := ts.URL + "/foobar/z"
+		if u != expected {
+			t.Errorf("Invalid <base /> tag handling in OnXML: expected %q, got %q", expected, u)
+		}
+	})
+	c2.Visit(ts.URL + "/base_relative")
 }
 
 func TestCollectorCookies(t *testing.T) {
