@@ -73,6 +73,7 @@ Below is a list of public, open source projects that use Colly:
 -   [gamedb/gamedb](https://github.com/gamedb/gamedb) A database of Steam games.
 -   [lawzava/scrape](https://github.com/lawzava/scrape) CLI for email scraping from any website.
 -   [eureka101v/WeiboSpiderGo](https://github.com/eureka101v/WeiboSpiderGo) A sina weibo(chinese twitter) scrapper
+-   [Go-phie/gophie](https://github.com/Go-phie/gophie) Search, Download and Stream movies from your terminal
 -   [imthaghost/goclone](https://github.com/imthaghost/goclone) Clone websites to your computer within seconds.
 
 If you are using Colly in a project please send a pull request to add it to the list.
