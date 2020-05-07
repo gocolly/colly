@@ -18,7 +18,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-	"sync"
+	"sync/atomic"
 
 	"github.com/gocolly/colly/v2"
 )
@@ -26,14 +26,12 @@ import (
 type roundRobinSwitcher struct {
 	proxyURLs []*url.URL
 	index     uint32
-	mutex     sync.Mutex
 }
 
 func (r *roundRobinSwitcher) GetProxy(pr *http.Request) (*url.URL, error) {
-	r.mutex.Lock()
-	u := r.proxyURLs[r.index%uint32(len(r.proxyURLs))]
-	r.index = r.index + 1
-	r.mutex.Unlock()
+	index := atomic.AddUint32(&r.index, 1) - 1
+	u := r.proxyURL[index%uint32(len(r.proxyURLs))]
+	
 	ctx := context.WithValue(pr.Context(), colly.ProxyURLKey, u.String())
 	*pr = *pr.WithContext(ctx)
 	return u, nil
@@ -57,5 +55,5 @@ func RoundRobinProxySwitcher(ProxyURLs ...string) (colly.ProxyFunc, error) {
 		urls[i] = parsedU
 	}
 	var mutex sync.Mutex
-	return (&roundRobinSwitcher{urls, 0, mutex}).GetProxy, nil
+	return (&roundRobinSwitcher{urls, 0}).GetProxy, nil
 }
