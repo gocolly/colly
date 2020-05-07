@@ -54,6 +54,5 @@ func RoundRobinProxySwitcher(ProxyURLs ...string) (colly.ProxyFunc, error) {
 		}
 		urls[i] = parsedU
 	}
-	var mutex sync.Mutex
 	return (&roundRobinSwitcher{urls, 0}).GetProxy, nil
 }
