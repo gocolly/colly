@@ -30,8 +30,8 @@ type roundRobinSwitcher struct {
 
 func (r *roundRobinSwitcher) GetProxy(pr *http.Request) (*url.URL, error) {
 	index := atomic.AddUint32(&r.index, 1) - 1
-	u := r.proxyURL[index%uint32(len(r.proxyURLs))]
-	
+	u := r.proxyURLs[index%uint32(len(r.proxyURLs))]
+
 	ctx := context.WithValue(pr.Context(), colly.ProxyURLKey, u.String())
 	*pr = *pr.WithContext(ctx)
 	return u, nil
