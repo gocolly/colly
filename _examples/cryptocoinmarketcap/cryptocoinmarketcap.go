@@ -20,21 +20,22 @@ func main() {
 	defer writer.Flush()
 
 	// Write CSV header
-	writer.Write([]string{"Name", "Symbol", "Price (USD)", "Volume (USD)", "Market capacity (USD)", "Change (1h)", "Change (24h)", "Change (7d)"})
+	writer.Write([]string{"Name", "Symbol", "Market Cap (USD)", "Price (USD)", "Circulating Supply (USD)", "Volume (24h)", "Change (1h)", "Change (24h)", "Change (7d)"})
 
 	// Instantiate default collector
 	c := colly.NewCollector()
 
-	c.OnHTML("#currencies-all tbody tr", func(e *colly.HTMLElement) {
+	c.OnHTML("tbody tr", func(e *colly.HTMLElement) {
 		writer.Write([]string{
-			e.ChildText(".currency-name-container"),
-			e.ChildText(".col-symbol"),
-			e.ChildAttr("a.price", "data-usd"),
-			e.ChildAttr("a.volume", "data-usd"),
-			e.ChildAttr(".market-cap", "data-usd"),
-			e.ChildAttr(".percent-change[data-timespan=\"1h\"]", "data-percentusd"),
-			e.ChildAttr(".percent-change[data-timespan=\"24h\"]", "data-percentusd"),
-			e.ChildAttr(".percent-change[data-timespan=\"7d\"]", "data-percentusd"),
+			e.ChildText(".cmc-table__column-name"),
+			e.ChildText(".cmc-table__cell--sort-by__symbol"),
+			e.ChildText(".cmc-table__cell--sort-by__market-cap"),
+			e.ChildText(".cmc-table__cell--sort-by__price"),
+			e.ChildText(".cmc-table__cell--sort-by__circulating-supply"),
+			e.ChildText(".cmc-table__cell--sort-by__volume-24-h"),
+			e.ChildText(".cmc-table__cell--sort-by__percent-change-1-h"),
+			e.ChildText(".cmc-table__cell--sort-by__percent-change-24-h"),
+			e.ChildText(".cmc-table__cell--sort-by__percent-change-7-d"),
 		})
 	})
 
