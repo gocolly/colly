@@ -21,6 +21,8 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -33,13 +35,50 @@ import (
 	"github.com/gobwas/glob"
 )
 
+// HTTPDriver is an interface to allow multiple backend to perform HTTP.
+// The default HTTPDriver of the Collector is the HttpBackend.
+// Collector's HTTPDriver can be changed by calling Collector.SetHTTPDriver()
+// function.
+type HTTPDriver interface {
+	//GetMatchingRule returns the LimitRule for a given domain
+	GetMatchingRule(domain string) *LimitRule
+	// Cache caches the
+	Cache(request *http.Request, bodySize int, checkHeadersFunc CheckHeadersFunc, cacheDir string) (*Response, error)
+	// Do processes the http.Request
+	Do(request *http.Request, bodySize int, checkHeadersFunc CheckHeadersFunc) (*Response, error)
+	// Limit adds a LimitRule
+	Limit(rule *LimitRule) error
+	// Limits adds multiple LimitRules
+	Limits(rules []*LimitRule) error
+	// Jar sets the cookie jar
+	Jar(j http.CookieJar)
+	// GetJar returns the current cookie jar
+	GetJar() http.CookieJar
+	// Transport sets the http.RoundTripper
+	Transport(t http.RoundTripper)
+	// Timeout sets the timeout duration
+	Timeout(t time.Duration)
+	// GetTimeout gets the timeout duration
+	GetTimeout() time.Duration
+	// Proxy set the ProxyFunc
+	Proxy(pf ProxyFunc)
+	// SetCookies sets cookies for a specific URL
+	SetCookies(url *url.URL, cookies []*http.Cookie) error
+	// Cookies get the cookies for a specific URL
+	Cookies(url *url.URL) []*http.Cookie
+	// CheckRedirect set the redirect function
+	CheckRedirect(func(req *http.Request, via []*http.Request) error)
+	// SetClient will override the previously set http.Client
+	SetClient(client *http.Client)
+}
+
 type httpBackend struct {
 	LimitRules []*LimitRule
 	Client     *http.Client
 	lock       *sync.RWMutex
 }
 
-type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
+type CheckHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
 
 // LimitRule provides connection restrictions for domains.
 // Both DomainRegexp and DomainGlob can be used to specify
@@ -58,9 +97,22 @@ type LimitRule struct {
 	RandomDelay time.Duration
 	// Parallelism is the number of the maximum allowed concurrent requests of the matching domains
 	Parallelism    int
-	waitChan       chan bool
+	WaitChan       chan bool
 	compiledRegexp *regexp.Regexp
 	compiledGlob   glob.Glob
+}
+
+func NewHttpBackend() *httpBackend {
+	rand.Seed(time.Now().UnixNano())
+	jar, _ := cookiejar.New(nil)
+
+	return &httpBackend{
+		Client: &http.Client{
+			Timeout: 10 * time.Second,
+			Jar:     jar,
+		},
+		lock: &sync.RWMutex{},
+	}
 }
 
 // Init initializes the private members of LimitRule
@@ -69,7 +121,7 @@ func (r *LimitRule) Init() error {
 	if r.Parallelism > 1 {
 		waitChanSize = r.Parallelism
 	}
-	r.waitChan = make(chan bool, waitChanSize)
+	r.WaitChan = make(chan bool, waitChanSize)
 	hasPattern := false
 	if r.DomainRegexp != "" {
 		c, err := regexp.Compile(r.DomainRegexp)
@@ -91,15 +143,6 @@ func (r *LimitRule) Init() error {
 		return ErrNoPattern
 	}
 	return nil
-}
-
-func (h *httpBackend) Init(jar http.CookieJar) {
-	rand.Seed(time.Now().UnixNano())
-	h.Client = &http.Client{
-		Jar:     jar,
-		Timeout: 10 * time.Second,
-	}
-	h.lock = &sync.RWMutex{}
 }
 
 // Match checks that the domain parameter triggers the rule
@@ -128,7 +171,7 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
+func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc CheckHeadersFunc, cacheDir string) (*Response, error) {
 	if cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache" {
 		return h.Do(request, bodySize, checkHeadersFunc)
 	}
@@ -166,17 +209,17 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 	return resp, os.Rename(filename+"~", filename)
 }
 
-func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error) {
+func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc CheckHeadersFunc) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
-		r.waitChan <- true
+		r.WaitChan <- true
 		defer func(r *LimitRule) {
 			randomDelay := time.Duration(0)
 			if r.RandomDelay != 0 {
 				randomDelay = time.Duration(rand.Int63n(int64(r.RandomDelay)))
 			}
 			time.Sleep(r.Delay + randomDelay)
-			<-r.waitChan
+			<-r.WaitChan
 		}(r)
 	}
 
@@ -236,4 +279,61 @@ func (h *httpBackend) Limits(rules []*LimitRule) error {
 		}
 	}
 	return nil
+}
+
+func (h *httpBackend) SetClient(client *http.Client) {
+	h.Client = client
+}
+
+func (h *httpBackend) Jar(j http.CookieJar) {
+	h.Client.Jar = j
+}
+
+func (h *httpBackend) GetJar() http.CookieJar {
+	return h.Client.Jar
+}
+
+func (h *httpBackend) Transport(t http.RoundTripper) {
+	h.Client.Transport = t
+}
+
+func (h *httpBackend) Timeout(t time.Duration) {
+	h.Client.Timeout = t
+}
+
+func (h *httpBackend) GetTimeout() time.Duration {
+	return h.Client.Timeout
+}
+
+func (h *httpBackend) Proxy(pf ProxyFunc) {
+	t, ok := h.Client.Transport.(*http.Transport)
+	if h.Client.Transport != nil && ok {
+		t.Proxy = pf
+		t.DisableKeepAlives = true
+	} else {
+		h.Client.Transport = &http.Transport{
+			Proxy:             pf,
+			DisableKeepAlives: true,
+		}
+	}
+}
+
+func (h *httpBackend) SetCookies(url *url.URL, cookies []*http.Cookie) error {
+	if h.Client.Jar == nil {
+		return ErrNoCookieJar
+	}
+	h.Client.Jar.SetCookies(url, cookies)
+	return nil
+}
+
+func (h *httpBackend) Cookies(url *url.URL) []*http.Cookie {
+	if h.Client.Jar == nil {
+		return nil
+	}
+
+	return h.Client.Jar.Cookies(url)
+}
+
+func (h *httpBackend) CheckRedirect(f func(req *http.Request, via []*http.Request) error) {
+	h.Client.CheckRedirect = f
 }
