@@ -7,6 +7,8 @@ require (
 	github.com/antchfx/htmlquery v1.0.0
 	github.com/antchfx/xmlquery v1.0.0
 	github.com/antchfx/xpath v1.0.0 // indirect
+	github.com/chromedp/cdproto v0.0.0-20200424080200-0de008e41fa0
+	github.com/chromedp/chromedp v0.5.3
 	github.com/gobwas/glob v0.2.3
 	github.com/jawher/mow.cli v1.1.0
 	github.com/kennygrant/sanitize v1.2.4
