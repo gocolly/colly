@@ -52,7 +52,7 @@ type Request struct {
 	ProxyURL string
 }
 
-type serializableRequest struct {
+type SerializableRequest struct {
 	URL     string
 	Method  string
 	Body    []byte
@@ -151,6 +151,16 @@ func (r *Request) Do() error {
 
 // Marshal serializes the Request
 func (r *Request) Marshal() ([]byte, error) {
+	sr, err := r.ToSerializableRequest()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(sr)
+}
+
+func (r *Request) ToSerializableRequest() (*SerializableRequest, error) {
 	ctx := make(map[string]interface{})
 	if r.Ctx != nil {
 		r.Ctx.ForEach(func(k string, v interface{}) interface{} {
@@ -158,6 +168,7 @@ func (r *Request) Marshal() ([]byte, error) {
 			return nil
 		})
 	}
+
 	var err error
 	var body []byte
 	if r.Body != nil {
@@ -166,7 +177,8 @@ func (r *Request) Marshal() ([]byte, error) {
 			return nil, err
 		}
 	}
-	sr := &serializableRequest{
+
+	sr := &SerializableRequest{
 		URL:    r.URL.String(),
 		Method: r.Method,
 		Body:   body,
@@ -176,7 +188,8 @@ func (r *Request) Marshal() ([]byte, error) {
 	if r.Headers != nil {
 		sr.Headers = *r.Headers
 	}
-	return json.Marshal(sr)
+
+	return sr, nil
 }
 
 // HasVisited checks to see if the URL has been visited before.
