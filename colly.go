@@ -499,12 +499,16 @@ func generateURLHash(URL string) uint64 {
 
 // UnmarshalRequest creates a Request from serialized data
 func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
-	req := &serializableRequest{}
+	req := &SerializableRequest{}
 	err := json.Unmarshal(r, req)
 	if err != nil {
 		return nil, err
 	}
 
+	return c.LoadFromSerializableRequest(req)
+}
+
+func (c *Collector) LoadFromSerializableRequest(req *SerializableRequest) (*Request, error) {
 	u, err := url.Parse(req.URL)
 	if err != nil {
 		return nil, err
