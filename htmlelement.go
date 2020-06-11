@@ -62,6 +62,16 @@ func (h *HTMLElement) Attr(k string) string {
 	return ""
 }
 
+// return true if found, false otherwise
+func (h *HTMLElement) AttrExists(k string) bool {
+	for _, a := range h.attributes {
+		if a.Key == k {
+			return true
+		}
+	}
+	return false
+}
+
 // ChildText returns the concatenated and stripped text content of the matching
 // elements.
 func (h *HTMLElement) ChildText(goquerySelector string) string {
