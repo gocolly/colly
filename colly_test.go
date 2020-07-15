@@ -1094,7 +1094,7 @@ func TestCollectorDepth(t *testing.T) {
 	)
 	requestCount := 0
 	c1.OnResponse(func(resp *Response) {
-		requestCount += 1
+		requestCount++
 		if requestCount >= 10 {
 			return
 		}
@@ -1108,7 +1108,7 @@ func TestCollectorDepth(t *testing.T) {
 	c2 := c1.Clone()
 	requestCount = 0
 	c2.OnResponse(func(resp *Response) {
-		requestCount += 1
+		requestCount++
 		resp.Request.Visit(ts.URL)
 	})
 	c2.Visit(ts.URL)
