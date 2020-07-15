@@ -1084,6 +1084,50 @@ func TestCollectorVisitWithCheckHead(t *testing.T) {
 	}
 }
 
+func TestCollectorDepth(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+	maxDepth := 2
+	c1 := NewCollector(
+		MaxDepth(maxDepth),
+		AllowURLRevisit(),
+	)
+	requestCount := 0
+	c1.OnResponse(func(resp *Response) {
+		requestCount += 1
+		if requestCount >= 10 {
+			return
+		}
+		c1.Visit(ts.URL)
+	})
+	c1.Visit(ts.URL)
+	if requestCount < 10 {
+		t.Errorf("Invalid number of requests: %d (expected 10) without using MaxDepth", requestCount)
+	}
+
+	c2 := c1.Clone()
+	requestCount = 0
+	c2.OnResponse(func(resp *Response) {
+		requestCount += 1
+		resp.Request.Visit(ts.URL)
+	})
+	c2.Visit(ts.URL)
+	if requestCount != 2 {
+		t.Errorf("Invalid number of requests: %d (expected 2) with using MaxDepth 2", requestCount)
+	}
+
+	c1.Visit(ts.URL)
+	if requestCount < 10 {
+		t.Errorf("Invalid number of requests: %d (expected 10) without using MaxDepth again", requestCount)
+	}
+
+	requestCount = 0
+	c2.Visit(ts.URL)
+	if requestCount != 2 {
+		t.Errorf("Invalid number of requests: %d (expected 2) with using MaxDepth 2 again", requestCount)
+	}
+}
+
 func BenchmarkOnHTML(b *testing.B) {
 	ts := newTestServer()
 	defer ts.Close()
