@@ -83,6 +83,7 @@ Below is a list of public, open source projects that use Colly:
 -   [eureka101v/WeiboSpiderGo](https://github.com/eureka101v/WeiboSpiderGo) A sina weibo(chinese twitter) scrapper
 -   [Go-phie/gophie](https://github.com/Go-phie/gophie) Search, Download and Stream movies from your terminal
 -   [imthaghost/goclone](https://github.com/imthaghost/goclone) Clone websites to your computer within seconds.
+-   [superiss/spidy](https://github.com/superiss/spidy) Crwal the web and collect expired domains.
 
 If you are using Colly in a project please send a pull request to add it to the list.
 
