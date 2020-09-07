@@ -42,7 +42,7 @@ func main() {
 		if !strings.HasPrefix(link, "/courses/") {
 			return
 		}
-		// start scaping the page under the link found
+		// start scraping the page under the link found
 		e.Request.Visit(link)
 	})
 
