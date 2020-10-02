@@ -84,6 +84,9 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		return nil
 	}
 
+	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
+		return nil
+	}
 	if !strings.Contains(contentType, "charset") {
 		if !detectCharset {
 			return nil
@@ -94,9 +97,6 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 			return err
 		}
 		contentType = "text/plain; charset=" + r.Charset
-	}
-	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
-		return nil
 	}
 	tmpBody, err := encodeBytes(r.Body, contentType)
 	if err != nil {
