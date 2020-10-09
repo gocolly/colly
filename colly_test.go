@@ -17,6 +17,7 @@ package colly
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -26,6 +27,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 
@@ -162,6 +164,31 @@ func newTestServer() *httptest.Server {
 			// have to check error to detect client aborting download
 			if _, err := ww.Write([]byte{0x41}); err != nil {
 				return
+			}
+		}
+	})
+
+	mux.HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
+		i := 0
+
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case t := <-ticker.C:
+				fmt.Fprintf(w, "%s\n", t)
+				if flusher, ok := w.(http.Flusher); ok {
+					flusher.Flush()
+				}
+				i++
+				if i == 10 {
+					return
+				}
 			}
 		}
 	})
@@ -1126,6 +1153,43 @@ func TestCollectorDepth(t *testing.T) {
 	if requestCount != 2 {
 		t.Errorf("Invalid number of requests: %d (expected 2) with using MaxDepth 2 again", requestCount)
 	}
+}
+
+func TestCollectorContext(t *testing.T) {
+	// "/slow" takes 1 second to return the response.
+	// If context does abort the transfer after 0.5 seconds as it should,
+	// OnError will be called, and the test is passed. Otherwise, test is failed.
+
+	ts := newTestServer()
+	defer ts.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	c := NewCollector(StdlibContext(ctx))
+
+	onErrorCalled := false
+
+	c.OnResponse(func(resp *Response) {
+		t.Error("OnResponse was called, expected OnError")
+	})
+
+	c.OnError(func(resp *Response, err error) {
+		onErrorCalled = true
+		if err != context.DeadlineExceeded {
+			t.Errorf("OnError got err=%#v, expected context.DeadlineExceeded", err)
+		}
+	})
+
+	err := c.Visit(ts.URL + "/slow")
+	if err != context.DeadlineExceeded {
+		t.Errorf("Visit return err=%#v, expected context.DeadlineExceeded", err)
+	}
+
+	if !onErrorCalled {
+		t.Error("OnError was not called")
+	}
+
 }
 
 func BenchmarkOnHTML(b *testing.B) {

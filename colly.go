@@ -109,7 +109,11 @@ type Collector struct {
 	CheckHead bool
 	// TraceHTTP enables capturing and reporting request performance for crawler tuning.
 	// When set to true, the Response.Trace will be filled in with an HTTPTrace object.
-	TraceHTTP                bool
+	TraceHTTP bool
+	// Context is the context that will be used for HTTP requests. You can set this
+	// to support clean cancellation of scraping.
+	Context context.Context
+
 	store                    storage.Storage
 	debugger                 debug.Debugger
 	robotsMap                map[string]*robotstxt.RobotsData
@@ -357,6 +361,14 @@ func TraceHTTP() CollectorOption {
 	}
 }
 
+// StdlibContext sets the context that will be used for HTTP requests.
+// You can set this to support clean cancellation of scraping.
+func StdlibContext(ctx context.Context) CollectorOption {
+	return func(c *Collector) {
+		c.Context = ctx
+	}
+}
+
 // ID sets the unique identifier of the Collector.
 func ID(id uint32) CollectorOption {
 	return func(c *Collector) {
@@ -412,6 +424,7 @@ func (c *Collector) Init() {
 	c.IgnoreRobotsTxt = true
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
+	c.Context = context.Background()
 }
 
 // Appengine will replace the Collector's backend http.Client
@@ -567,6 +580,9 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		Body:       rc,
 		Host:       host,
 	}
+	// note: once 1.13 is minimum supported Go version,
+	// replace this with http.NewRequestWithContext
+	req = req.WithContext(c.Context)
 	setRequestBody(req, requestData)
 	u = parsedURL.String()
 	c.wg.Add(1)
@@ -1239,6 +1255,7 @@ func (c *Collector) Clone() *Collector {
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
 		TraceHTTP:              c.TraceHTTP,
+		Context:                c.Context,
 		store:                  c.store,
 		backend:                c.backend,
 		debugger:               c.debugger,
