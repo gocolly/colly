@@ -1057,7 +1057,10 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 		return err
 	}
 	if href, found := doc.Find("base[href]").Attr("href"); found {
-		resp.Request.baseURL, _ = resp.Request.URL.Parse(href)
+		baseURL, err := resp.Request.URL.Parse(href)
+		if err == nil {
+			resp.Request.baseURL = baseURL
+		}
 	}
 	for _, cc := range c.htmlCallbacks {
 		i := 0
@@ -1096,7 +1099,10 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		if e := htmlquery.FindOne(doc, "//base"); e != nil {
 			for _, a := range e.Attr {
 				if a.Key == "href" {
-					resp.Request.baseURL, _ = resp.Request.URL.Parse(a.Val)
+					baseURL, err := resp.Request.URL.Parse(a.Val)
+					if err == nil {
+						resp.Request.baseURL = baseURL
+					}
 					break
 				}
 			}
