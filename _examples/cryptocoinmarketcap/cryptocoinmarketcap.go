@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/gocolly/colly/v2"
+	"github.com/gocolly/colly"
 )
 
 func main() {
@@ -20,17 +20,17 @@ func main() {
 	defer writer.Flush()
 
 	// Write CSV header
-	writer.Write([]string{"Name", "Symbol", "Market Cap (USD)", "Price (USD)", "Circulating Supply (USD)", "Volume (24h)", "Change (1h)", "Change (24h)", "Change (7d)"})
+	writer.Write([]string{"Name", "Symbol","Market Cap", "Price (USD)", "Circulating Supply", "Volume (24h)	", "Change (1h)", "Change (24h)", "Change (7d)"})
 
 	// Instantiate default collector
 	c := colly.NewCollector()
 
-	c.OnHTML("tbody tr", func(e *colly.HTMLElement) {
+	c.OnHTML(".cmc-table__table-wrapper-outer tbody tr", func(e *colly.HTMLElement) {
 		writer.Write([]string{
 			e.ChildText(".cmc-table__column-name"),
 			e.ChildText(".cmc-table__cell--sort-by__symbol"),
-			e.ChildText(".cmc-table__cell--sort-by__market-cap"),
-			e.ChildText(".cmc-table__cell--sort-by__price"),
+			e.ChildText(".Text-sc-1eb5slv-0"), //Market Cap	
+			e.ChildText(".price___3rj7O "),
 			e.ChildText(".cmc-table__cell--sort-by__circulating-supply"),
 			e.ChildText(".cmc-table__cell--sort-by__volume-24-h"),
 			e.ChildText(".cmc-table__cell--sort-by__percent-change-1-h"),
