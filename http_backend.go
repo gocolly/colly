@@ -40,7 +40,7 @@ type httpBackend struct {
 	lock       *sync.RWMutex
 }
 
-type checkHeadersFunc func(statusCode int, header http.Header) bool
+type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
 
 // LimitRule provides connection restrictions for domains.
 // Both DomainRegexp and DomainGlob can be used to specify
@@ -188,7 +188,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 	if res.Request != nil {
 		*request = *res.Request
 	}
-	if !checkHeadersFunc(res.StatusCode, res.Header) {
+	if !checkHeadersFunc(request, res.StatusCode, res.Header) {
 		// closing res.Body (see defer above) without reading it aborts
 		// the download
 		return nil, ErrAbortedAfterHeaders

@@ -660,22 +660,21 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		hTrace = &HTTPTrace{}
 		req = hTrace.WithTrace(req)
 	}
-	checkHeadersFunc := func(statusCode int, headers http.Header) bool {
+	origURL := req.URL
+	checkHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
+		if req.URL != origURL {
+			request.URL = req.URL
+			request.Headers = &req.Header
+		}
 		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
 		return !request.abort
 	}
-
-	origURL := req.URL
 	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
-	}
-	if req.URL != origURL {
-		request.URL = req.URL
-		request.Headers = &req.Header
 	}
 	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx
