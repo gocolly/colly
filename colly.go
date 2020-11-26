@@ -665,8 +665,20 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		return !request.abort
 	}
 
+	var response *Response
+	var err error
+	defer func() {
+		if response != nil {
+			response.Body = []byte{}
+			response.Headers = nil
+			response.Request = nil
+			response.Ctx = nil
+			response.Trace = nil
+			responsePool.Put(response)
+		}
+	}()
 	origURL := req.URL
-	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
+	response, err = c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}
