@@ -40,6 +40,10 @@ type httpBackend struct {
 	lock       *sync.RWMutex
 }
 
+var responsePool = sync.Pool{New: func() interface{} {
+	return &Response{}
+}}
+
 type checkHeadersFunc func(statusCode int, header http.Header) bool
 
 // LimitRule provides connection restrictions for domains.
@@ -210,11 +214,11 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 	if err != nil {
 		return nil, err
 	}
-	return &Response{
-		StatusCode: res.StatusCode,
-		Body:       body,
-		Headers:    &res.Header,
-	}, nil
+	response := responsePool.Get().(*Response)
+	response.StatusCode = res.StatusCode
+	response.Body = body
+	response.Headers = &res.Header
+	return response, nil
 }
 
 func (h *httpBackend) Limit(rule *LimitRule) error {
