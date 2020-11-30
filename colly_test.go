@@ -778,9 +778,16 @@ func TestRedirect(t *testing.T) {
 			t.Error("Invalid URL after redirect: " + u)
 		}
 	})
+
+	c.OnResponseHeaders(func(r *Response) {
+		if !strings.HasSuffix(r.Request.URL.String(), "/redirected/") {
+			t.Error("Invalid URL in Request after redirect (OnResponseHeaders): " + r.Request.URL.String())
+		}
+	})
+
 	c.OnResponse(func(r *Response) {
 		if !strings.HasSuffix(r.Request.URL.String(), "/redirected/") {
-			t.Error("Invalid URL in Request after redirect: " + r.Request.URL.String())
+			t.Error("Invalid URL in Request after redirect (OnResponse): " + r.Request.URL.String())
 		}
 	})
 	c.Visit(ts.URL + "/redirect")
