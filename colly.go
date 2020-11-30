@@ -813,8 +813,8 @@ func (c *Collector) checkRobots(u *url.URL) error {
 func (c *Collector) String() string {
 	return fmt.Sprintf(
 		"Requests made: %d (%d responses) | Callbacks: OnRequest: %d, OnHTML: %d, OnResponse: %d, OnError: %d",
-		c.requestCount,
-		c.responseCount,
+		atomic.LoadUint32(&c.requestCount),
+		atomic.LoadUint32(&c.responseCount),
 		len(c.requestCallbacks),
 		len(c.htmlCallbacks),
 		len(c.responseCallbacks),
