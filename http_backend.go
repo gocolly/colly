@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -34,7 +35,49 @@ import (
 	"github.com/gobwas/glob"
 )
 
-type httpBackend struct {
+// HTTPBackend defines a generic backend interface for backends that can be used by Colly to perform HTTP requests.
+type HTTPBackend interface {
+	// Init initializes the HTTPBackend instance
+	Init(jar http.CookieJar)
+	// GetMatchingRule returns the LimitRule for a given domain
+	GetMatchingRule(domain string) *LimitRule
+	// Cache caches an http.Request
+	Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error)
+	// Do exectues an http.Request
+	Do(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error)
+	// Get executes a GET request for the supplied URL
+	Get(url string) (resp *http.Response, err error)
+	// Limit adds a LimitRule
+	Limit(rule *LimitRule) error
+	// Limits adds multiple LimitRules
+	Limits(rules []*LimitRule) error
+
+	// Timeout sets the time limit for requests made by this backend
+	SetTimeout(t time.Duration)
+	// GetTimeout returns the time limit used for requests made by this backend
+	GetTimeout() time.Duration
+	// GetJar returns the cookie jar used by this backend
+	GetJar() http.CookieJar
+	// SetCookies sets cookies for a specific URL
+	SetCookies(url *url.URL, cookies []*http.Cookie) error
+	// Cookies get the cookies for a specific URL
+	GetCookies(url *url.URL) []*http.Cookie
+	// Jar sets the cookie jar used by this backend
+	SetJar(j http.CookieJar)
+	// Transport sets the underlying transport to use with this backend
+	SetTransport(t http.RoundTripper)
+	// CheckRedirect sets the policy for handling redirects
+	SetCheckRedirect(func(req *http.Request, via []*http.Request) error)
+	// GetCheckRediret returns the policy for handling redirects
+	GetCheckRedirect() func(req *http.Request, via []*http.Request) error
+	// SetProxy sets the proxy function used to rotate between proxy URLs on each request
+	SetProxy(pf ProxyFunc)
+	// SetClient overrides the previously set http.Client for backends that use it, or returns an error for backends that don't
+	SetClient(client *http.Client) error
+}
+
+// httpClientBackend implements the HTTPBackend interface for a backend wrapping an http.Client instance
+type httpClientBackend struct {
 	LimitRules []*LimitRule
 	Client     *http.Client
 	lock       *sync.RWMutex
@@ -94,15 +137,6 @@ func (r *LimitRule) Init() error {
 	return nil
 }
 
-func (h *httpBackend) Init(jar http.CookieJar) {
-	rand.Seed(time.Now().UnixNano())
-	h.Client = &http.Client{
-		Jar:     jar,
-		Timeout: 10 * time.Second,
-	}
-	h.lock = &sync.RWMutex{}
-}
-
 // Match checks that the domain parameter triggers the rule
 func (r *LimitRule) Match(domain string) bool {
 	match := false
@@ -115,7 +149,16 @@ func (r *LimitRule) Match(domain string) bool {
 	return match
 }
 
-func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
+func (h *httpClientBackend) Init(jar http.CookieJar) {
+	rand.Seed(time.Now().UnixNano())
+	h.Client = &http.Client{
+		Jar:     jar,
+		Timeout: 10 * time.Second,
+	}
+	h.lock = &sync.RWMutex{}
+}
+
+func (h *httpClientBackend) GetMatchingRule(domain string) *LimitRule {
 	if h.LimitRules == nil {
 		return nil
 	}
@@ -129,7 +172,7 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
+func (h *httpClientBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
 	if cacheDir == "" || request.Method != "GET" {
 		return h.Do(request, bodySize, checkHeadersFunc)
 	}
@@ -166,7 +209,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 	return resp, os.Rename(filename+"~", filename)
 }
 
-func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error) {
+func (h *httpClientBackend) Do(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
 		r.waitChan <- true
@@ -217,7 +260,11 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 	}, nil
 }
 
-func (h *httpBackend) Limit(rule *LimitRule) error {
+func (h *httpClientBackend) Get(url string) (resp *http.Response, err error) {
+	return h.Client.Get(url)
+}
+
+func (h *httpClientBackend) Limit(rule *LimitRule) error {
 	h.lock.Lock()
 	if h.LimitRules == nil {
 		h.LimitRules = make([]*LimitRule, 0, 8)
@@ -227,11 +274,71 @@ func (h *httpBackend) Limit(rule *LimitRule) error {
 	return rule.Init()
 }
 
-func (h *httpBackend) Limits(rules []*LimitRule) error {
+func (h *httpClientBackend) Limits(rules []*LimitRule) error {
 	for _, r := range rules {
 		if err := h.Limit(r); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func (h *httpClientBackend) SetTimeout(t time.Duration) {
+	h.Client.Timeout = t
+}
+
+func (h *httpClientBackend) GetTimeout() time.Duration {
+	return h.Client.Timeout
+}
+
+func (h *httpClientBackend) GetJar() http.CookieJar {
+	return h.Client.Jar
+}
+
+func (h *httpClientBackend) SetJar(j http.CookieJar) {
+	h.Client.Jar = j
+}
+
+func (h *httpClientBackend) SetCookies(url *url.URL, cookies []*http.Cookie) error {
+	if h.Client.Jar == nil {
+		return ErrNoCookieJar
+	}
+	h.Client.Jar.SetCookies(url, cookies)
+	return nil
+}
+
+func (h *httpClientBackend) GetCookies(url *url.URL) []*http.Cookie {
+	if h.Client.Jar == nil {
+		return nil
+	}
+
+	return h.Client.Jar.Cookies(url)
+}
+
+func (h *httpClientBackend) SetTransport(t http.RoundTripper) {
+	h.Client.Transport = t
+}
+
+func (h *httpClientBackend) SetCheckRedirect(f func(req *http.Request, via []*http.Request) error) {
+	h.Client.CheckRedirect = f
+}
+
+func (h *httpClientBackend) GetCheckRedirect() func(req *http.Request, via []*http.Request) error {
+	return h.Client.CheckRedirect
+}
+
+func (h *httpClientBackend) SetProxy(pf ProxyFunc) {
+	t, ok := h.Client.Transport.(*http.Transport)
+	if h.Client.Transport != nil && ok {
+		t.Proxy = pf
+	} else {
+		h.Client.Transport = &http.Transport{
+			Proxy: pf,
+		}
+	}
+}
+
+func (h *httpClientBackend) SetClient(client *http.Client) error {
+	h.Client = client
 	return nil
 }
