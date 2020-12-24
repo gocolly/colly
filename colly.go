@@ -822,6 +822,16 @@ func (c *Collector) String() string {
 	)
 }
 
+// RequestCount return number of requests made
+func (c *Collector) RequestCount() uint32 {
+	return atomic.LoadUint32(&c.requestCount)
+}
+
+// ResponseCount return number of handled responses
+func (c *Collector) ResponseCount() uint32 {
+	return atomic.LoadUint32(&c.responseCount)
+}
+
 // Wait returns when the collector jobs are finished
 func (c *Collector) Wait() {
 	c.wg.Wait()
