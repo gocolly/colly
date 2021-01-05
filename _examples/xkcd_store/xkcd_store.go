@@ -33,7 +33,7 @@ func main() {
 			e.ChildAttr("a", "title"),
 			e.ChildText("span"),
 			e.Request.AbsoluteURL(e.ChildAttr("a", "href")),
-			"https" + e.ChildAttr("img", "src"),
+			"https:" + e.ChildAttr("img", "src"),
 		})
 	})
 
