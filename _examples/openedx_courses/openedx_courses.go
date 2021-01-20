@@ -10,7 +10,7 @@ import (
 )
 
 // DATE_FORMAT default format date used in openedx
-const DATE_FORMAT = "Jan 02, 2006"
+const DATE_FORMAT = "02 Jan, 2006"
 
 // Course store openedx course data
 type Course struct {
@@ -46,14 +46,15 @@ func main() {
 		e.Request.Visit(link)
 	})
 
-	c.OnHTML("div[class=content-wrapper]", func(e *colly.HTMLElement) {
-		if e.DOM.Find("section.course-info").Length() == 0 {
+	c.OnHTML("div[class=main-container]", func(e *colly.HTMLElement) {
+		if e.DOM.Find("section#course-info").Length() == 0 {
 			return
 		}
-		title := strings.Split(e.ChildText(".course-title"), "\n")[0]
+		title := strings.Split(e.ChildText(".course-info__title"), "\n")[0]
 		course_id := e.ChildAttr("input[name=course_id]", "value")
-		start_date, _ := time.Parse(DATE_FORMAT, e.ChildText("span.start-date"))
-		end_date, _ := time.Parse(DATE_FORMAT, e.ChildText("span.final-date"))
+		texts := e.ChildTexts("span[data-datetime]")
+		start_date, _ := time.Parse(DATE_FORMAT, texts[0])
+		end_date, _ := time.Parse(DATE_FORMAT, texts[1])
 		var run string
 		if len(strings.Split(course_id, "_")) > 1 {
 			run = strings.Split(course_id, "_")[1]
