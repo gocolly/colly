@@ -76,12 +76,12 @@ func RoundRobinProxySwitcher(ProxyURLs ...string) (colly.ProxyFunc, error) {
 	return (&roundRobinSwitcher{urls, 0}).GetProxy, nil
 }
 
-// AuthenticatedRoundRobinProxyHTTP decorates RoundRobinProxySwitcher and sets proxy credentials.
+// AuthenticatedRoundRobinProxySwitcher decorates RoundRobinProxySwitcher and sets proxy credentials.
 // See RoundRobinProxySwitcher for more details on rotating proxies.
 // This method sets correct "Proxy-Connection" and "Proxy-Authorization" headers.
 // "Proxy-Authorization" contains the credentials (username, password) to authenticate
 // a user agent to a proxy server.
-func AuthenticatedRoundRobinProxyHTTP(username string, password string, ProxyURLs ...string) (func(*http.Request) (*url.URL, error), error) {
+func AuthenticatedRoundRobinProxySwitcher(username string, password string, ProxyURLs ...string) (func(*http.Request) (*url.URL, error), error) {
 	roundRobinSwitcher, err := RoundRobinProxySwitcher(ProxyURLs...)
 	if err != nil {
 		return nil, err
