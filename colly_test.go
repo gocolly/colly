@@ -1014,6 +1014,17 @@ func TestUserAgent(t *testing.T) {
 		c.OnResponse(func(resp *Response) {
 			receivedUserAgent = string(resp.Body)
 		})
+
+		c.Request("GET", ts.URL+"/user_agent", nil, nil, http.Header{})
+		if got, want := receivedUserAgent, exampleUserAgent1; got != want {
+			t.Errorf("mismatched User-Agent (non-nil hdr): got=%q want=%q", got, want)
+		}
+	}()
+	func() {
+		c := NewCollector(UserAgent(exampleUserAgent1))
+		c.OnResponse(func(resp *Response) {
+			receivedUserAgent = string(resp.Body)
+		})
 		hdr := http.Header{}
 		hdr.Set("User-Agent", "")
 
