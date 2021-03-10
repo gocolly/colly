@@ -968,6 +968,75 @@ func TestEnvSettings(t *testing.T) {
 	}
 }
 
+func TestUserAgent(t *testing.T) {
+	const exampleUserAgent1 = "Example/1.0"
+	const exampleUserAgent2 = "Example/2.0"
+	const defaultUserAgent = "colly - https://github.com/gocolly/colly/v2"
+
+	ts := newTestServer()
+	defer ts.Close()
+
+	var receivedUserAgent string
+
+	func() {
+		c := NewCollector()
+		c.OnResponse(func(resp *Response) {
+			receivedUserAgent = string(resp.Body)
+		})
+		c.Visit(ts.URL + "/user_agent")
+		if got, want := receivedUserAgent, defaultUserAgent; got != want {
+			t.Errorf("mismatched User-Agent: got=%q want=%q", got, want)
+		}
+	}()
+	func() {
+		c := NewCollector(UserAgent(exampleUserAgent1))
+		c.OnResponse(func(resp *Response) {
+			receivedUserAgent = string(resp.Body)
+		})
+		c.Visit(ts.URL + "/user_agent")
+		if got, want := receivedUserAgent, exampleUserAgent1; got != want {
+			t.Errorf("mismatched User-Agent: got=%q want=%q", got, want)
+		}
+	}()
+	func() {
+		c := NewCollector(UserAgent(exampleUserAgent1))
+		c.OnResponse(func(resp *Response) {
+			receivedUserAgent = string(resp.Body)
+		})
+
+		c.Request("GET", ts.URL+"/user_agent", nil, nil, nil)
+		if got, want := receivedUserAgent, exampleUserAgent1; got != want {
+			t.Errorf("mismatched User-Agent (nil hdr): got=%q want=%q", got, want)
+		}
+	}()
+	func() {
+		c := NewCollector(UserAgent(exampleUserAgent1))
+		c.OnResponse(func(resp *Response) {
+			receivedUserAgent = string(resp.Body)
+		})
+		hdr := http.Header{}
+		hdr.Set("User-Agent", "")
+
+		c.Request("GET", ts.URL+"/user_agent", nil, nil, hdr)
+		if got, want := receivedUserAgent, ""; got != want {
+			t.Errorf("mismatched User-Agent (hdr with empty UA): got=%q want=%q", got, want)
+		}
+	}()
+	func() {
+		c := NewCollector(UserAgent(exampleUserAgent1))
+		c.OnResponse(func(resp *Response) {
+			receivedUserAgent = string(resp.Body)
+		})
+		hdr := http.Header{}
+		hdr.Set("User-Agent", exampleUserAgent2)
+
+		c.Request("GET", ts.URL+"/user_agent", nil, nil, hdr)
+		if got, want := receivedUserAgent, exampleUserAgent2; got != want {
+			t.Errorf("mismatched User-Agent (hdr with UA): got=%q want=%q", got, want)
+		}
+	}()
+}
+
 func TestParseHTTPErrorResponse(t *testing.T) {
 	contentCount := 0
 	ts := newTestServer()
