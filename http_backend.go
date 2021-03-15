@@ -130,7 +130,7 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 }
 
 func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
-	if cacheDir == "" || request.Method != "GET" {
+	if cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache" {
 		return h.Do(request, bodySize, checkHeadersFunc)
 	}
 	sum := sha1.Sum([]byte(request.URL.String()))
@@ -141,6 +141,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 		resp := new(Response)
 		err := gob.NewDecoder(file).Decode(resp)
 		file.Close()
+		checkHeadersFunc(request, resp.StatusCode, *resp.Headers)
 		if resp.StatusCode < 500 {
 			return resp, err
 		}
