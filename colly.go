@@ -558,7 +558,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 
 	if hdr == nil {
-		hdr = http.Header{"User-Agent": []string{c.UserAgent}}
+		hdr = http.Header{}
+	}
+	if _, ok := hdr["User-Agent"]; !ok {
+		hdr.Set("User-Agent", c.UserAgent)
 	}
 	rc, ok := requestData.(io.ReadCloser)
 	if !ok && requestData != nil {
