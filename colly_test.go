@@ -66,6 +66,17 @@ func newTestServer() *httptest.Server {
 		`))
 	})
 
+	mux.HandleFunc("/xml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<page>
+	<title>Test Page</title>
+	<paragraph type="description">This is a test page</paragraph>
+	<paragraph type="description">This is a test paragraph</paragraph>
+</page>
+		`))
+	})
+
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			w.Header().Set("Content-Type", "text/html")
@@ -1118,7 +1129,7 @@ func TestHTMLElement(t *testing.T) {
 	}
 }
 
-func TestCollectorOnXML(t *testing.T) {
+func TestCollectorOnXMLWithHtml(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
 
@@ -1159,6 +1170,50 @@ func TestCollectorOnXML(t *testing.T) {
 
 	if paragraphCallbackCount != 2 {
 		t.Error("Failed to find all <p> tags")
+	}
+}
+
+func TestCollectorOnXMLWithXML(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	titleCallbackCalled := false
+	paragraphCallbackCount := 0
+
+	c.OnXML("//page/title", func(e *XMLElement) {
+		titleCallbackCalled = true
+		if e.Text != "Test Page" {
+			t.Error("Title element text does not match, got", e.Text)
+		}
+	})
+
+	c.OnXML("//page/paragraph", func(e *XMLElement) {
+		paragraphCallbackCount++
+		if e.Attr("type") != "description" {
+			t.Error("Failed to get paragraph's type attribute")
+		}
+	})
+
+	c.OnXML("/page", func(e *XMLElement) {
+		if e.ChildAttr("paragraph", "type") != "description" {
+			t.Error("Invalid type value")
+		}
+		classes := e.ChildAttrs("paragraph", "type")
+		if len(classes) != 2 {
+			t.Error("Invalid type values")
+		}
+	})
+
+	c.Visit(ts.URL + "/xml")
+
+	if !titleCallbackCalled {
+		t.Error("Failed to call OnXML callback for <title> tag")
+	}
+
+	if paragraphCallbackCount != 2 {
+		t.Error("Failed to find all <paragraph> tags")
 	}
 }
 
