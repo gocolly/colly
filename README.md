@@ -86,6 +86,7 @@ Below is a list of public, open source projects that use Colly:
 -   [superiss/spidy](https://github.com/superiss/spidy) Crawl the web and collect expired domains.
 -   [docker-slim/docker-slim](https://github.com/docker-slim/docker-slim) Optimize your Docker containers to make them smaller and better.
 -   [seversky/gachifinder](https://github.com/seversky/gachifinder) an agent for asynchronous scraping, parsing and writing to some storages(elasticsearch for now)
+-   [eval-exec/goodreads](https://github.com/eval-exec/goodreads) crawl all tags and all pages of quotes from goodreads.
 
 If you are using Colly in a project please send a pull request to add it to the list.
 
