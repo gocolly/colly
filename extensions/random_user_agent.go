@@ -3,6 +3,7 @@ package extensions
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"github.com/gocolly/colly/v2"
 )
@@ -10,6 +11,7 @@ import (
 var uaGens = []func() string{
 	genFirefoxUA,
 	genChromeUA,
+	genEdgeUA,
 	genOperaUA,
 }
 
@@ -33,47 +35,75 @@ func RandomMobileUserAgent(c *colly.Collector) {
 }
 
 var ffVersions = []float32{
-	35.0,
-	40.0,
-	41.0,
-	44.0,
-	45.0,
-	48.0,
-	48.0,
-	49.0,
-	50.0,
-	52.0,
-	52.0,
-	53.0,
-	54.0,
-	56.0,
-	57.0,
-	57.0,
-	58.0,
-	58.0,
-	59.0,
-	6.0,
-	60.0,
-	61.0,
-	63.0,
+	// 2020
+	72.0,
+	73.0,
+	74.0,
+	75.0,
+	76.0,
+	77.0,
+	78.0,
+	79.0,
+	80.0,
+	81.0,
+	82.0,
+	83.0,
+	84.0,
+
+	// 2021
+	85.0,
+	86.0,
+	87.0,
 }
 
 var chromeVersions = []string{
-	"37.0.2062.124",
-	"40.0.2214.93",
-	"41.0.2228.0",
-	"49.0.2623.112",
-	"55.0.2883.87",
-	"56.0.2924.87",
-	"57.0.2987.133",
-	"61.0.3163.100",
-	"63.0.3239.132",
-	"64.0.3282.0",
-	"65.0.3325.146",
-	"68.0.3440.106",
-	"69.0.3497.100",
-	"70.0.3538.102",
-	"74.0.3729.169",
+	// 2020
+	"79.0.3945.117",
+	"79.0.3945.130",
+	"80.0.3987.106",
+	"80.0.3987.116",
+	"80.0.3987.122",
+	"80.0.3987.132",
+	"80.0.3987.149",
+	"80.0.3987.163",
+	"80.0.3987.87",
+	"81.0.4044.113",
+	"81.0.4044.122",
+	"81.0.4044.129",
+	"81.0.4044.138",
+	"81.0.4044.92",
+	"83.0.4103.106",
+	"83.0.4103.116",
+	"83.0.4103.97",
+	"84.0.4147.105",
+	"84.0.4147.125",
+	"84.0.4147.135",
+	"85.0.4183.102",
+	"85.0.4183.121",
+	"85.0.4183.83",
+	"86.0.4240.111",
+	"86.0.4240.183",
+	"86.0.4240.198",
+	"86.0.4240.75",
+
+	// 2021
+	"87.0.4280.141",
+	"87.0.4280.66",
+	"87.0.4280.88",
+	"88.0.4324.146",
+	"88.0.4324.182",
+	"88.0.4324.190",
+	"89.0.4389.114",
+	"89.0.4389.90",
+	"90.0.4430.72",
+}
+
+var edgeVersions = []string{
+	"79.0.3945.74,79.0.309.43",
+	"80.0.3987.87,80.0.361.48",
+	"84.0.4147.105,84.0.522.50",
+	"89.0.4389.128,89.0.774.77",
+	"90.0.4430.72,90.0.818.39",
 }
 
 var operaVersions = []string{
@@ -117,6 +147,8 @@ var androidVersions = []string{
 	"8.0.0",
 	"8.1.0",
 	"9",
+	"10",
+	"11",
 }
 
 var ucwebDevices = []string{
@@ -165,16 +197,55 @@ var nexus10Safari = []string{
 }
 
 var osStrings = []string{
-	"Macintosh; Intel Mac OS X 10_10",
-	"Windows NT 10.0",
+	// MacOS - High Sierra
+	"Macintosh; Intel Mac OS X 10_13",
+	"Macintosh; Intel Mac OS X 10_13_1",
+	"Macintosh; Intel Mac OS X 10_13_2",
+	"Macintosh; Intel Mac OS X 10_13_3",
+	"Macintosh; Intel Mac OS X 10_13_4",
+	"Macintosh; Intel Mac OS X 10_13_5",
+	"Macintosh; Intel Mac OS X 10_13_6",
+
+	// MacOS - Mojave
+	"Macintosh; Intel Mac OS X 10_14",
+	"Macintosh; Intel Mac OS X 10_14_1",
+	"Macintosh; Intel Mac OS X 10_14_2",
+	"Macintosh; Intel Mac OS X 10_14_3",
+	"Macintosh; Intel Mac OS X 10_14_4",
+	"Macintosh; Intel Mac OS X 10_14_5",
+	"Macintosh; Intel Mac OS X 10_14_6",
+
+	// MacOS - Catalina
+	"Macintosh; Intel Mac OS X 10_15",
+	"Macintosh; Intel Mac OS X 10_15_1",
+	"Macintosh; Intel Mac OS X 10_15_2",
+	"Macintosh; Intel Mac OS X 10_15_3",
+	"Macintosh; Intel Mac OS X 10_15_4",
+	"Macintosh; Intel Mac OS X 10_15_5",
+	"Macintosh; Intel Mac OS X 10_15_6",
+	"Macintosh; Intel Mac OS X 10_15_7",
+
+	// MacOS - Big Sur
+	"Macintosh; Intel Mac OS X 11_0",
+	"Macintosh; Intel Mac OS X 11_0_1",
+	"Macintosh; Intel Mac OS X 11_1",
+	"Macintosh; Intel Mac OS X 11_2",
+	"Macintosh; Intel Mac OS X 11_2_1",
+	"Macintosh; Intel Mac OS X 11_2_2",
+	"Macintosh; Intel Mac OS X 11_2_3",
+
+	// Windows
+	"Windows NT 10.0; Win64; x64",
 	"Windows NT 5.1",
 	"Windows NT 6.1; WOW64",
 	"Windows NT 6.1; Win64; x64",
+
+	// Linux
 	"X11; Linux x86_64",
 }
 
 // Generates Firefox Browser User-Agent (Desktop)
-//	-> "Mozilla/5.0 (Windows NT 10.0; rv:63.0) Gecko/20100101 Firefox/63.0"
+//	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:87.0) Gecko/20100101 Firefox/87.0"
 func genFirefoxUA() string {
 	version := ffVersions[rand.Intn(len(ffVersions))]
 	os := osStrings[rand.Intn(len(osStrings))]
@@ -182,11 +253,21 @@ func genFirefoxUA() string {
 }
 
 // Generates Chrome Browser User-Agent (Desktop)
-//	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
+//	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36"
 func genChromeUA() string {
 	version := chromeVersions[rand.Intn(len(chromeVersions))]
 	os := osStrings[rand.Intn(len(osStrings))]
 	return fmt.Sprintf("Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36", os, version)
+}
+
+// Generates Microsoft Edge User-Agent (Desktop)
+//	-> "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36 Edg/90.0.818.39"
+func genEdgeUA() string {
+	version := edgeVersions[rand.Intn(len(edgeVersions))]
+	chrome_version := strings.Split(version, ",")[0]
+	edge_version := strings.Split(version, ",")[1]
+	os := osStrings[rand.Intn(len(osStrings))]
+	return fmt.Sprintf("Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36 Edg/%s", os, chrome_version, edge_version)
 }
 
 // Generates Opera Browser User-Agent (Desktop)
