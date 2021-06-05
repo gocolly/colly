@@ -38,26 +38,23 @@ func TestHTTPBackendDoCancelation(t *testing.T) {
 	limit := &LimitRule{
 		DomainRegexp: ".*",
 		Parallelism:  p,
-		Delay:        time.Millisecond,
+		Delay:        5 * time.Millisecond,
 	}
 	backend.Limit(limit)
 
 	var wg sync.WaitGroup
 	wg.Add(c)
 
-	out := make(chan []interface{})
+	out := make(chan error)
 
 	for i := 0; i < c; i++ {
 		go func(i int) {
 			defer wg.Done()
-			trace := &HTTPTrace{}
-
 			req, _ := http.NewRequest("GET", ts.URL+"/"+strconv.Itoa(i), nil)
 			req = req.WithContext(ctx)
 
 			_, err := backend.Do(req, 0, checkHeadersFunc)
-
-			out <- []interface{}{err, trace}
+			out <- err
 		}(i)
 	}
 
@@ -68,12 +65,7 @@ func TestHTTPBackendDoCancelation(t *testing.T) {
 
 	i := 0
 	nonEarlyCount := 0
-	for o := range out {
-		var err error
-		if o[0] != nil {
-			err = o[0].(error)
-		}
-
+	for err := range out {
 		i++
 		if i == n {
 			cancel()
@@ -93,7 +85,7 @@ func TestHTTPBackendDoCancelation(t *testing.T) {
 			// bacause those requests could be already running when cancel was called
 			if !strings.Contains(errStr, "early return") {
 				if nonEarlyCount > p {
-					t.Error("count of non early return is above the number of maximum allowed concurrent requests")
+					t.Errorf("count of non early return is above the number of maximum allowed concurrent requests; p: %d; n: %d; c: %d", p, n, c)
 				}
 				nonEarlyCount++
 			}
