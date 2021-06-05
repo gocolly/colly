@@ -170,7 +170,12 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
-		r.waitChan <- true
+		select {
+		case r.waitChan <- true:
+		case <-request.Context().Done():
+			return nil, request.Context().Err()
+		}
+
 		defer func(r *LimitRule) {
 			randomDelay := time.Duration(0)
 			if r.RandomDelay != 0 {
