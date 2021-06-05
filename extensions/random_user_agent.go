@@ -264,10 +264,10 @@ func genChromeUA() string {
 //	-> "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36 Edg/90.0.818.39"
 func genEdgeUA() string {
 	version := edgeVersions[rand.Intn(len(edgeVersions))]
-	chrome_version := strings.Split(version, ",")[0]
-	edge_version := strings.Split(version, ",")[1]
+	chromeVersion := strings.Split(version, ",")[0]
+	edgeVersion := strings.Split(version, ",")[1]
 	os := osStrings[rand.Intn(len(osStrings))]
-	return fmt.Sprintf("Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36 Edg/%s", os, chrome_version, edge_version)
+	return fmt.Sprintf("Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36 Edg/%s", os, chromeVersion, edgeVersion)
 }
 
 // Generates Opera Browser User-Agent (Desktop)
