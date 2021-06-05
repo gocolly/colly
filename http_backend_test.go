@@ -51,7 +51,8 @@ func TestHTTPBackendDoCancelation(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 
-			req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/"+strconv.Itoa(i), nil)
+			req, _ := http.NewRequest("GET", ts.URL+"/"+strconv.Itoa(i), nil)
+			req = req.WithContext(ctx)
 			_, err := backend.Do(req, 0, checkHeadersFunc)
 			errs <- err
 		}(i)
