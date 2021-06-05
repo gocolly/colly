@@ -77,7 +77,7 @@ func TestHTTPBackendDoCancelation(t *testing.T) {
 				t.Errorf("no error was expected for the first %d responses; error: %q", n, err)
 			}
 		} else {
-			if !strings.Contains(err.Error(), "context canceled") {
+			if err == nil || !strings.Contains(err.Error(), "context canceled") {
 				t.Error("call to Do should return with error from terminated context")
 			}
 		}
