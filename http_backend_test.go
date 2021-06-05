@@ -15,7 +15,8 @@ import (
 )
 
 func TestHTTPBackendDoCancelation(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	// hardcoded fixed to ensure that p, n, c are the same making the test more reliable
+	rand.Seed(2927496558871806)
 
 	// rand up to 10 to not extend the test duration too much
 	p := 1 + rand.Intn(5)        // p: parallel requests
