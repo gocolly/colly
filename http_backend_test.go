@@ -15,6 +15,13 @@ import (
 )
 
 func TestHTTPBackendDoCancelation(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	// rand up to 10 to not extend the test duration too much
+	p := 1 + rand.Intn(5)        // p: parallel requests
+	n := p + p*rand.Intn(10)     // n: after n, cancel will be called; ensure 1 calls per worker + rand
+	c := n + p*2 + rand.Intn(10) // c: total number of calls; ensure 2 calls per worker after cancel is called + rand
+
 	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(rw, "OK")
 	}))
@@ -30,43 +37,43 @@ func TestHTTPBackendDoCancelation(t *testing.T) {
 	backend.Init(jar)
 	limit := &LimitRule{
 		DomainRegexp: ".*",
-		Parallelism:  1,
-		Delay:        5 * time.Millisecond,
+		Parallelism:  p,
+		Delay:        time.Millisecond,
 	}
 	backend.Limit(limit)
-
-	rand.Seed(time.Now().Unix())
-
-	// rand up to 10 to not extend the test duration too much
-	n := rand.Intn(10)
-	c := n + rand.Intn(10)
 
 	var wg sync.WaitGroup
 	wg.Add(c)
 
-	errs := make(chan error)
+	out := make(chan []interface{})
 
-	begin := time.Now()
 	for i := 0; i < c; i++ {
 		go func(i int) {
 			defer wg.Done()
+			trace := &HTTPTrace{}
 
 			req, _ := http.NewRequest("GET", ts.URL+"/"+strconv.Itoa(i), nil)
 			req = req.WithContext(ctx)
+
 			_, err := backend.Do(req, 0, checkHeadersFunc)
-			errs <- err
+
+			out <- []interface{}{err, trace}
 		}(i)
 	}
 
-	var d time.Duration
 	go func() {
 		wg.Wait()
-		d = time.Since(begin) // captures the duration of all calls
-		close(errs)
+		close(out)
 	}()
 
 	i := 0
-	for err := range errs {
+	nonEarlyCount := 0
+	for o := range out {
+		var err error
+		if o[0] != nil {
+			err = o[0].(error)
+		}
+
 		i++
 		if i == n {
 			cancel()
@@ -77,22 +84,19 @@ func TestHTTPBackendDoCancelation(t *testing.T) {
 				t.Errorf("no error was expected for the first %d responses; error: %q", n, err)
 			}
 		} else {
-			if err == nil || !strings.Contains(err.Error(), "context canceled") {
-				t.Error("call to Do should return with error from terminated context")
+			errStr := ""
+			if err != nil {
+				errStr = err.Error()
+			}
+
+			// non early returns are allowed up to the number of maximum allowed concurrent requests;
+			// bacause those requests could be already running when cancel was called
+			if !strings.Contains(errStr, "early return") {
+				if nonEarlyCount > p {
+					t.Error("count of non early return is above the number of maximum allowed concurrent requests")
+				}
+				nonEarlyCount++
 			}
 		}
-	}
-
-	// the expectation is n+1 because:
-	//     n: that time should have already passed, cancel is done after the second response
-	//     1: the third request is cancelled just after starting forces delay
-	if d < time.Duration(n+1)*limit.Delay {
-		t.Error("duration is bellow the expected")
-	}
-
-	// n+1+1 is the max limit because after the minimum delay the other calls should finish
-	// immediately since the function return before defer was set
-	if d > time.Duration(n+1+1)*limit.Delay {
-		t.Error("duration is above the expected")
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
+	"errors"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -173,7 +174,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 		select {
 		case r.waitChan <- true:
 		case <-request.Context().Done():
-			return nil, request.Context().Err()
+			return nil, errors.New("context canceled; early return")
 		}
 
 		defer func(r *LimitRule) {
