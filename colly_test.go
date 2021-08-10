@@ -804,6 +804,23 @@ func TestRedirect(t *testing.T) {
 	c.Visit(ts.URL + "/redirect")
 }
 
+func TestRedirectWithDisallowedURLs(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.DisallowedURLFilters = []*regexp.Regexp{regexp.MustCompile(ts.URL + "/redirected/test")}
+	c.OnHTML("a[href]", func(e *HTMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		err := c.Visit(u)
+		if err != ErrForbiddenURL {
+			t.Error("URL should have been forbidden: " + u)
+		}
+	})
+
+	c.Visit(ts.URL + "/redirect")
+}
+
 func TestBaseTag(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
