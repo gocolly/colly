@@ -114,6 +114,12 @@ type Collector struct {
 	// to support clean cancellation of scraping.
 	Context context.Context
 
+	// A list of scheduled scraping routines.
+	//
+	// Cron expressions are parsed via package
+	// https://github.com/adhocore/gronx#cron-expression
+	schedules []schedule
+
 	store                    storage.Storage
 	debugger                 debug.Debugger
 	robotsMap                map[string]*robotstxt.RobotsData
