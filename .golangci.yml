@@ -9,4 +9,5 @@ linters:
     - gci
     - gofmt
     - revive
+    - unconvert
     - unparam
