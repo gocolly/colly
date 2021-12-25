@@ -6,5 +6,6 @@ linters:
     - unused
     - varcheck
   enable:
+    - gci
     - gofmt
     - revive 

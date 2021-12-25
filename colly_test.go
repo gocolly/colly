@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-
 	"github.com/gocolly/colly/v2/debug"
 )
 
