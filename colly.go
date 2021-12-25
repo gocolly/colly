@@ -587,13 +587,12 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	// replace this with http.NewRequestWithContext
 	req = req.WithContext(c.Context)
 	setRequestBody(req, requestData)
-	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
-		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
+		go c.fetch(method, depth, requestData, ctx, req)
 		return nil
 	}
-	return c.fetch(u, method, depth, requestData, ctx, hdr, req)
+	return c.fetch(method, depth, requestData, ctx, req)
 }
 
 func setRequestBody(req *http.Request, body io.Reader) {
@@ -628,7 +627,7 @@ func setRequestBody(req *http.Request, body io.Reader) {
 	}
 }
 
-func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request) error {
+func (c *Collector) fetch(method string, depth int, requestData io.Reader, ctx *Context, req *http.Request) error {
 	defer c.wg.Done()
 	if ctx == nil {
 		ctx = NewContext()

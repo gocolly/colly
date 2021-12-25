@@ -39,19 +39,14 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{matrix.go-version}}
-      - id: go-env
-        run: |
-          echo "::set-output name=cache::$(go env GOCACHE)"
-          echo "::set-output name=mod-cache::$(go env GOMODCACHE)"
       - name: Cache go modules
         uses: actions/cache@v2
         with:
           path: |
-            ${{ steps.go-env.outputs.cache }}
-            ${{ steps.go-env.outputs.mod-cache }}
+            ~/.cache/go-build
+            ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-go-
-
       - run: go get -a
       - run: go build 
       - run: go test -race -v -coverprofile=coverage.txt -covermode=atomic ./

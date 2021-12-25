@@ -8,4 +8,5 @@ linters:
   enable:
     - gci
     - gofmt
-    - revive 
+    - revive
+    - unparam
