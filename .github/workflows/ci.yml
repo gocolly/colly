@@ -27,7 +27,6 @@ jobs:
     runs-on: [ubuntu-latest]
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
         go-version: ['1.17', '1.16', '1.15', '1.14',  '1.13', '1.12', '1.11']
 
