@@ -2,8 +2,7 @@
 name: CI
 on:
   push:
-    branches:
-      - '**'
+  pull_request:
 
 jobs:
   test:
@@ -13,15 +12,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        go: [
-          "1.17",
-          "1.16",
-          "1.15",
-          "1.14",
-          "1.13",
-          "1.12",
-          "1.11"
-        ]
+        go: ['1.17', '1.16', '1.15', '1.14',  '1.13', '1.12', '1.11']
 
     steps:
       - name: Checkout branch
@@ -48,15 +39,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        go: [
-          "1.17",
-          "1.16",
-          "1.15",
-          "1.14",
-          "1.13",
-          "1.12",
-          "1.11"
-        ]
+        go: ['1.17', '1.16', '1.15', '1.14',  '1.13', '1.12', '1.11'] 
 
     steps:
       - name: Checkout branch
