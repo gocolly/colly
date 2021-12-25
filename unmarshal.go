@@ -52,7 +52,7 @@ func UnmarshalHTML(v interface{}, s *goquery.Selection, structMap map[string]str
 	rv := reflect.ValueOf(v)
 
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return errors.New("Invalid type or nil-pointer")
+		return errors.New("invalid type or nil-pointer")
 	}
 
 	sv := rv.Elem()
@@ -107,7 +107,7 @@ func unmarshalSelector(s *goquery.Selection, attrV reflect.Value, selector strin
 			return err
 		}
 	default:
-		return errors.New("Invalid type: " + attrV.String())
+		return errors.New("invalid type: " + attrV.String())
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func unmarshalAttr(s *goquery.Selection, attrV reflect.Value, attrT reflect.Stru
 			return err
 		}
 	default:
-		return errors.New("Invalid type: " + attrV.String())
+		return errors.New("invalid type: " + attrV.String())
 	}
 	return nil
 }
@@ -169,7 +169,7 @@ func unmarshalPtr(s *goquery.Selection, selector string, attrV reflect.Value) er
 	}
 	e := attrV.Type().Elem()
 	if e.Kind() != reflect.Struct {
-		return errors.New("Invalid slice type")
+		return errors.New("invalid slice type")
 	}
 	v := reflect.New(e)
 	err := UnmarshalHTML(v.Interface(), newS, nil)
@@ -204,7 +204,7 @@ func unmarshalSlice(s *goquery.Selection, selector, htmlAttr string, attrV refle
 			attrV.Set(reflect.Append(attrV, reflect.Indirect(someVal)))
 		})
 	default:
-		return errors.New("Invalid slice type")
+		return errors.New("invalid slice type")
 	}
 	return nil
 }

@@ -9,5 +9,6 @@ linters:
     - gci
     - gofmt
     - revive
+    - stylecheck
     - unconvert
     - unparam

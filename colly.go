@@ -182,32 +182,32 @@ const ProxyURLKey key = iota
 var (
 	// ErrForbiddenDomain is the error thrown if visiting
 	// a domain which is not allowed in AllowedDomains
-	ErrForbiddenDomain = errors.New("Forbidden domain")
+	ErrForbiddenDomain = errors.New("forbidden domain")
 	// ErrMissingURL is the error type for missing URL errors
-	ErrMissingURL = errors.New("Missing URL")
+	ErrMissingURL = errors.New("missing URL")
 	// ErrMaxDepth is the error type for exceeding max depth
-	ErrMaxDepth = errors.New("Max depth limit reached")
+	ErrMaxDepth = errors.New("max depth limit reached")
 	// ErrForbiddenURL is the error thrown if visiting
 	// a URL which is not allowed by URLFilters
-	ErrForbiddenURL = errors.New("ForbiddenURL")
+	ErrForbiddenURL = errors.New("forbidden URL")
 
 	// ErrNoURLFiltersMatch is the error thrown if visiting
 	// a URL which is not allowed by URLFilters
-	ErrNoURLFiltersMatch = errors.New("No URLFilters match")
+	ErrNoURLFiltersMatch = errors.New("no URLFilters match")
 	// ErrAlreadyVisited is the error type for already visited URLs
 	ErrAlreadyVisited = errors.New("URL already visited")
 	// ErrRobotsTxtBlocked is the error type for robots.txt errors
 	ErrRobotsTxtBlocked = errors.New("URL blocked by robots.txt")
 	// ErrNoCookieJar is the error type for missing cookie jar
-	ErrNoCookieJar = errors.New("Cookie jar is not available")
+	ErrNoCookieJar = errors.New("cookie jar is not available")
 	// ErrNoPattern is the error type for LimitRules without patterns
-	ErrNoPattern = errors.New("No pattern defined in LimitRule")
+	ErrNoPattern = errors.New("no pattern defined in LimitRule")
 	// ErrEmptyProxyURL is the error type for empty Proxy URL list
-	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
+	ErrEmptyProxyURL = errors.New("proxy URL list is empty")
 	// ErrAbortedAfterHeaders is the error returned when OnResponseHeaders aborts the transfer.
-	ErrAbortedAfterHeaders = errors.New("Aborted after receiving response headers")
+	ErrAbortedAfterHeaders = errors.New("aborted after receiving response headers")
 	// ErrQueueFull is the error returned when the queue is full
-	ErrQueueFull = errors.New("Queue MaxSize reached")
+	ErrQueueFull = errors.New("queue MaxSize reached")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -1285,7 +1285,7 @@ func (c *Collector) Clone() *Collector {
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
 		if !c.isDomainAllowed(req.URL.Hostname()) {
-			return fmt.Errorf("Not following redirect to %s because its not in AllowedDomains", req.URL.Host)
+			return fmt.Errorf("not following redirect to %s because its not in AllowedDomains", req.URL.Host)
 		}
 
 		if c.redirectHandler != nil {
