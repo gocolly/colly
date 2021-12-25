@@ -1,0 +1,10 @@
+linters:
+  disable:
+    - deadcode
+    - errcheck
+    - gosimple
+    - unused
+    - varcheck
+  enable:
+    - gofmt
+    - revive 
