@@ -44,6 +44,7 @@ import (
 	"github.com/gocolly/colly/v2/debug"
 	"github.com/gocolly/colly/v2/storage"
 	"github.com/kennygrant/sanitize"
+	whatwgUrl "github.com/nlnwa/whatwg-url/url"
 	"github.com/temoto/robotstxt"
 	"google.golang.org/appengine/urlfetch"
 )
@@ -549,7 +550,11 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 }
 
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {
-	parsedURL, err := url.Parse(u)
+	parsedWhatwgURL, err := whatwgUrl.Parse(u)
+	if err != nil {
+		return err
+	}
+	parsedURL, err := url.Parse(parsedWhatwgURL.Href(false))
 	if err != nil {
 		return err
 	}
@@ -1077,10 +1082,14 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 		return err
 	}
 	if href, found := doc.Find("base[href]").Attr("href"); found {
-		baseURL, err := resp.Request.URL.Parse(href)
+		u, err := whatwgUrl.ParseRef(resp.Request.URL.String(), href)
 		if err == nil {
-			resp.Request.baseURL = baseURL
+			baseURL, err := url.Parse(u.Href(false))
+			if err == nil {
+				resp.Request.baseURL = baseURL
+			}
 		}
+
 	}
 	for _, cc := range c.htmlCallbacks {
 		i := 0
