@@ -260,6 +260,8 @@ var envMap = map[string]func(*Collector, string){
 	},
 }
 
+var urlParser = whatwgUrl.NewParser(whatwgUrl.WithPercentEncodeSinglePercentSign())
+
 // NewCollector creates a new Collector instance with default configuration
 func NewCollector(options ...CollectorOption) *Collector {
 	c := &Collector{}
@@ -550,7 +552,7 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 }
 
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {
-	parsedWhatwgURL, err := whatwgUrl.Parse(u)
+	parsedWhatwgURL, err := urlParser.Parse(u)
 	if err != nil {
 		return err
 	}
@@ -1082,7 +1084,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 		return err
 	}
 	if href, found := doc.Find("base[href]").Attr("href"); found {
-		u, err := whatwgUrl.ParseRef(resp.Request.URL.String(), href)
+		u, err := urlParser.ParseRef(resp.Request.URL.String(), href)
 		if err == nil {
 			baseURL, err := url.Parse(u.Href(false))
 			if err == nil {
