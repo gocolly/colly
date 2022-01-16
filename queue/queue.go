@@ -4,6 +4,8 @@ import (
 	"net/url"
 	"sync"
 
+	whatwgUrl "github.com/nlnwa/whatwg-url/url"
+
 	"github.com/gocolly/colly/v2"
 )
 
@@ -75,12 +77,16 @@ func (q *Queue) IsEmpty() bool {
 
 // AddURL adds a new URL to the queue
 func (q *Queue) AddURL(URL string) error {
-	u, err := url.Parse(URL)
+	u, err := whatwgUrl.Parse(URL)
+	if err != nil {
+		return err
+	}
+	u2, err := url.Parse(u.Href(false))
 	if err != nil {
 		return err
 	}
 	r := &colly.Request{
-		URL:    u,
+		URL:    u2,
 		Method: "GET",
 	}
 	d, err := r.Marshal()

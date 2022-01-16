@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"strings"
 	"sync/atomic"
+
+	whatwgUrl "github.com/nlnwa/whatwg-url/url"
 )
 
 // Request is the representation of a HTTP request made by a Collector
@@ -64,13 +66,17 @@ type serializableRequest struct {
 
 // New creates a new request with the context of the original request
 func (r *Request) New(method, URL string, body io.Reader) (*Request, error) {
-	u, err := url.Parse(URL)
+	u, err := whatwgUrl.Parse(URL)
+	if err != nil {
+		return nil, err
+	}
+	u2, err := url.Parse(u.Href(false))
 	if err != nil {
 		return nil, err
 	}
 	return &Request{
 		Method:    method,
-		URL:       u,
+		URL:       u2,
 		Body:      body,
 		Ctx:       r.Ctx,
 		Headers:   &http.Header{},
@@ -97,15 +103,12 @@ func (r *Request) AbsoluteURL(u string) string {
 	} else {
 		base = r.URL
 	}
-	absURL, err := base.Parse(u)
+
+	absURL, err := whatwgUrl.ParseRef(base.String(), u)
 	if err != nil {
 		return ""
 	}
-	absURL.Fragment = ""
-	if absURL.Scheme == "//" {
-		absURL.Scheme = r.URL.Scheme
-	}
-	return absURL.String()
+	return absURL.Href(false)
 }
 
 // Visit continues Collector's collecting job by creating a
