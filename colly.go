@@ -686,24 +686,23 @@ func (c *Collector) requestCheck(u string, parsedURL *url.URL, method string, ge
 		}
 	}
 	if checkRevisit && !c.AllowURLRevisit {
-		h := fnv.New64a()
-		h.Write([]byte(u))
-
-		var uHash uint64
-		if method == "GET" {
-			uHash = h.Sum64()
-		} else if getBody != nil {
-			r, err := getBody()
-			if err != nil {
-				return err
-			}
-			defer r.Close()
-			io.Copy(h, r)
-			uHash = h.Sum64()
-		} else {
+		// TODO weird behaviour, it allows CheckHead to work correctly,
+		// but it should probably better be solved with
+		// "check-but-not-save" flag or something
+		if method != "GET" && getBody == nil {
 			return nil
 		}
 
+		var body io.ReadCloser
+		if getBody != nil {
+			var err error
+			body, err = getBody()
+			if err != nil {
+				return err
+			}
+			defer body.Close()
+		}
+		uHash := requestHash(u, body)
 		visited, err := c.store.IsVisited(uHash)
 		if err != nil {
 			return err
@@ -1303,14 +1302,8 @@ func (c *Collector) parseSettingsFromEnv() {
 }
 
 func (c *Collector) checkHasVisited(URL string, requestData map[string]string) (bool, error) {
-	h := fnv.New64a()
-	h.Write([]byte(URL))
-
-	if requestData != nil {
-		io.Copy(h, createFormReader(requestData))
-	}
-
-	return c.store.IsVisited(h.Sum64())
+	hash := requestHash(URL, createFormReader(requestData))
+	return c.store.IsVisited(hash)
 }
 
 // SanitizeFileName replaces dangerous characters in a string
@@ -1420,4 +1413,13 @@ func isMatchingFilter(fs []*regexp.Regexp, d []byte) bool {
 		}
 	}
 	return false
+}
+
+func requestHash(url string, body io.Reader) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(url))
+	if body != nil {
+		io.Copy(h, body)
+	}
+	return h.Sum64()
 }
