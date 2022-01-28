@@ -561,10 +561,6 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err != nil {
 		return err
 	}
-	if err := c.requestCheck(u, parsedURL, method, requestData, depth, checkRevisit); err != nil {
-		return err
-	}
-
 	if hdr == nil {
 		hdr = http.Header{}
 	}
@@ -584,6 +580,9 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	// note: once 1.13 is minimum supported Go version,
 	// replace this with http.NewRequestWithContext
 	req = req.WithContext(c.Context)
+	if err := c.requestCheck(u, parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
+		return err
+	}
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
@@ -671,7 +670,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	return err
 }
 
-func (c *Collector) requestCheck(u string, parsedURL *url.URL, method string, requestData io.Reader, depth int, checkRevisit bool) error {
+func (c *Collector) requestCheck(u string, parsedURL *url.URL, method string, getBody func() (io.ReadCloser, error), depth int, checkRevisit bool) error {
 	if u == "" {
 		return ErrMissingURL
 	}
@@ -693,8 +692,13 @@ func (c *Collector) requestCheck(u string, parsedURL *url.URL, method string, re
 		var uHash uint64
 		if method == "GET" {
 			uHash = h.Sum64()
-		} else if requestData != nil {
-			h.Write(streamToByte(requestData))
+		} else if getBody != nil {
+			r, err := getBody()
+			if err != nil {
+				return err
+			}
+			defer r.Close()
+			io.Copy(h, r)
 			uHash = h.Sum64()
 		} else {
 			return nil
@@ -1303,7 +1307,7 @@ func (c *Collector) checkHasVisited(URL string, requestData map[string]string) (
 	h.Write([]byte(URL))
 
 	if requestData != nil {
-		h.Write(streamToByte(createFormReader(requestData)))
+		io.Copy(h, createFormReader(requestData))
 	}
 
 	return c.store.IsVisited(h.Sum64())
@@ -1416,17 +1420,4 @@ func isMatchingFilter(fs []*regexp.Regexp, d []byte) bool {
 		}
 	}
 	return false
-}
-
-func streamToByte(r io.Reader) []byte {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(r)
-
-	if strReader, k := r.(*strings.Reader); k {
-		strReader.Seek(0, 0)
-	} else if bReader, kb := r.(*bytes.Reader); kb {
-		bReader.Seek(0, 0)
-	}
-
-	return buf.Bytes()
 }
