@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -813,7 +814,7 @@ func TestRedirectWithDisallowedURLs(t *testing.T) {
 	c.OnHTML("a[href]", func(e *HTMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
 		err := c.Visit(u)
-		if err != ErrForbiddenURL {
+		if !errors.Is(err, ErrForbiddenURL) {
 			t.Error("URL should have been forbidden: " + u)
 		}
 	})

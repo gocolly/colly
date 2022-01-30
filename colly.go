@@ -1293,7 +1293,7 @@ func (c *Collector) Clone() *Collector {
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
 		if err := c.checkFilters(req.URL.String(), req.URL.Hostname()); err != nil {
-			return err
+			return fmt.Errorf("Not following redirect to %q: %w", req.URL, err)
 		}
 		if c.redirectHandler != nil {
 			return c.redirectHandler(req, via)
