@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -831,6 +832,23 @@ func TestRedirect(t *testing.T) {
 			t.Error("Invalid URL in Request after redirect (OnResponse): " + r.Request.URL.String())
 		}
 	})
+	c.Visit(ts.URL + "/redirect")
+}
+
+func TestRedirectWithDisallowedURLs(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.DisallowedURLFilters = []*regexp.Regexp{regexp.MustCompile(ts.URL + "/redirected/test")}
+	c.OnHTML("a[href]", func(e *HTMLElement) {
+		u := e.Request.AbsoluteURL(e.Attr("href"))
+		err := c.Visit(u)
+		if !errors.Is(err, ErrForbiddenURL) {
+			t.Error("URL should have been forbidden: " + u)
+		}
+	})
+
 	c.Visit(ts.URL + "/redirect")
 }
 
