@@ -101,7 +101,11 @@ func newTestServer() *httptest.Server {
 	})
 
 	mux.Handle("/redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/redirected/", http.StatusSeeOther)
+		destination := "/redirected/"
+		if d := r.URL.Query().Get("d"); d != "" {
+			destination = d
+		}
+		http.Redirect(w, r, destination, http.StatusSeeOther)
 
 	}))
 
@@ -673,6 +677,38 @@ func TestCollectorURLRevisitCheck(t *testing.T) {
 
 	if visited != true {
 		t.Error("Expected URL to have been visited")
+	}
+
+	errorTestCases := []struct {
+		Path             string
+		DestinationError string
+	}{
+		{"/", "/"},
+		{"/redirect?d=/", "/"},
+		// now that /redirect?d=/ itself is recorded as visited,
+		// it's now returned in error
+		{"/redirect?d=/", "/redirect?d=/"},
+		{"/redirect?d=/redirect%3Fd%3D/", "/redirect?d=/"},
+		{"/redirect?d=/redirect%3Fd%3D/", "/redirect?d=/redirect%3Fd%3D/"},
+		{"/redirect?d=/redirect%3Fd%3D/&foo=bar", "/redirect?d=/"},
+	}
+
+	for i, testCase := range errorTestCases {
+		err := c.Visit(ts.URL + testCase.Path)
+		if testCase.DestinationError == "" {
+			if err != nil {
+				t.Errorf("got unexpected error in test %d: %q", i, err)
+			}
+		} else {
+			var ave *AlreadyVisitedError
+			if !errors.As(err, &ave) {
+				t.Errorf("err=%q returned when trying to revisit, expected AlreadyVisitedError", err)
+			} else {
+				if got, want := ave.Destination.String(), ts.URL+testCase.DestinationError; got != want {
+					t.Errorf("wrong destination in AlreadyVisitedError in test %d, got=%q want=%q", i, got, want)
+				}
+			}
+		}
 	}
 }
 
