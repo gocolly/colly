@@ -62,6 +62,10 @@ require (
         github.com/gocolly/colly/v2 latest
 )
 ```
+Or Execution of commands:
+```
+go get github.com/gocolly/colly/v2@master
+```
 
 ## Bugs
 
