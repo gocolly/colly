@@ -33,6 +33,8 @@ type Request struct {
 	URL *url.URL
 	// Headers contains the Request's HTTP headers
 	Headers *http.Header
+	// the Host header
+	Host string
 	// Ctx is a context between a Request and a Response
 	Ctx *Context
 	// Depth is the number of the parents of the request
@@ -62,6 +64,7 @@ type serializableRequest struct {
 	ID      uint32
 	Ctx     map[string]interface{}
 	Headers http.Header
+	Host    string
 }
 
 // New creates a new request with the context of the original request
@@ -80,6 +83,7 @@ func (r *Request) New(method, URL string, body io.Reader) (*Request, error) {
 		Body:      body,
 		Ctx:       r.Ctx,
 		Headers:   &http.Header{},
+		Host:      r.Host,
 		ID:        atomic.AddUint32(&r.collector.requestCount, 1),
 		collector: r.collector,
 	}, nil
@@ -178,6 +182,7 @@ func (r *Request) Marshal() ([]byte, error) {
 	}
 	sr := &serializableRequest{
 		URL:    r.URL.String(),
+		Host:   r.Host,
 		Method: r.Method,
 		Depth:  r.Depth,
 		Body:   body,
