@@ -138,6 +138,16 @@ func newTestServer() *httptest.Server {
 		w.Write([]byte(r.Header.Get("User-Agent")))
 	})
 
+	mux.HandleFunc("/host_header", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(r.Host))
+	})
+
+	mux.HandleFunc("/custom_header", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(r.Header.Get("Test")))
+	})
+
 	mux.HandleFunc("/base", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`<!DOCTYPE html>
@@ -1135,6 +1145,41 @@ func TestUserAgent(t *testing.T) {
 		c.Request("GET", ts.URL+"/user_agent", nil, nil, hdr)
 		if got, want := receivedUserAgent, exampleUserAgent2; got != want {
 			t.Errorf("mismatched User-Agent (hdr with UA): got=%q want=%q", got, want)
+		}
+	}()
+}
+
+func TestHeaders(t *testing.T) {
+	const exampleHostHeader = "example.com"
+	const exampleTestHeader = "Testing"
+
+	ts := newTestServer()
+	defer ts.Close()
+
+	var receivedHeader string
+
+	func() {
+		c := NewCollector(
+			Headers(map[string]string{"Host": exampleHostHeader}),
+		)
+		c.OnResponse(func(resp *Response) {
+			receivedHeader = string(resp.Body)
+		})
+		c.Visit(ts.URL + "/host_header")
+		if got, want := receivedHeader, exampleHostHeader; got != want {
+			t.Errorf("mismatched Host header: got=%q want=%q", got, want)
+		}
+	}()
+	func() {
+		c := NewCollector(
+			Headers(map[string]string{"Test": exampleTestHeader}),
+		)
+		c.OnResponse(func(resp *Response) {
+			receivedHeader = string(resp.Body)
+		})
+		c.Visit(ts.URL + "/custom_header")
+		if got, want := receivedHeader, exampleTestHeader; got != want {
+			t.Errorf("mismatched custom header: got=%q want=%q", got, want)
 		}
 	}()
 }
