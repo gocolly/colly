@@ -11,6 +11,8 @@ import (
 
 const stop = true
 
+var urlParser = whatwgUrl.NewParser(whatwgUrl.WithPercentEncodeSinglePercentSign())
+
 // Storage is the interface of the queue's storage backend
 // Storage must be concurrently safe for multiple goroutines.
 type Storage interface {
@@ -77,7 +79,7 @@ func (q *Queue) IsEmpty() bool {
 
 // AddURL adds a new URL to the queue
 func (q *Queue) AddURL(URL string) error {
-	u, err := whatwgUrl.Parse(URL)
+	u, err := urlParser.Parse(URL)
 	if err != nil {
 		return err
 	}
