@@ -56,6 +56,8 @@ type CollectorOption func(*Collector)
 type Collector struct {
 	// UserAgent is the User-Agent string used by HTTP requests
 	UserAgent string
+	// Custom headers for the request
+	Headers *http.Header
 	// MaxDepth limits the recursion depth of visited URLs.
 	// Set it to 0 for infinite recursion (default).
 	MaxDepth int
@@ -283,6 +285,17 @@ func UserAgent(ua string) CollectorOption {
 	}
 }
 
+// Header sets the custom headers used by the Collector.
+func Headers(headers map[string]string) CollectorOption {
+	return func(c *Collector) {
+		custom_headers := make(http.Header)
+		for header, value := range headers {
+			custom_headers.Add(header, value)
+		}
+		c.Headers = &custom_headers
+	}
+}
+
 // MaxDepth limits the recursion depth of visited URLs.
 func MaxDepth(depth int) CollectorOption {
 	return func(c *Collector) {
@@ -417,6 +430,7 @@ func CheckHead() CollectorOption {
 // configuration for the Collector
 func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly/v2"
+	c.Headers = nil
 	c.MaxDepth = 0
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
@@ -570,6 +584,13 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 
 	if hdr == nil {
 		hdr = http.Header{}
+		if c.Headers != nil {
+			for k, v := range *c.Headers {
+				for _, value := range v {
+					hdr.Add(k, value)
+				}
+			}
+		}
 	}
 	if _, ok := hdr["User-Agent"]; !ok {
 		hdr.Set("User-Agent", c.UserAgent)
@@ -647,6 +668,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	request := &Request{
 		URL:       req.URL,
 		Headers:   &req.Header,
+		Host:      req.Host,
 		Ctx:       ctx,
 		Depth:     depth,
 		Method:    method,
@@ -1286,6 +1308,7 @@ func (c *Collector) Clone() *Collector {
 		CheckHead:              c.CheckHead,
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
+		Headers:                c.Headers,
 		TraceHTTP:              c.TraceHTTP,
 		Context:                c.Context,
 		store:                  c.store,
