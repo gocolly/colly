@@ -302,7 +302,7 @@ func UserAgent(ua string) CollectorOption {
 	}
 }
 
-// Header sets the custom headers used by the Collector.
+// Headers sets the custom headers used by the Collector.
 func Headers(headers map[string]string) CollectorOption {
 	return func(c *Collector) {
 		customHeaders := make(http.Header)
