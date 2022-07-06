@@ -305,11 +305,11 @@ func UserAgent(ua string) CollectorOption {
 // Header sets the custom headers used by the Collector.
 func Headers(headers map[string]string) CollectorOption {
 	return func(c *Collector) {
-		custom_headers := make(http.Header)
+		customHeaders := make(http.Header)
 		for header, value := range headers {
-			custom_headers.Add(header, value)
+			customHeaders.Add(header, value)
 		}
-		c.Headers = &custom_headers
+		c.Headers = &customHeaders
 	}
 }
 
