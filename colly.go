@@ -115,6 +115,9 @@ type Collector struct {
 	// Context is the context that will be used for HTTP requests. You can set this
 	// to support clean cancellation of scraping.
 	Context context.Context
+	// MaxRequests limit the number of requests done by the instance.
+	// Set it to 0 for infinite requests (default).
+	MaxRequests uint32
 
 	store                    storage.Storage
 	debugger                 debug.Debugger
@@ -228,6 +231,8 @@ var (
 	ErrAbortedAfterHeaders = errors.New("Aborted after receiving response headers")
 	// ErrQueueFull is the error returned when the queue is full
 	ErrQueueFull = errors.New("Queue MaxSize reached")
+	// ErrMaxRequests is the error returned when exceeding max requests
+	ErrMaxRequests = errors.New("Max Requests limit reached")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -266,6 +271,12 @@ var envMap = map[string]func(*Collector, string){
 		maxDepth, err := strconv.Atoi(val)
 		if err == nil {
 			c.MaxDepth = maxDepth
+		}
+	},
+	"MAX_REQUESTS": func(c *Collector, val string) {
+		maxRequests, err := strconv.ParseUint(val, 0, 32)
+		if err == nil {
+			c.MaxRequests = uint32(maxRequests)
 		}
 	},
 	"PARSE_HTTP_ERROR_RESPONSE": func(c *Collector, val string) {
@@ -317,6 +328,13 @@ func Headers(headers map[string]string) CollectorOption {
 func MaxDepth(depth int) CollectorOption {
 	return func(c *Collector) {
 		c.MaxDepth = depth
+	}
+}
+
+// MaxDepth limits the recursion depth of visited URLs.
+func MaxRequests(max uint32) CollectorOption {
+	return func(c *Collector) {
+		c.MaxRequests = max
 	}
 }
 
@@ -449,6 +467,7 @@ func (c *Collector) Init() {
 	c.UserAgent = "colly - https://github.com/gocolly/colly/v2"
 	c.Headers = nil
 	c.MaxDepth = 0
+	c.MaxRequests = 0
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
@@ -716,6 +735,9 @@ func (c *Collector) requestCheck(parsedURL *url.URL, method string, getBody func
 	u := parsedURL.String()
 	if c.MaxDepth > 0 && c.MaxDepth < depth {
 		return ErrMaxDepth
+	}
+	if c.MaxRequests > 0 && c.requestCount >= c.MaxRequests {
+		return ErrMaxRequests
 	}
 	if err := c.checkFilters(u, parsedURL.Hostname()); err != nil {
 		return err
@@ -1278,6 +1300,7 @@ func (c *Collector) Clone() *Collector {
 		IgnoreRobotsTxt:        c.IgnoreRobotsTxt,
 		MaxBodySize:            c.MaxBodySize,
 		MaxDepth:               c.MaxDepth,
+		MaxRequests:            c.MaxRequests,
 		DisallowedURLFilters:   c.DisallowedURLFilters,
 		URLFilters:             c.URLFilters,
 		CheckHead:              c.CheckHead,
