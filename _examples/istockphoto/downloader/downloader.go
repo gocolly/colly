@@ -1,4 +1,4 @@
-package main
+package downloader
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -20,26 +19,26 @@ const (
 
 	MaxPages       = 20
 	MinPages       = 1
-	MaxPower       = 64
-	MinPower       = 1
 	DefaultBackend = "istock_dataset"
+	MaxPower       = 16
+	MinPower       = 1
 
 	Content = "content"
 	Color   = "color"
 )
 
 type Downloader struct {
-	// Phrase is the image tag keyword to be retrieved
-	Phrase string
+	// phrase is the image tag keyword to be retrieved
+	phrase string
 	// Pages is the size of the data that needs to be collected
 	// For demonstration purposes, don't let Pages exceed MinPages and MaxPages
 	// During initialization, invalid Pages values will be automatically corrected
 	Pages int
-	// MediaType defaults to PHOTO, options can be viewed in typing
+	// MediaType defaults to Photo, options can be viewed in typing
 	Mediatype string
 	// NumberOfPeople defaults to NoPeople, options can be viewed in typing
 	NumberOfPeople string
-	// Orientations defaults to SQUARE, options can be viewed in typing
+	// Orientations defaults to Square, options can be viewed in typing
 	Orientations string
 	// Backend is the root directory of the image cache
 	// the default value is DefaultBackend
@@ -47,16 +46,17 @@ type Downloader struct {
 	// Flag is the name of the parent directory where images are stored,
 	// and its default value is the keyword you specify, namely Phrase
 	Flag     string
-	Power    int
 	Similar  string
 	ProxyURL string
 
 	dirLocal string
 	holdAPI  string
 	query    string
+	power    int
 
 	collector *colly.Collector
 	worker    *queue.Queue
+	memory    *memory
 }
 
 func init() {
@@ -70,21 +70,22 @@ func NewDownloader(phrase string) *Downloader {
 		log.Fatalln("Invalid phrase")
 	}
 
-	d := &Downloader{Phrase: phrase}
-	d.Init()
+	d := &Downloader{phrase: phrase}
+	d.init()
 	return d
 }
 
-func (d *Downloader) Init() {
-	d.Mediatype = queryDefault[MediaType]
-	d.NumberOfPeople = queryDefault[NumberOfPeople]
-	d.Orientations = queryDefault[Orientations]
-	d.Flag = d.Phrase
+func (d *Downloader) init() {
+	d.Mediatype = queryDefault[nameMediaType]
+	d.NumberOfPeople = queryDefault[nameNumberOfPeople]
+	d.Orientations = queryDefault[nameOrientations]
+	d.Flag = d.phrase
 	d.Pages = MinPages
 	d.Backend = DefaultBackend
-	d.Power = runtime.NumCPU()
+	d.power = runtime.NumCPU()
 	d.holdAPI = IstockSearchAPI
 	d.Similar = Content
+	//d.ProxyURL = GetProxies()["http"]
 
 	d.collector = colly.NewCollector()
 	d.worker, _ = queue.New(1, nil)
@@ -117,9 +118,10 @@ func (d *Downloader) preload() {
 	d.checkWorkspace()
 	d.checkQuery()
 	d.initWorker()
+	d.initMemory()
 
-	log.Printf("Container preload - phrase=`%s`", d.Phrase)
-	log.Printf("Setup [istock] - power=%d pages=%d", d.Power, d.Pages)
+	log.Printf("Container preload - phrase=`%s`", d.phrase)
+	log.Printf("Setup [istock] - power=%d pages=%d", d.power, d.Pages)
 }
 
 func (d *Downloader) checkParams() {
@@ -128,9 +130,9 @@ func (d *Downloader) checkParams() {
 		d.Pages = MinPages
 	}
 
-	d.Mediatype = RefactorInvalidQueryType(MediaType, d.Mediatype)
-	d.Orientations = RefactorInvalidQueryType(Orientations, d.Orientations)
-	d.NumberOfPeople = RefactorInvalidQueryType(NumberOfPeople, d.NumberOfPeople)
+	d.Mediatype = RefactorInvalidQueryType(nameMediaType, d.Mediatype)
+	d.Orientations = RefactorInvalidQueryType(nameOrientations, d.Orientations)
+	d.NumberOfPeople = RefactorInvalidQueryType(nameNumberOfPeople, d.NumberOfPeople)
 }
 
 func (d *Downloader) checkWorkspace() {
@@ -141,9 +143,9 @@ func (d *Downloader) checkWorkspace() {
 	}
 
 	if d.Backend == DefaultBackend {
-		d.dirLocal = path.Join(d.Backend, d.Flag)
+		d.dirLocal = filepath.Join(d.Backend, d.Flag)
 	} else {
-		d.dirLocal = path.Join(d.Backend, DefaultBackend, d.Flag)
+		d.dirLocal = filepath.Join(d.Backend, DefaultBackend, d.Flag)
 	}
 
 	err := os.MkdirAll(d.dirLocal, os.ModePerm)
@@ -156,9 +158,9 @@ func (d *Downloader) checkQuery() {
 	var params string
 	parser, _ := url.Parse(d.holdAPI)
 	if parser.Path == "/search/2/image" && strings.HasPrefix(parser.RawQuery, ColorSimilarityAssetid) {
-		params = fmt.Sprintf("%s&phrase=%s", d.holdAPI, d.Phrase)
+		params = fmt.Sprintf("%s&phrase=%s", d.holdAPI, d.phrase)
 	} else {
-		params = fmt.Sprintf("%s?phrase=%s", d.holdAPI, d.Phrase)
+		params = fmt.Sprintf("%s?phrase=%s", d.holdAPI, d.phrase)
 	}
 
 	if d.Mediatype != UNDEFINED {
@@ -175,7 +177,7 @@ func (d *Downloader) checkQuery() {
 }
 
 func (d *Downloader) initWorker() {
-	// [1] Init concurrent-tasks
+	// [1] init concurrent-tasks
 	for i := 1; i < d.Pages+1; i++ {
 		URL := fmt.Sprintf("%s&page=%d", d.query, i)
 		err := d.worker.AddURL(URL)
@@ -187,30 +189,35 @@ func (d *Downloader) initWorker() {
 	}
 
 	// [2] Reset threads of the worker
-	if d.Power > MaxPower || d.Power < MinPower {
-		log.Printf("Automatically calibrate to default values. - power∈[%d, %d]\n", MinPower, MaxPower)
-		d.Power = MinPower
+	if d.Pages <= 4 {
+		d.power = 32
+	} else {
+		if d.power > MaxPower || d.power < MinPower {
+			log.Printf("Automatically calibrate to default values. - power∈[%d, %d]\n", MinPower, MaxPower)
+			d.power = 1
+		}
+		if d.power >= d.Pages {
+			d.power = d.Pages
+		}
 	}
-	if d.Power >= d.Pages {
-		d.Power = d.Pages
-	}
-	d.worker.Threads = d.Power
+	d.worker.Threads = d.power
 
 	// [3] Refactor Colly Headers
 	extensions.Referer(d.collector)
 	d.collector.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
 		"Chrome/103.0.5060.134 Safari/537.36 Edg/103.0.1264.77"
 
-	// CN：这是一个被墙掉的网站，必须使用代理访问，参考代码如下：
-	// d := NewDownloader("phrase")
-	// d.ProxyURL = "http://127.0.0.1:10809"
-	// d.Mining()
+	// CN：这是一个被墙掉的网站，必须使用代理访问
 	if d.ProxyURL != "" {
 		if err := d.collector.SetProxy(d.ProxyURL); err != nil {
 			log.Printf("Failed to set collector's proxy - err=%s", err)
 		}
 	}
 
+}
+
+func (d *Downloader) initMemory() {
+	d.memory = newMemory(d.dirLocal)
 }
 
 func (d *Downloader) overload() {
@@ -223,23 +230,31 @@ func (d *Downloader) overload() {
 	})
 
 	d.collector.OnHTML("img.MosaicAsset-module__thumb___klD9E", func(e *colly.HTMLElement) {
-		//TODO Extract istock ID, remove duplicate tasks
+		// Extract istock ID, remove duplicate tasks
 		imageURL := e.Attr("src")
-		if err := d.worker.AddURL(imageURL); err != nil {
-			log.Printf("Failed to download image - URL=%s", imageURL)
+		if d.memory.GetMemory(imageURL) == "" {
+			if err := d.worker.AddURL(imageURL); err != nil {
+				log.Printf("Failed to download image - URL=%s", imageURL)
+			}
 		}
 
 	})
 
 	d.collector.OnScraped(func(r *colly.Response) {
 		if progress, _ := d.worker.Size(); progress != 0 {
-			log.Printf("Offload - taskID=%s progess=%d", r.FileName(), progress)
+			log.Printf("Offload - progess=%d taskID=%s", progress, r.FileName())
 		}
-		if filepath.Ext(r.FileName()) == ".jpg" {
-			fn := path.Join(d.dirLocal, r.FileName())
+		if filepath.Ext(r.FileName()) == d.memory.ext {
+			fn := filepath.Join(d.dirLocal, r.FileName())
 			if err := r.Save(fn); err != nil {
 				log.Printf("Failed to offload - URL=%s", r.Request.URL.String())
 			}
 		}
 	})
+}
+
+func (d *Downloader) CloseFilter() {
+	d.Mediatype = MediaType.Undefined
+	d.NumberOfPeople = NumberOfPeople.Undefined
+	d.Orientations = Orientations.Undefined
 }
