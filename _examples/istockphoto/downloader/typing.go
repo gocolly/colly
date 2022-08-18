@@ -91,7 +91,8 @@ var (
 	}
 )
 
-// RefactorInvalidQueryType 参数检查时自动将偏离的参数修正回默认值
+// RefactorInvalidQueryType Automatically correct deviated parameters back
+// to default values during parameter checking
 func RefactorInvalidQueryType(queryType, query string) string {
 	for _, val := range queryMap[queryType] {
 		if val == query {

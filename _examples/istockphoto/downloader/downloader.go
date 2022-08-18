@@ -20,7 +20,7 @@ const (
 	MaxPages       = 20
 	MinPages       = 1
 	DefaultBackend = "istock_dataset"
-	MaxPower       = 16
+	MaxPower       = 32
 	MinPower       = 1
 
 	Content = "content"
@@ -180,6 +180,7 @@ func (d *Downloader) initWorker() {
 	// [1] init concurrent-tasks
 	for i := 1; i < d.Pages+1; i++ {
 		URL := fmt.Sprintf("%s&page=%d", d.query, i)
+		URL = strings.ReplaceAll(URL, " ", "%20")
 		err := d.worker.AddURL(URL)
 		if err != nil {
 			log.Fatalln("DownloaderPreloadException: ", err)
@@ -189,16 +190,9 @@ func (d *Downloader) initWorker() {
 	}
 
 	// [2] Reset threads of the worker
-	if d.Pages <= 4 {
-		d.power = 32
-	} else {
-		if d.power > MaxPower || d.power < MinPower {
-			log.Printf("Automatically calibrate to default values. - power∈[%d, %d]\n", MinPower, MaxPower)
-			d.power = 1
-		}
-		if d.power >= d.Pages {
-			d.power = d.Pages
-		}
+	if d.power > MaxPower || d.power < MinPower || d.power >= d.Pages {
+		log.Printf("Automatically calibrate to default values. - power∈[%d, %d]\n", MinPower, MaxPower)
+		d.power = MaxPower
 	}
 	d.worker.Threads = d.power
 
