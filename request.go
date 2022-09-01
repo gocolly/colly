@@ -16,6 +16,7 @@ package colly
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -50,6 +51,8 @@ type Request struct {
 	baseURL   *url.URL
 	// ProxyURL is the proxy address that handles the request
 	ProxyURL string
+	// Context container to extend http.Request
+	HttpRequestCtx context.Context
 }
 
 type SerializableRequest struct {

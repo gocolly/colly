@@ -619,6 +619,9 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	if ctx == nil {
 		ctx = NewContext()
 	}
+
+	htpRequestCtx := req.Context()
+
 	request := &Request{
 		URL:       req.URL,
 		Headers:   &req.Header,
@@ -628,6 +631,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		Body:      requestData,
 		collector: c,
 		ID:        atomic.AddUint32(&c.requestCount, 1),
+		HttpRequestCtx: htpRequestCtx,
 	}
 
 	c.handleOnRequest(request)
@@ -649,7 +653,12 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req.Header.Set("Accept", "*/*")
 	}
 
+	if htpRequestCtx != request.HttpRequestCtx {
+		req = req.WithContext(request.HttpRequestCtx)
+	}
+
 	origURL := req.URL
+	
 	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
