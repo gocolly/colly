@@ -62,6 +62,12 @@ func (h *HTMLElement) Attr(k string) string {
 	return ""
 }
 
+// Child returns the Html Dom
+// elements.
+func (h *HTMLElement) Child(goquerySelector string) *goquery.Selection {
+	return h.DOM.Find(goquerySelector)
+}
+
 // ChildText returns the concatenated and stripped text content of the matching
 // elements.
 func (h *HTMLElement) ChildText(goquerySelector string) string {
