@@ -168,7 +168,7 @@ func (q *Queue) loop(c *colly.Collector, requestc chan<- *colly.Request, complet
 		if size == 0 && active == 0 || !q.running {
 			// Terminate when
 			//   1. No active requests
-			//   2. Emtpy queue
+			//   2. Empty queue
 			errc <- nil
 			break
 		}

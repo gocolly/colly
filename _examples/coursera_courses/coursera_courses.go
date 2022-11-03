@@ -94,7 +94,7 @@ func main() {
 			svgTitle := strings.Split(el.ChildText("div:nth-child(1) svg title"), " ")
 			lastWord := svgTitle[len(svgTitle)-1]
 			switch lastWord {
-			// svg Title: Available Langauges
+			// svg Title: Available Languages
 			case "languages":
 				course.Language = el.ChildText("div:nth-child(2) > div:nth-child(1)")
 			// svg Title: Mixed/Beginner/Intermediate/Advanced Level
