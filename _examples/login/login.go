@@ -2,8 +2,6 @@ package main
 
 import (
 	"log"
-
-	"github.com/gocolly/colly/v2"
 )
 
 func main() {

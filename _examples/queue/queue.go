@@ -3,8 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gocolly/colly/v2"
-	"github.com/gocolly/colly/v2/queue"
+	"github.com/hktalent/colly/v3/queue"
 )
 
 func main() {
@@ -15,7 +14,7 @@ func main() {
 
 	// create a request queue with 2 consumer threads
 	q, _ := queue.New(
-		2, // Number of consumer threads
+		2,                                           // Number of consumer threads
 		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
 	)
 

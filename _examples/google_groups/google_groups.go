@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 	"strings"
-
-	"github.com/gocolly/colly/v2"
 )
 
 // Mail is the container of a single e-mail

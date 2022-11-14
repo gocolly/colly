@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-
-	"github.com/gocolly/colly/v2"
 )
 
 func main() {

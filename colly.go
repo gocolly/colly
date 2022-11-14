@@ -40,8 +40,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/antchfx/htmlquery"
 	"github.com/antchfx/xmlquery"
-	"github.com/gocolly/colly/v2/debug"
-	"github.com/gocolly/colly/v2/storage"
+	"github.com/hktalent/colly/v3/debug"
+	"github.com/hktalent/colly/v3/storage"
 	"github.com/kennygrant/sanitize"
 	whatwgUrl "github.com/nlnwa/whatwg-url/url"
 	"github.com/temoto/robotstxt"
@@ -446,7 +446,7 @@ func CheckHead() CollectorOption {
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
-	c.UserAgent = "colly - https://github.com/gocolly/colly/v2"
+	c.UserAgent = "colly - https://github.com/hktalent/colly/v3"
 	c.Headers = nil
 	c.MaxDepth = 0
 	c.store = &storage.InMemoryStorage{}

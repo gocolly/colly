@@ -7,8 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/gocolly/colly/v2"
 )
 
 type comment struct {

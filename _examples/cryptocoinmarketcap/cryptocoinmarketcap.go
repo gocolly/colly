@@ -4,8 +4,6 @@ import (
 	"encoding/csv"
 	"log"
 	"os"
-
-	"github.com/gocolly/colly/v2"
 )
 
 func main() {

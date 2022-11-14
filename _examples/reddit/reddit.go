@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"time"
-
-	"github.com/gocolly/colly/v2"
 )
 
 type item struct {

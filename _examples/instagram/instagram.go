@@ -9,8 +9,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/gocolly/colly/v2"
 )
 
 // "id": user id, "after": end cursor

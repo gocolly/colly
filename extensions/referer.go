@@ -1,9 +1,5 @@
 package extensions
 
-import (
-	"github.com/gocolly/colly/v2"
-)
-
 // Referer sets valid Referer HTTP header to requests.
 // Warning: this extension works only if you use Request.Visit
 // from callbacks instead of Collector.Visit.

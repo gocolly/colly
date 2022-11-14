@@ -19,8 +19,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync/atomic"
-
-	"github.com/gocolly/colly/v2"
 )
 
 type roundRobinSwitcher struct {
