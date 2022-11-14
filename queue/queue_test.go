@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"github.com/hktalent/colly/v3"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"

@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"github.com/hktalent/colly/v3"
 	"net/url"
 	"sync"
 
