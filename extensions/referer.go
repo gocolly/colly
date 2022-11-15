@@ -1,6 +1,6 @@
 package extensions
 
-import "github.com/hktalent/colly/v3"
+import "github.com/hktalent/colly"
 
 // Referer sets valid Referer HTTP header to requests.
 // Warning: this extension works only if you use Request.Visit

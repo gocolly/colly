@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hktalent/colly/v3/debug"
+	"github.com/hktalent/colly/debug"
 )
 
 func main() {

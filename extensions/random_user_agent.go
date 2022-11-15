@@ -2,7 +2,7 @@ package extensions
 
 import (
 	"fmt"
-	"github.com/hktalent/colly/v3"
+	"github.com/hktalent/colly"
 	"math/rand"
 	"strings"
 )

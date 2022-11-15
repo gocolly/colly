@@ -16,7 +16,7 @@ package proxy
 
 import (
 	"context"
-	"github.com/hktalent/colly/v3"
+	"github.com/hktalent/colly"
 	"net/http"
 	"net/url"
 	"sync/atomic"

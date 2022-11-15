@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/hktalent/colly/v3/debug"
+	"github.com/hktalent/colly/debug"
 )
 
 func main() {

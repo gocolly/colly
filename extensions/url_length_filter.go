@@ -1,6 +1,6 @@
 package extensions
 
-import "github.com/hktalent/colly/v3"
+import "github.com/hktalent/colly"
 
 // URLLengthFilter filters out requests with URLs longer than URLLengthLimit
 func URLLengthFilter(c *colly.Collector, URLLengthLimit int) {

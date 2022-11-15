@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"log"
 
-	"github.com/hktalent/colly/v3/proxy"
+	"github.com/hktalent/colly/proxy"
 )
 
 func main() {

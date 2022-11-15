@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	cli "github.com/jawher/mow.cli"
 	"log"
 	"os"
 	"strings"
@@ -27,7 +28,7 @@ var scraperHeadTemplate = `package main
 import (
 	"log"
 
-	"github.com/hktalent/colly/v3"
+	"github.com/hktalent/colly"
 )
 
 func main() {
