@@ -17,6 +17,8 @@ package colly
 import (
 	"bytes"
 	"fmt"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -88,12 +90,30 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		if !detectCharset {
 			return nil
 		}
-		d := chardet.NewTextDetector()
-		r, err := d.DetectBest(r.Body)
-		if err != nil {
-			return err
+		bDo := false
+		s1 := string(r.Body)
+		k1 := "content=\"text/html; charset="
+		if n1 := strings.Index(s1, k1); -1 < n1 {
+			k1 = s1[n1+len(k1):]
+			n1 = strings.Index(k1, "\"")
+			if -1 < n1 {
+				k1 = k1[0:n1]
+				x09 := strings.ToLower(k1)
+				if x09 != "utf-8" && strings.HasPrefix(x09, "gb") {
+					//r.Body = r.gbk2utf8(r.Body)
+					bDo = true
+					contentType = "text/plain; charset=" + k1
+				}
+			}
 		}
-		contentType = "text/plain; charset=" + r.Charset
+		if !bDo {
+			d := chardet.NewTextDetector()
+			r, err := d.DetectBest(r.Body)
+			if err != nil {
+				return err
+			}
+			contentType = "text/plain; charset=" + r.Charset
+		}
 	}
 	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
 		return nil
@@ -106,6 +126,13 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 	return nil
 }
 
+func (r *Response) gbk2utf8(data []byte) []byte {
+	reader := transform.NewReader(bytes.NewReader(data), simplifiedchinese.HZGB2312.NewDecoder())
+	if d, e := ioutil.ReadAll(reader); nil == e {
+		return d
+	}
+	return data
+}
 func encodeBytes(b []byte, contentType string) ([]byte, error) {
 	r, err := charset.NewReader(bytes.NewReader(b), contentType)
 	if err != nil {
