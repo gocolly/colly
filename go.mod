@@ -13,6 +13,7 @@ require (
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
 	github.com/temoto/robotstxt v1.1.2
 	golang.org/x/net v0.2.0
+	golang.org/x/text v0.4.0
 	google.golang.org/appengine v1.6.7
 )
 
@@ -22,6 +23,5 @@ require (
 	github.com/bits-and-blooms/bitset v1.3.3 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
