@@ -93,7 +93,12 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		bDo := false
 		s1 := string(r.Body)
 		k1 := "content=\"text/html; charset="
-		if n1 := strings.Index(s1, k1); -1 < n1 {
+		n1 := strings.Index(s1, k1)
+		if -1 == n1 {
+			k1 = "<meta charset="
+			n1 = strings.Index(s1, k1)
+		}
+		if -1 < n1 {
 			k1 = s1[n1+len(k1):]
 			n1 = strings.Index(k1, "\"")
 			if -1 < n1 {
