@@ -100,14 +100,21 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		}
 		if -1 < n1 {
 			k1 = s1[n1+len(k1):]
-			n1 = strings.Index(k1, "\"")
+			n1 = strings.Index(k1, ">")
 			if -1 < n1 {
 				k1 = k1[0:n1]
-				x09 := strings.ToLower(k1)
-				if x09 != "utf-8" && strings.HasPrefix(x09, "gb") {
-					//r.Body = r.gbk2utf8(r.Body)
-					bDo = true
-					contentType = "text/plain; charset=" + k1
+				n1 = strings.Index(k1, "\"")
+				if -1 == n1 {
+					n1 = len(k1)
+				}
+				if -1 < n1 {
+					k1 = k1[0:n1]
+					x09 := strings.ToLower(k1)
+					if x09 != "utf-8" && strings.HasPrefix(x09, "gb") {
+						//r.Body = r.gbk2utf8(r.Body)
+						bDo = true
+						contentType = "text/plain; charset=" + k1
+					}
 				}
 			}
 		}
