@@ -112,6 +112,8 @@ type Collector struct {
 	// TraceHTTP enables capturing and reporting request performance for crawler tuning.
 	// When set to true, the Response.Trace will be filled in with an HTTPTrace object.
 	TraceHTTP bool
+	// CacheOnly will only returned cached request as required
+	CacheOnly bool
 	// Context is the context that will be used for HTTP requests. You can set this
 	// to support clean cancellation of scraping.
 	Context context.Context
@@ -228,6 +230,8 @@ var (
 	ErrAbortedAfterHeaders = errors.New("Aborted after receiving response headers")
 	// ErrQueueFull is the error returned when the queue is full
 	ErrQueueFull = errors.New("Queue MaxSize reached")
+	// ErrCacheNotFound is the error returned when cacheonly is turned on and the cache file is not found
+	ErrCacheNotFound = errors.New("Cache Not Found")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -276,6 +280,9 @@ var envMap = map[string]func(*Collector, string){
 	},
 	"USER_AGENT": func(c *Collector, val string) {
 		c.UserAgent = val
+	},
+	"CACHE_ONLY": func(c *Collector, val string) {
+		c.CacheOnly = isYesString(val)
 	},
 }
 
@@ -443,6 +450,12 @@ func CheckHead() CollectorOption {
 	}
 }
 
+func CacheOnly() CollectorOption {
+	return func(c *Collector) {
+		c.CacheOnly = true
+	}
+}
+
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
@@ -456,6 +469,7 @@ func (c *Collector) Init() {
 	jar, _ := cookiejar.New(nil)
 	c.backend.Init(jar)
 	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
+	c.backend.CacheOnly = c.CacheOnly
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData)
@@ -469,13 +483,14 @@ func (c *Collector) Init() {
 // With an Http.Client that is provided by appengine/urlfetch
 // This function should be used when the scraper is run on
 // Google App Engine. Example:
-//   func startScraper(w http.ResponseWriter, r *http.Request) {
-//     ctx := appengine.NewContext(r)
-//     c := colly.NewCollector()
-//     c.Appengine(ctx)
-//      ...
-//     c.Visit("https://google.ca")
-//   }
+//
+//	func startScraper(w http.ResponseWriter, r *http.Request) {
+//	  ctx := appengine.NewContext(r)
+//	  c := colly.NewCollector()
+//	  c.Appengine(ctx)
+//	   ...
+//	  c.Visit("https://google.ca")
+//	}
 func (c *Collector) Appengine(ctx context.Context) {
 	client := urlfetch.Client(ctx)
 	client.Jar = c.backend.Client.Jar
@@ -970,6 +985,11 @@ func (c *Collector) OnScraped(f ScrapedCallback) {
 // SetClient will override the previously set http.Client
 func (c *Collector) SetClient(client *http.Client) {
 	c.backend.Client = client
+}
+
+// SetCacheOnly will only returned cached request as required
+func (c *Collector) SetCacheOnly(val bool) {
+	c.backend.CacheOnly = val
 }
 
 // WithTransport allows you to set a custom http.RoundTripper (transport)

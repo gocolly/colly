@@ -38,6 +38,7 @@ type httpBackend struct {
 	LimitRules []*LimitRule
 	Client     *http.Client
 	lock       *sync.RWMutex
+	CacheOnly  bool
 }
 
 type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
@@ -46,8 +47,8 @@ type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header
 // Both DomainRegexp and DomainGlob can be used to specify
 // the included domains patterns, but at least one is required.
 // There can be two kind of limitations:
-//  - Parallelism: Set limit for the number of concurrent requests to matching domains
-//  - Delay: Wait specified amount of time between requests (parallelism is 1 in this case)
+//   - Parallelism: Set limit for the number of concurrent requests to matching domains
+//   - Delay: Wait specified amount of time between requests (parallelism is 1 in this case)
 type LimitRule struct {
 	// DomainRegexp is a regular expression to match against domains
 	DomainRegexp string
@@ -130,12 +131,12 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 }
 
 func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
-	if cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache" {
+	if (cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache") && !h.CacheOnly {
 		return h.Do(request, bodySize, checkHeadersFunc)
 	}
 	sum := sha1.Sum([]byte(request.URL.String()))
 	hash := hex.EncodeToString(sum[:])
-	dir := path.Join(cacheDir, hash[:2])
+	dir := path.Join(cacheDir, hash[39:40], hash[37:39])
 	filename := path.Join(dir, hash)
 	if file, err := os.Open(filename); err == nil {
 		resp := new(Response)
@@ -145,6 +146,9 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 		if resp.StatusCode < 500 {
 			return resp, err
 		}
+	}
+	if h.CacheOnly {
+		return nil, ErrCacheNotFound
 	}
 	resp, err := h.Do(request, bodySize, checkHeadersFunc)
 	if err != nil || resp.StatusCode >= 500 {
