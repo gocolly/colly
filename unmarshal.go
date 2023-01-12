@@ -35,17 +35,17 @@ func (h *HTMLElement) UnmarshalWithMap(v interface{}, structMap map[string]strin
 // UnmarshalHTML declaratively extracts text or attributes to a struct from
 // HTML response using struct tags composed of css selectors.
 // Allowed struct tags:
-//  - "selector" (required): CSS (goquery) selector of the desired data
-//  - "attr" (optional): Selects the matching element's attribute's value.
+//   - "selector" (required): CSS (goquery) selector of the desired data
+//   - "attr" (optional): Selects the matching element's attribute's value.
 //     Leave it blank or omit to get the text of the element.
 //
 // Example struct declaration:
 //
-//   type Nested struct {
-//   	String  string   `selector:"div > p"`
-//      Classes []string `selector:"li" attr:"class"`
-//   	Struct  *Nested  `selector:"div > div"`
-//   }
+//	type Nested struct {
+//	   String  string   `selector:"div > p"`
+//	   Classes []string `selector:"li" attr:"class"`
+//	   Struct  *Nested  `selector:"div > div"`
+//	}
 //
 // Supported types: struct, *struct, string, []string
 func UnmarshalHTML(v interface{}, s *goquery.Selection, structMap map[string]string) error {
@@ -96,8 +96,7 @@ func unmarshalSelector(s *goquery.Selection, attrV reflect.Value, selector strin
 			return err
 		}
 	case reflect.String:
-		val := getDOMValue(s.Find(selector), htmlAttr)
-		attrV.Set(reflect.Indirect(reflect.ValueOf(val)))
+		unmarshalString(s, selector, htmlAttr, attrV)
 	case reflect.Struct:
 		if err := unmarshalStruct(s, selector, attrV); err != nil {
 			return err
@@ -126,8 +125,7 @@ func unmarshalAttr(s *goquery.Selection, attrV reflect.Value, attrT reflect.Stru
 			return err
 		}
 	case reflect.String:
-		val := getDOMValue(s.Find(selector), htmlAttr)
-		attrV.Set(reflect.Indirect(reflect.ValueOf(val)))
+		unmarshalString(s, selector, htmlAttr, attrV)
 	case reflect.Struct:
 		if err := unmarshalStruct(s, selector, attrV); err != nil {
 			return err
@@ -140,6 +138,15 @@ func unmarshalAttr(s *goquery.Selection, attrV reflect.Value, attrT reflect.Stru
 		return errors.New("Invalid type: " + attrV.String())
 	}
 	return nil
+}
+
+func unmarshalString(s *goquery.Selection, selector string, htmlAttr string, attrV reflect.Value) {
+	newS := s
+	if selector != "" {
+		newS = newS.Find(selector)
+	}
+	val := getDOMValue(newS, htmlAttr)
+	attrV.Set(reflect.Indirect(reflect.ValueOf(val)))
 }
 
 func unmarshalStruct(s *goquery.Selection, selector string, attrV reflect.Value) error {
@@ -185,20 +192,24 @@ func unmarshalSlice(s *goquery.Selection, selector, htmlAttr string, attrV refle
 		v := reflect.MakeSlice(attrV.Type(), 0, 0)
 		attrV.Set(v)
 	}
+	newS := s
+	if selector != "" {
+		newS = newS.Find(selector)
+	}
 	switch attrV.Type().Elem().Kind() {
 	case reflect.String:
-		s.Find(selector).Each(func(_ int, s *goquery.Selection) {
+		newS.Each(func(_ int, s *goquery.Selection) {
 			val := getDOMValue(s, htmlAttr)
 			attrV.Set(reflect.Append(attrV, reflect.Indirect(reflect.ValueOf(val))))
 		})
 	case reflect.Ptr:
-		s.Find(selector).Each(func(_ int, innerSel *goquery.Selection) {
+		newS.Each(func(_ int, innerSel *goquery.Selection) {
 			someVal := reflect.New(attrV.Type().Elem().Elem())
 			UnmarshalHTML(someVal.Interface(), innerSel, nil)
 			attrV.Set(reflect.Append(attrV, someVal))
 		})
 	case reflect.Struct:
-		s.Find(selector).Each(func(_ int, innerSel *goquery.Selection) {
+		newS.Each(func(_ int, innerSel *goquery.Selection) {
 			someVal := reflect.New(attrV.Type().Elem())
 			UnmarshalHTML(someVal.Interface(), innerSel, nil)
 			attrV.Set(reflect.Append(attrV, reflect.Indirect(someVal)))
