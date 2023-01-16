@@ -469,13 +469,14 @@ func (c *Collector) Init() {
 // With an Http.Client that is provided by appengine/urlfetch
 // This function should be used when the scraper is run on
 // Google App Engine. Example:
-//   func startScraper(w http.ResponseWriter, r *http.Request) {
-//     ctx := appengine.NewContext(r)
-//     c := colly.NewCollector()
-//     c.Appengine(ctx)
-//      ...
-//     c.Visit("https://google.ca")
-//   }
+//
+//	func startScraper(w http.ResponseWriter, r *http.Request) {
+//	  ctx := appengine.NewContext(r)
+//	  c := colly.NewCollector()
+//	  c.Appengine(ctx)
+//	   ...
+//	  c.Visit("https://google.ca")
+//	}
 func (c *Collector) Appengine(ctx context.Context) {
 	client := urlfetch.Client(ctx)
 	client.Jar = c.backend.Client.Jar
