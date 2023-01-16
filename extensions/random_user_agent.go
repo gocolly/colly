@@ -245,6 +245,7 @@ var osStrings = []string{
 }
 
 // Generates Firefox Browser User-Agent (Desktop)
+//
 //	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:87.0) Gecko/20100101 Firefox/87.0"
 func genFirefoxUA() string {
 	version := ffVersions[rand.Intn(len(ffVersions))]
@@ -253,6 +254,7 @@ func genFirefoxUA() string {
 }
 
 // Generates Chrome Browser User-Agent (Desktop)
+//
 //	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36"
 func genChromeUA() string {
 	version := chromeVersions[rand.Intn(len(chromeVersions))]
@@ -261,6 +263,7 @@ func genChromeUA() string {
 }
 
 // Generates Microsoft Edge User-Agent (Desktop)
+//
 //	-> "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36 Edg/90.0.818.39"
 func genEdgeUA() string {
 	version := edgeVersions[rand.Intn(len(edgeVersions))]
@@ -271,6 +274,7 @@ func genEdgeUA() string {
 }
 
 // Generates Opera Browser User-Agent (Desktop)
+//
 //	-> "Opera/9.80 (X11; Linux x86_64; U; en) Presto/2.8.131 Version/11.11"
 func genOperaUA() string {
 	version := operaVersions[rand.Intn(len(operaVersions))]
@@ -279,6 +283,7 @@ func genOperaUA() string {
 }
 
 // Generates UCWEB/Nokia203 Browser User-Agent (Mobile)
+//
 //	-> "UCWEB/2.0 (Java; U; MIDP-2.0; Nokia203/20.37) U2/1.0.0 UCMini/10.9.8.1006 (SpeedMode; Proxy; Android 4.4.4; SM-J110H ) U2/1.0.0 Mobile"
 func genMobileUcwebUA() string {
 	device := ucwebDevices[rand.Intn(len(ucwebDevices))]
@@ -288,6 +293,7 @@ func genMobileUcwebUA() string {
 }
 
 // Generates Nexus 10 Browser User-Agent (Mobile)
+//
 //	-> "Mozilla/5.0 (Linux; Android 5.1.1; Nexus 10 Build/LMY48T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.91 Safari/537.36"
 func genMobileNexus10UA() string {
 	build := nexus10Builds[rand.Intn(len(nexus10Builds))]

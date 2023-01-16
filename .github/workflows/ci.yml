@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - '**'
+  pull_request:
 
 jobs:
   test:
@@ -14,13 +15,9 @@ jobs:
       max-parallel: 4
       matrix:
         go: [
+          "1.19",
+          "1.18",
           "1.17",
-          "1.16",
-          "1.15",
-          "1.14",
-          "1.13",
-          "1.12",
-          "1.11"
         ]
 
     steps:
@@ -34,10 +31,10 @@ jobs:
 
       - name: Test
         run: |
-          go get -u golang.org/x/lint/golint
+          go install golang.org/x/lint/golint@latest
           OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
           OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
-          OUT="$(golint ./...)"; test -z "$OUT" || (echo "$OUT" && return 1)
+          golint -set_exit_status
           go vet -v ./...
           go test -race -v -coverprofile=coverage.txt -covermode=atomic ./
 
@@ -49,13 +46,9 @@ jobs:
       max-parallel: 4
       matrix:
         go: [
+          "1.19",
+          "1.18",
           "1.17",
-          "1.16",
-          "1.15",
-          "1.14",
-          "1.13",
-          "1.12",
-          "1.11"
         ]
 
     steps:
@@ -69,10 +62,10 @@ jobs:
 
       - name: Build
         run: |
-          go get -u golang.org/x/lint/golint
+          go install golang.org/x/lint/golint@latest
           OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
           OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
-          OUT="$(golint ./...)"; test -z "$OUT" || (echo "$OUT" && return 1)
+          golint -set_exit_status
           go build
 
   codecov:
