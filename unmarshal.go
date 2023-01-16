@@ -42,9 +42,9 @@ func (h *HTMLElement) UnmarshalWithMap(v interface{}, structMap map[string]strin
 // Example struct declaration:
 //
 //	type Nested struct {
-//	   String  string   `selector:"div > p"`
+//		String  string   `selector:"div > p"`
 //	   Classes []string `selector:"li" attr:"class"`
-//	   Struct  *Nested  `selector:"div > div"`
+//		Struct  *Nested  `selector:"div > div"`
 //	}
 //
 // Supported types: struct, *struct, string, []string
