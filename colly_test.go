@@ -1495,6 +1495,25 @@ func TestCollectorDepth(t *testing.T) {
 	}
 }
 
+func TestCollectorRequests(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+	maxRequests := uint32(5)
+	c1 := NewCollector(
+		MaxRequests(maxRequests),
+		AllowURLRevisit(),
+	)
+	requestCount := 0
+	c1.OnResponse(func(resp *Response) {
+		requestCount++
+		c1.Visit(ts.URL)
+	})
+	c1.Visit(ts.URL)
+	if requestCount != 5 {
+		t.Errorf("Invalid number of requests: %d (expected 5) with MaxRequests", requestCount)
+	}
+}
+
 func TestCollectorContext(t *testing.T) {
 	// "/slow" takes 1 second to return the response.
 	// If context does abort the transfer after 0.5 seconds as it should,
