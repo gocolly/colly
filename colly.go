@@ -119,6 +119,12 @@ type Collector struct {
 	// Set it to 0 for infinite requests (default).
 	MaxRequests uint32
 
+	// A list of scheduled scraping routines.
+	//
+	// Cron expressions are parsed via package
+	// https://github.com/adhocore/gronx#cron-expression
+	schedules []schedule
+
 	store                    storage.Storage
 	debugger                 debug.Debugger
 	robotsMap                map[string]*robotstxt.RobotsData
