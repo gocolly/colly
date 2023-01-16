@@ -331,7 +331,8 @@ func MaxDepth(depth int) CollectorOption {
 	}
 }
 
-// MaxDepth limits the recursion depth of visited URLs.
+// MaxRequests limit the number of requests done by the instance.
+// Set it to 0 for infinite requests (default).
 func MaxRequests(max uint32) CollectorOption {
 	return func(c *Collector) {
 		c.MaxRequests = max
