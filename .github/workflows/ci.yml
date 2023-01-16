@@ -33,7 +33,7 @@ jobs:
           go install golang.org/x/lint/golint@latest
           OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
           OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
-          OUT="$(golint ./...)"; test -z "$OUT" || (echo "$OUT" && return 1)
+          golint -set_exit_status
           go vet -v ./...
           go test -race -v -coverprofile=coverage.txt -covermode=atomic ./
 
@@ -64,7 +64,7 @@ jobs:
           go install golang.org/x/lint/golint@latest
           OUT="$(go get -a)"; test -z "$OUT" || (echo "$OUT" && return 1)
           OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
-          OUT="$(golint ./...)"; test -z "$OUT" || (echo "$OUT" && return 1)
+          golint -set_exit_status
           go build
 
   codecov:
