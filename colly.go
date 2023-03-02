@@ -492,6 +492,7 @@ func (c *Collector) Init() {
 	c.TraceHTTP = false
 	c.Context = context.Background()
 
+	// default true same as colly
 	c.fixCharset = true
 }
 
