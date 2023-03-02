@@ -491,6 +491,8 @@ func (c *Collector) Init() {
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
 	c.Context = context.Background()
+
+	c.fixCharset = true
 }
 
 // Appengine will replace the Collector's backend http.Client
