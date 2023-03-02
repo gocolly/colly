@@ -75,7 +75,7 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 	}
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
 
-	if !strings.Contains(contentType, "text/") 
+	if !strings.Contains(contentType, "text/") {
 		return nil
 	}
 
