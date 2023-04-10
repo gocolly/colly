@@ -1334,7 +1334,12 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 			return fmt.Errorf("Not following redirect to %q: %w", req.URL, err)
 		}
 
-		if !c.AllowURLRevisit {
+		// allow redirects to the original destination
+		// to support websites redirecting to the same page while setting
+		// session cookies
+		samePageRedirect := normalizeURL(req.URL.String()) == normalizeURL(via[0].URL.String())
+
+		if !c.AllowURLRevisit && !samePageRedirect {
 			var body io.ReadCloser
 			if req.GetBody != nil {
 				var err error
@@ -1506,16 +1511,19 @@ func isMatchingFilter(fs []*regexp.Regexp, d []byte) bool {
 	return false
 }
 
+func normalizeURL(u string) string {
+	parsed, err := urlParser.Parse(u)
+	if err != nil {
+		return u
+	}
+	return parsed.String()
+}
+
 func requestHash(url string, body io.Reader) uint64 {
 	h := fnv.New64a()
 	// reparse the url to fix ambiguities such as
 	// "http://example.com" vs "http://example.com/"
-	parsedWhatwgURL, err := whatwgUrl.Parse(url)
-	if err == nil {
-		h.Write([]byte(parsedWhatwgURL.String()))
-	} else {
-		h.Write([]byte(url))
-	}
+	io.WriteString(h, normalizeURL(url))
 	if body != nil {
 		io.Copy(h, body)
 	}
