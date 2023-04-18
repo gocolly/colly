@@ -43,7 +43,7 @@ Disallow: /disallowed
 Disallow: /allowed*q=
 `
 
-func newTestServer() *httptest.Server {
+func newUnstartedTestServer() *httptest.Server {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -253,7 +253,13 @@ y">link</a>
 		}
 	})
 
-	return httptest.NewServer(mux)
+	return httptest.NewUnstartedServer(mux)
+}
+
+func newTestServer() *httptest.Server {
+	srv := newUnstartedTestServer()
+	srv.Start()
+	return srv
 }
 
 var newCollectorTests = map[string]func(*testing.T){
@@ -709,6 +715,33 @@ func TestCollectorURLRevisitCheck(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestSetCookieRedirect(t *testing.T) {
+	type middleware = func(http.Handler) http.Handler
+	for _, m := range []middleware{
+		requireSessionCookieSimple,
+		requireSessionCookieAuthPage,
+	} {
+		t.Run("", func(t *testing.T) {
+			ts := newUnstartedTestServer()
+			ts.Config.Handler = m(ts.Config.Handler)
+			ts.Start()
+			defer ts.Close()
+			c := NewCollector()
+			c.OnResponse(func(r *Response) {
+				if got, want := r.Body, serverIndexResponse; !bytes.Equal(got, want) {
+					t.Errorf("bad response body got=%q want=%q", got, want)
+				}
+				if got, want := r.StatusCode, http.StatusOK; got != want {
+					t.Errorf("bad response code got=%d want=%d", got, want)
+				}
+			})
+			if err := c.Visit(ts.URL); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 
@@ -1586,4 +1619,36 @@ func BenchmarkOnResponse(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		c.Visit(ts.URL)
 	}
+}
+
+func requireSessionCookieSimple(handler http.Handler) http.Handler {
+	const cookieName = "session_id"
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := r.Cookie(cookieName); err == http.ErrNoCookie {
+			http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "1"})
+			http.Redirect(w, r, r.RequestURI, http.StatusFound)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
+}
+
+func requireSessionCookieAuthPage(handler http.Handler) http.Handler {
+	const setCookiePath = "/auth"
+	const cookieName = "session_id"
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == setCookiePath {
+			destination := r.URL.Query().Get("return")
+			http.Redirect(w, r, destination, http.StatusFound)
+			return
+		}
+		if _, err := r.Cookie(cookieName); err == http.ErrNoCookie {
+			http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "1"})
+			http.Redirect(w, r, setCookiePath+"?return="+url.QueryEscape(r.RequestURI), http.StatusFound)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
