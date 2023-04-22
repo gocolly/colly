@@ -35,84 +35,230 @@ func RandomMobileUserAgent(c *colly.Collector) {
 }
 
 var ffVersions = []float32{
-	// 2020
-	72.0,
-	73.0,
-	74.0,
-	75.0,
-	76.0,
-	77.0,
-	78.0,
-	79.0,
-	80.0,
-	81.0,
-	82.0,
-	83.0,
-	84.0,
+	// NOTE: Only version released after Jun 1, 2022 will be listed.
+	// Data source: https://en.wikipedia.org/wiki/Firefox_version_history
 
-	// 2021
-	85.0,
-	86.0,
-	87.0,
+	// 2022
+	102.0,
+	103.0,
+	104.0,
+	105.0,
+	106.0,
+	107.0,
+	108.0,
+
+	// 2023
+	109.0,
+	110.0,
+	111.0,
+	112.0,
 }
 
 var chromeVersions = []string{
-	// 2020
-	"79.0.3945.117",
-	"79.0.3945.130",
-	"80.0.3987.106",
-	"80.0.3987.116",
-	"80.0.3987.122",
-	"80.0.3987.132",
-	"80.0.3987.149",
-	"80.0.3987.163",
-	"80.0.3987.87",
-	"81.0.4044.113",
-	"81.0.4044.122",
-	"81.0.4044.129",
-	"81.0.4044.138",
-	"81.0.4044.92",
-	"83.0.4103.106",
-	"83.0.4103.116",
-	"83.0.4103.97",
-	"84.0.4147.105",
-	"84.0.4147.125",
-	"84.0.4147.135",
-	"85.0.4183.102",
-	"85.0.4183.121",
-	"85.0.4183.83",
-	"86.0.4240.111",
-	"86.0.4240.183",
-	"86.0.4240.198",
-	"86.0.4240.75",
+	// NOTE: Only version released after Jun 1, 2022 will be listed.
+	// Data source: https://chromereleases.googleblog.com/search/label/Stable%20updates
 
-	// 2021
-	"87.0.4280.141",
-	"87.0.4280.66",
-	"87.0.4280.88",
-	"88.0.4324.146",
-	"88.0.4324.182",
-	"88.0.4324.190",
-	"89.0.4389.114",
-	"89.0.4389.90",
-	"90.0.4430.72",
+	// https://chromereleases.googleblog.com/2022/06/stable-channel-update-for-desktop.html
+	"102.0.5005.115",
+
+	// https://chromereleases.googleblog.com/2022/06/stable-channel-update-for-desktop_21.html
+	"103.0.5060.53",
+
+	// https://chromereleases.googleblog.com/2022/06/stable-channel-update-for-desktop_27.html
+	"103.0.5060.66",
+
+	// https://chromereleases.googleblog.com/2022/07/stable-channel-update-for-desktop.html
+	"103.0.5060.114",
+
+	// https://chromereleases.googleblog.com/2022/07/stable-channel-update-for-desktop_19.html
+	"103.0.5060.134",
+
+	// https://chromereleases.googleblog.com/2022/08/stable-channel-update-for-desktop.html
+	"104.0.5112.79",
+	"104.0.5112.80",
+	"104.0.5112.81",
+
+	// https://chromereleases.googleblog.com/2022/08/stable-channel-update-for-desktop_16.html
+	"104.0.5112.101",
+	"104.0.5112.102",
+
+	// https://chromereleases.googleblog.com/2022/08/stable-channel-update-for-desktop_30.html
+	"105.0.5195.52",
+	"105.0.5195.53",
+	"105.0.5195.54",
+
+	// https://chromereleases.googleblog.com/2022/09/stable-channel-update-for-desktop.html
+	"105.0.5195.102",
+
+	// https://chromereleases.googleblog.com/2022/09/stable-channel-update-for-desktop_14.html
+	"105.0.5195.125",
+	"105.0.5195.126",
+	"105.0.5195.127",
+
+	// https://chromereleases.googleblog.com/2022/09/stable-channel-update-for-desktop_27.html
+	"106.0.5249.61",
+	"106.0.5249.62",
+
+	// https://chromereleases.googleblog.com/2022/09/stable-channel-update-for-desktop_30.html
+	"106.0.5249.91",
+
+	// https://chromereleases.googleblog.com/2022/10/stable-channel-update-for-desktop.html
+	"106.0.5249.103",
+
+	// https://chromereleases.googleblog.com/2022/10/stable-channel-update-for-desktop_11.html
+	"106.0.5249.119",
+
+	// https://chromereleases.googleblog.com/2022/10/stable-channel-update-for-desktop_25.html
+	"107.0.5304.62",
+	"107.0.5304.63",
+	"107.0.5304.68",
+
+	// https://chromereleases.googleblog.com/2022/10/stable-channel-update-for-desktop_27.html
+	"107.0.5304.87",
+	"107.0.5304.88",
+
+	// https://chromereleases.googleblog.com/2022/11/stable-channel-update-for-desktop.html
+	"107.0.5304.106",
+	"107.0.5304.107",
+	"107.0.5304.110",
+
+	// https://chromereleases.googleblog.com/2022/11/stable-channel-update-for-desktop_24.html
+	"107.0.5304.121",
+	"107.0.5304.122",
+
+	// https://chromereleases.googleblog.com/2022/11/stable-channel-update-for-desktop_29.html
+	"108.0.5359.71",
+	"108.0.5359.72",
+
+	// https://chromereleases.googleblog.com/2022/12/stable-channel-update-for-desktop.html
+	"108.0.5359.94",
+	"108.0.5359.95",
+
+	// https://chromereleases.googleblog.com/2022/12/stable-channel-update-for-desktop_7.html
+	"108.0.5359.98",
+	"108.0.5359.99",
+
+	// https://chromereleases.googleblog.com/2022/12/stable-channel-update-for-desktop_13.html
+	"108.0.5359.124",
+	"108.0.5359.125",
+
+	// https://chromereleases.googleblog.com/2023/01/stable-channel-update-for-desktop.html
+	"109.0.5414.74",
+	"109.0.5414.75",
+	"109.0.5414.87",
+
+	// https://chromereleases.googleblog.com/2023/01/stable-channel-update-for-desktop_24.html
+	"109.0.5414.119",
+	"109.0.5414.120",
+
+	// https://chromereleases.googleblog.com/2023/02/stable-channel-update-for-desktop.html
+	"110.0.5481.77",
+	"110.0.5481.78",
+
+	// https://chromereleases.googleblog.com/2023/02/stable-channel-desktop-update.html
+	"110.0.5481.96",
+	"110.0.5481.97",
+
+	// https://chromereleases.googleblog.com/2023/02/stable-channel-desktop-update_14.html
+	"110.0.5481.100",
+
+	// https://chromereleases.googleblog.com/2023/02/stable-channel-desktop-update_16.html
+	"110.0.5481.104",
+
+	// https://chromereleases.googleblog.com/2023/02/stable-channel-desktop-update_22.html
+	"110.0.5481.177",
+	"110.0.5481.178",
+
+	// https://chromereleases.googleblog.com/2023/02/stable-channel-desktop-update_97.html
+	"109.0.5414.129",
+
+	// https://chromereleases.googleblog.com/2023/03/stable-channel-update-for-desktop.html
+	"111.0.5563.64",
+	"111.0.5563.65",
+
+	// https://chromereleases.googleblog.com/2023/03/stable-channel-update-for-desktop_21.html
+	"111.0.5563.110",
+	"111.0.5563.111",
+
+	// https://chromereleases.googleblog.com/2023/03/stable-channel-update-for-desktop_27.html
+	"111.0.5563.146",
+	"111.0.5563.147",
+
+	// https://chromereleases.googleblog.com/2023/04/stable-channel-update-for-desktop.html
+	"112.0.5615.49",
+	"112.0.5615.50",
+
+	// https://chromereleases.googleblog.com/2023/04/stable-channel-update-for-desktop_12.html
+	"112.0.5615.86",
+	"112.0.5615.87",
+
+	// https://chromereleases.googleblog.com/2023/04/stable-channel-update-for-desktop_14.html
+	"112.0.5615.121",
+
+	// https://chromereleases.googleblog.com/2023/04/stable-channel-update-for-desktop_18.html
+	"112.0.5615.137",
+	"112.0.5615.138",
+	"112.0.5615.165",
 }
 
 var edgeVersions = []string{
-	"79.0.3945.74,79.0.309.43",
-	"80.0.3987.87,80.0.361.48",
-	"84.0.4147.105,84.0.522.50",
-	"89.0.4389.128,89.0.774.77",
-	"90.0.4430.72,90.0.818.39",
+	// NOTE: Only version released after Jun 1, 2022 will be listed.
+	// Data source: https://learn.microsoft.com/en-us/deployedge/microsoft-edge-release-schedule
+
+	// 2022
+	"103.0.0.0,103.0.1264.37",
+	"104.0.0.0,104.0.1293.47",
+	"105.0.0.0,105.0.1343.25",
+	"106.0.0.0,106.0.1370.34",
+	"107.0.0.0,107.0.1418.24",
+	"108.0.0.0,108.0.1462.42",
+
+	// 2023
+	"109.0.0.0,109.0.1518.49",
+	"110.0.0.0,110.0.1587.41",
+	"111.0.0.0,111.0.1661.41",
+	"112.0.0.0,112.0.1722.34",
+	"112.0.0.0,112.0.1722.54",
+	"112.0.0.0,112.0.1722.58",
 }
 
 var operaVersions = []string{
-	"2.7.62 Version/11.00",
-	"2.2.15 Version/10.10",
-	"2.9.168 Version/11.50",
-	"2.2.15 Version/10.00",
-	"2.8.131 Version/11.11",
-	"2.5.24 Version/10.54",
+	// NOTE: Only version released after Jan 1, 2023 will be listed.
+	// Data source: https://blogs.opera.com/desktop/
+
+	// https://blogs.opera.com/desktop/changelog-for-96/
+	"110.0.5449.0,96.0.4640.0",
+	"110.0.5464.2,96.0.4653.0",
+	"110.0.5464.2,96.0.4660.0",
+	"110.0.5481.30,96.0.4674.0",
+	"110.0.5481.30,96.0.4691.0",
+	"110.0.5481.30,96.0.4693.12",
+	"110.0.5481.77,96.0.4693.16",
+	"110.0.5481.100,96.0.4693.20",
+	"110.0.5481.178,96.0.4693.31",
+	"110.0.5481.178,96.0.4693.50",
+	"110.0.5481.192,96.0.4693.80",
+
+	// https://blogs.opera.com/desktop/changelog-for-97/
+	"111.0.5532.2,97.0.4711.0",
+	"111.0.5532.2,97.0.4704.0",
+	"111.0.5532.2,97.0.4697.0",
+	"111.0.5562.0,97.0.4718.0",
+	"111.0.5563.19,97.0.4719.4",
+	"111.0.5563.19,97.0.4719.11",
+	"111.0.5563.41,97.0.4719.17",
+	"111.0.5563.65,97.0.4719.26",
+	"111.0.5563.65,97.0.4719.28",
+	"111.0.5563.111,97.0.4719.43",
+	"111.0.5563.147,97.0.4719.63",
+	"111.0.5563.147,97.0.4719.83",
+
+	// https://blogs.opera.com/desktop/changelog-for-98/
+	"112.0.5596.2,98.0.4756.0",
+	"112.0.5596.2,98.0.4746.0",
+	"112.0.5615.20,98.0.4759.1",
+	"112.0.5615.50,98.0.4759.3",
+	"112.0.5615.87,98.0.4759.6",
 }
 
 var ucwebVersions = []string{
@@ -149,6 +295,8 @@ var androidVersions = []string{
 	"9",
 	"10",
 	"11",
+	"12",
+	"13",
 }
 
 var ucwebDevices = []string{
@@ -233,6 +381,55 @@ var osStrings = []string{
 	"Macintosh; Intel Mac OS X 11_2_1",
 	"Macintosh; Intel Mac OS X 11_2_2",
 	"Macintosh; Intel Mac OS X 11_2_3",
+	"Macintosh; Intel Mac OS X 11_3",
+	"Macintosh; Intel Mac OS X 11_3_1",
+	"Macintosh; Intel Mac OS X 11_4",
+	"Macintosh; Intel Mac OS X 11_5",
+	"Macintosh; Intel Mac OS X 11_5_1",
+	"Macintosh; Intel Mac OS X 11_5_2",
+	"Macintosh; Intel Mac OS X 11_6",
+	"Macintosh; Intel Mac OS X 11_6_1",
+	"Macintosh; Intel Mac OS X 11_6_2",
+	"Macintosh; Intel Mac OS X 11_6_3",
+	"Macintosh; Intel Mac OS X 11_6_4",
+	"Macintosh; Intel Mac OS X 11_6_5",
+	"Macintosh; Intel Mac OS X 11_6_6",
+	"Macintosh; Intel Mac OS X 11_6_7",
+	"Macintosh; Intel Mac OS X 11_6_8",
+	"Macintosh; Intel Mac OS X 11_7",
+	"Macintosh; Intel Mac OS X 11_7_1",
+	"Macintosh; Intel Mac OS X 11_7_2",
+	"Macintosh; Intel Mac OS X 11_7_3",
+	"Macintosh; Intel Mac OS X 11_7_4",
+	"Macintosh; Intel Mac OS X 11_7_5",
+	"Macintosh; Intel Mac OS X 11_7_6",
+
+	// MacOS - Monterey
+	"Macintosh; Intel Mac OS X 12_0",
+	"Macintosh; Intel Mac OS X 12_0_1",
+	"Macintosh; Intel Mac OS X 12_1",
+	"Macintosh; Intel Mac OS X 12_2",
+	"Macintosh; Intel Mac OS X 12_2_1",
+	"Macintosh; Intel Mac OS X 12_3",
+	"Macintosh; Intel Mac OS X 12_3_1",
+	"Macintosh; Intel Mac OS X 12_4",
+	"Macintosh; Intel Mac OS X 12_5",
+	"Macintosh; Intel Mac OS X 12_5_1",
+	"Macintosh; Intel Mac OS X 12_6",
+	"Macintosh; Intel Mac OS X 12_6_1",
+	"Macintosh; Intel Mac OS X 12_6_2",
+	"Macintosh; Intel Mac OS X 12_6_3",
+	"Macintosh; Intel Mac OS X 12_6_4",
+	"Macintosh; Intel Mac OS X 12_6_5",
+
+	// MacOS - Ventura
+	"Macintosh; Intel Mac OS X 13_0",
+	"Macintosh; Intel Mac OS X 13_0_1",
+	"Macintosh; Intel Mac OS X 13_1",
+	"Macintosh; Intel Mac OS X 13_2",
+	"Macintosh; Intel Mac OS X 13_2_1",
+	"Macintosh; Intel Mac OS X 13_3",
+	"Macintosh; Intel Mac OS X 13_3_1",
 
 	// Windows
 	"Windows NT 10.0; Win64; x64",
@@ -275,11 +472,13 @@ func genEdgeUA() string {
 
 // Generates Opera Browser User-Agent (Desktop)
 //
-//	-> "Opera/9.80 (X11; Linux x86_64; U; en) Presto/2.8.131 Version/11.11"
+//	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 OPR/98.0.4759.3"
 func genOperaUA() string {
 	version := operaVersions[rand.Intn(len(operaVersions))]
+	chromeVersion := strings.Split(version, ",")[0]
+	operaVersion := strings.Split(version, ",")[1]
 	os := osStrings[rand.Intn(len(osStrings))]
-	return fmt.Sprintf("Opera/9.80 (%s; U; en) Presto/%s", os, version)
+	return fmt.Sprintf("Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36 OPR/%s", os, chromeVersion, operaVersion)
 }
 
 // Generates UCWEB/Nokia203 Browser User-Agent (Mobile)
