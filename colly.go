@@ -474,15 +474,6 @@ func CheckHead() CollectorOption {
 	}
 }
 
-// CacheBackend sets the caching backend used by the Collector.
-func CacheBackend(c Cache) CollectorOption {
-	return func(c *Collector) {
-		//d.Init()
-		//c.debugger = d
-		// FIXME: naprawić
-	}
-}
-
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
