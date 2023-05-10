@@ -16,7 +16,10 @@ var uaGens = []func() string{
 }
 
 var uaGensMobile = []func() string{
-	genMobileUcwebUA,
+	genMobilePixel7UA,
+	genMobilePixel6UA,
+	genMobilePixel5UA,
+	genMobilePixel4UA,
 	genMobileNexus10UA,
 }
 
@@ -272,22 +275,44 @@ var operaVersions = []string{
 	"112.0.5615.165,98.0.4759.39",
 }
 
-var ucwebVersions = []string{
-	"10.9.8.1006",
-	"11.0.0.1016",
-	"11.0.6.1040",
-	"11.1.0.1041",
-	"11.1.1.1091",
-	"11.1.2.1113",
-	"11.1.3.1128",
-	"11.2.0.1125",
-	"11.3.0.1130",
-	"11.4.0.1180",
-	"11.4.1.1138",
-	"11.5.2.1188",
+var pixel7AndroidVersions = []string{
+	// Data source:
+	// - https://developer.android.com/about/versions
+	// - https://source.android.com/docs/setup/about/build-numbers#source-code-tags-and-builds
+	"13",
 }
 
-var androidVersions = []string{
+var pixel6AndroidVersions = []string{
+	// Data source:
+	// - https://developer.android.com/about/versions
+	// - https://source.android.com/docs/setup/about/build-numbers#source-code-tags-and-builds
+	"12",
+	"13",
+}
+
+var pixel5AndroidVersions = []string{
+	// Data source:
+	// - https://developer.android.com/about/versions
+	// - https://source.android.com/docs/setup/about/build-numbers#source-code-tags-and-builds
+	"11",
+	"12",
+	"13",
+}
+
+var pixel4AndroidVersions = []string{
+	// Data source:
+	// - https://developer.android.com/about/versions
+	// - https://source.android.com/docs/setup/about/build-numbers#source-code-tags-and-builds
+	"10",
+	"11",
+	"12",
+	"13",
+}
+
+var nexus10AndroidVersions = []string{
+	// Data source:
+	// - https://developer.android.com/about/versions
+	// - https://source.android.com/docs/setup/about/build-numbers#source-code-tags-and-builds
 	"4.4.2",
 	"4.4.4",
 	"5.0",
@@ -295,64 +320,39 @@ var androidVersions = []string{
 	"5.0.2",
 	"5.1",
 	"5.1.1",
-	"5.1.2",
-	"6.0",
-	"6.0.1",
-	"7.0",
-	"7.1.1",
-	"7.1.2",
-	"8.0.0",
-	"8.1.0",
-	"9",
-	"10",
-	"11",
-	"12",
-	"13",
-}
-
-var ucwebDevices = []string{
-	"SM-C111",
-	"SM-J727T1",
-	"SM-J701F",
-	"SM-J330G",
-	"SM-N900",
-	"DLI-TL20",
-	"LG-X230",
-	"AS-5433_Secret",
-	"IdeaTabA1000-G",
-	"GT-S5360",
-	"HTC_Desire_601_dual_sim",
-	"ALCATEL_ONE_TOUCH_7025D",
-	"SM-N910H",
-	"Micromax_Q4101",
-	"SM-G600FY",
 }
 
 var nexus10Builds = []string{
-	"JOP40D",
-	"JOP40F",
-	"JVP15I",
-	"JVP15P",
-	"JWR66Y",
-	"KTU84P",
-	"LMY47D",
-	"LMY47V",
-	"LMY48M",
-	"LMY48T",
-	"LMY48X",
-	"LMY49F",
-	"LMY49H",
-	"LRX21P",
-	"NOF27C",
-}
+	// Data source: https://source.android.com/docs/setup/about/build-numbers#source-code-tags-and-builds
 
-var nexus10Safari = []string{
-	"534.30",
-	"535.19",
-	"537.22",
-	"537.31",
-	"537.36",
-	"600.1.4",
+	"LMY49M", // android-5.1.1_r38 (Lollipop)
+	"LMY49J", // android-5.1.1_r37 (Lollipop)
+	"LMY49I", // android-5.1.1_r36 (Lollipop)
+	"LMY49H", // android-5.1.1_r35 (Lollipop)
+	"LMY49G", // android-5.1.1_r34 (Lollipop)
+	"LMY49F", // android-5.1.1_r33 (Lollipop)
+	"LMY48Z", // android-5.1.1_r30 (Lollipop)
+	"LMY48X", // android-5.1.1_r25 (Lollipop)
+	"LMY48T", // android-5.1.1_r19 (Lollipop)
+	"LMY48M", // android-5.1.1_r14 (Lollipop)
+	"LMY48I", // android-5.1.1_r9 (Lollipop)
+	"LMY47V", // android-5.1.1_r1 (Lollipop)
+	"LMY47D", // android-5.1.0_r1 (Lollipop)
+	"LRX22G", // android-5.0.2_r1 (Lollipop)
+	"LRX22C", // android-5.0.1_r1 (Lollipop)
+	"LRX21P", // android-5.0.0_r4.0.1 (Lollipop)
+	"KTU84P", // android-4.4.4_r1 (KitKat)
+	"KTU84L", // android-4.4.3_r1 (KitKat)
+	"KOT49H", // android-4.4.2_r1 (KitKat)
+	"KOT49E", // android-4.4.1_r1 (KitKat)
+	"KRT16S", // android-4.4_r1.2 (KitKat)
+	"JWR66Y", // android-4.3_r1.1 (Jelly Bean)
+	"JWR66V", // android-4.3_r1 (Jelly Bean)
+	"JWR66N", // android-4.3_r0.9.1 (Jelly Bean)
+	"JDQ39 ", // android-4.2.2_r1 (Jelly Bean)
+	"JOP40F", // android-4.2.1_r1.1 (Jelly Bean)
+	"JOP40D", // android-4.2.1_r1 (Jelly Bean)
+	"JOP40C", // android-4.2_r1 (Jelly Bean)
 }
 
 var osStrings = []string{
@@ -454,7 +454,7 @@ var osStrings = []string{
 
 // Generates Firefox Browser User-Agent (Desktop)
 //
-//	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:87.0) Gecko/20100101 Firefox/87.0"
+// -> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:87.0) Gecko/20100101 Firefox/87.0"
 func genFirefoxUA() string {
 	version := ffVersions[rand.Intn(len(ffVersions))]
 	os := osStrings[rand.Intn(len(osStrings))]
@@ -463,7 +463,7 @@ func genFirefoxUA() string {
 
 // Generates Chrome Browser User-Agent (Desktop)
 //
-//	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36"
+// -> "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36"
 func genChromeUA() string {
 	version := chromeVersions[rand.Intn(len(chromeVersions))]
 	os := osStrings[rand.Intn(len(osStrings))]
@@ -472,7 +472,7 @@ func genChromeUA() string {
 
 // Generates Microsoft Edge User-Agent (Desktop)
 //
-//	-> "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36 Edg/90.0.818.39"
+// -> "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36 Edg/90.0.818.39"
 func genEdgeUA() string {
 	version := edgeVersions[rand.Intn(len(edgeVersions))]
 	chromeVersion := strings.Split(version, ",")[0]
@@ -483,7 +483,7 @@ func genEdgeUA() string {
 
 // Generates Opera Browser User-Agent (Desktop)
 //
-//	-> "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 OPR/98.0.4759.3"
+// -> "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 OPR/98.0.4759.3"
 func genOperaUA() string {
 	version := operaVersions[rand.Intn(len(operaVersions))]
 	chromeVersion := strings.Split(version, ",")[0]
@@ -492,23 +492,48 @@ func genOperaUA() string {
 	return fmt.Sprintf("Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36 OPR/%s", os, chromeVersion, operaVersion)
 }
 
-// Generates UCWEB/Nokia203 Browser User-Agent (Mobile)
+// Generates Pixel 7 Browser User-Agent (Mobile)
 //
-//	-> "UCWEB/2.0 (Java; U; MIDP-2.0; Nokia203/20.37) U2/1.0.0 UCMini/10.9.8.1006 (SpeedMode; Proxy; Android 4.4.4; SM-J110H ) U2/1.0.0 Mobile"
-func genMobileUcwebUA() string {
-	device := ucwebDevices[rand.Intn(len(ucwebDevices))]
-	version := ucwebVersions[rand.Intn(len(ucwebVersions))]
-	android := androidVersions[rand.Intn(len(androidVersions))]
-	return fmt.Sprintf("UCWEB/2.0 (Java; U; MIDP-2.0; Nokia203/20.37) U2/1.0.0 UCMini/%s (SpeedMode; Proxy; Android %s; %s ) U2/1.0.0 Mobile", version, android, device)
+// -> Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36
+func genMobilePixel7UA() string {
+	android := pixel7AndroidVersions[rand.Intn(len(pixel7AndroidVersions))]
+	chrome := chromeVersions[rand.Intn(len(chromeVersions))]
+	return fmt.Sprintf("Mozilla/5.0 (Linux; Android %s; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36", android, chrome)
+}
+
+// Generates Pixel 6 Browser User-Agent (Mobile)
+//
+// -> "Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+func genMobilePixel6UA() string {
+	android := pixel6AndroidVersions[rand.Intn(len(pixel6AndroidVersions))]
+	chrome := chromeVersions[rand.Intn(len(chromeVersions))]
+	return fmt.Sprintf("Mozilla/5.0 (Linux; Android %s; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36", android, chrome)
+}
+
+// Generates Pixel 5 Browser User-Agent (Mobile)
+//
+// -> "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+func genMobilePixel5UA() string {
+	android := pixel5AndroidVersions[rand.Intn(len(pixel5AndroidVersions))]
+	chrome := chromeVersions[rand.Intn(len(chromeVersions))]
+	return fmt.Sprintf("Mozilla/5.0 (Linux; Android %s; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36", android, chrome)
+}
+
+// Generates Pixel 4 Browser User-Agent (Mobile)
+//
+// -> "Mozilla/5.0 (Linux; Android 13; Pixel 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+func genMobilePixel4UA() string {
+	android := pixel4AndroidVersions[rand.Intn(len(pixel4AndroidVersions))]
+	chrome := chromeVersions[rand.Intn(len(chromeVersions))]
+	return fmt.Sprintf("Mozilla/5.0 (Linux; Android %s; Pixel 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36", android, chrome)
 }
 
 // Generates Nexus 10 Browser User-Agent (Mobile)
 //
-//	-> "Mozilla/5.0 (Linux; Android 5.1.1; Nexus 10 Build/LMY48T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.91 Safari/537.36"
+// -> "Mozilla/5.0 (Linux; Android 5.1.1; Nexus 10 Build/LMY48T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.91 Safari/537.36"
 func genMobileNexus10UA() string {
 	build := nexus10Builds[rand.Intn(len(nexus10Builds))]
-	android := androidVersions[rand.Intn(len(androidVersions))]
+	android := nexus10AndroidVersions[rand.Intn(len(nexus10AndroidVersions))]
 	chrome := chromeVersions[rand.Intn(len(chromeVersions))]
-	safari := nexus10Safari[rand.Intn(len(nexus10Safari))]
-	return fmt.Sprintf("Mozilla/5.0 (Linux; Android %s; Nexus 10 Build/%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/%s", android, build, chrome, safari)
+	return fmt.Sprintf("Mozilla/5.0 (Linux; Android %s; Nexus 10 Build/%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36", android, build, chrome)
 }
