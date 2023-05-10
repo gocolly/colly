@@ -52,6 +52,7 @@ var ffVersions = []float32{
 	110.0,
 	111.0,
 	112.0,
+	113.0,
 }
 
 var chromeVersions = []string{
@@ -199,6 +200,14 @@ var chromeVersions = []string{
 	"112.0.5615.137",
 	"112.0.5615.138",
 	"112.0.5615.165",
+
+	// https://chromereleases.googleblog.com/2023/05/stable-channel-update-for-desktop.html
+	"113.0.5672.63",
+	"113.0.5672.64",
+
+	// https://chromereleases.googleblog.com/2023/05/stable-channel-update-for-desktop_8.html
+	"113.0.5672.92",
+	"113.0.5672.93",
 }
 
 var edgeVersions = []string{
@@ -218,8 +227,7 @@ var edgeVersions = []string{
 	"110.0.0.0,110.0.1587.41",
 	"111.0.0.0,111.0.1661.41",
 	"112.0.0.0,112.0.1722.34",
-	"112.0.0.0,112.0.1722.54",
-	"112.0.0.0,112.0.1722.58",
+	"113.0.0.0,113.0.1774.3",
 }
 
 var operaVersions = []string{
@@ -259,6 +267,9 @@ var operaVersions = []string{
 	"112.0.5615.20,98.0.4759.1",
 	"112.0.5615.50,98.0.4759.3",
 	"112.0.5615.87,98.0.4759.6",
+	"112.0.5615.165,98.0.4759.15",
+	"112.0.5615.165,98.0.4759.21",
+	"112.0.5615.165,98.0.4759.39",
 }
 
 var ucwebVersions = []string{
