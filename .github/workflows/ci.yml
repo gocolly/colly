@@ -36,7 +36,7 @@ jobs:
           OUT="$(gofmt -l -d ./)"; test -z "$OUT" || (echo "$OUT" && return 1)
           golint -set_exit_status
           go vet -v ./...
-          go test -race -v -coverprofile=coverage.txt -covermode=atomic ./
+          go test -race -v -coverprofile=coverage.txt -covermode=atomic ./...
 
   build:
     name: Build ${{matrix.go}}

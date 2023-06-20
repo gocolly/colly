@@ -918,6 +918,19 @@ func TestRedirect(t *testing.T) {
 	c.Visit(ts.URL + "/redirect")
 }
 
+func TestIssue594(t *testing.T) {
+	// This is a regression test for a data race bug. There's no
+	// assertions because it's meant to be used with race detector
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	// if timeout is set, this bug is not triggered
+	c.SetClient(&http.Client{Timeout: 0 * time.Second})
+
+	c.Visit(ts.URL)
+}
+
 func TestRedirectWithDisallowedURLs(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()

@@ -186,10 +186,12 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	finalRequest := request
 	if res.Request != nil {
-		*request = *res.Request
+		finalRequest = res.Request
 	}
-	if !checkHeadersFunc(request, res.StatusCode, res.Header) {
+	if !checkHeadersFunc(finalRequest, res.StatusCode, res.Header) {
 		// closing res.Body (see defer above) without reading it aborts
 		// the download
 		return nil, ErrAbortedAfterHeaders
@@ -200,7 +202,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
-	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(request.URL.Path), ".xml.gz")) {
+	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(finalRequest.URL.Path), ".xml.gz")) {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
 			return nil, err
