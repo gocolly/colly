@@ -90,6 +90,7 @@ func (q *Queue) AddURL(URL string) error {
 	r := &colly.Request{
 		URL:    u2,
 		Method: "GET",
+		Depth:  1,
 	}
 	d, err := r.Marshal()
 	if err != nil {
