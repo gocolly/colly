@@ -132,6 +132,10 @@ func (q *Queue) Size() (int, error) {
 // to perform requests. Run blocks while the queue has active requests
 // The given Storage must not be used directly while Run blocks.
 func (q *Queue) Run(c *colly.Collector) error {
+	if c.Async {
+		// Async causes Queue crawling to silently fail, since all requests finish "Instantly"
+		panic("Cannot run Async collector in Queue!")
+	}
 	q.mut.Lock()
 	if q.wake != nil && q.running == true {
 		q.mut.Unlock()
