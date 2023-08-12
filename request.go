@@ -150,6 +150,14 @@ func (r *Request) PostMultipart(URL string, requestData map[string][]byte) error
 	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, requestData), r.Ctx, hdr, true)
 }
 
+func (r *Request) PostRoRLogin(URL string, requestData map[string][]byte) error {
+	boundary := randomBoundary()
+	hdr := http.Header{}
+	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
+	hdr.Set("User-Agent", r.collector.UserAgent)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, requestData), r.Ctx, hdr, true)
+}
+
 // Retry submits HTTP request again with the same parameters
 func (r *Request) Retry() error {
 	r.Headers.Del("Cookie")
