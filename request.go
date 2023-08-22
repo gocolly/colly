@@ -31,6 +31,8 @@ type Request struct {
 	URL *url.URL
 	// Headers contains the Request's HTTP headers
 	Headers *http.Header
+	// the Host header
+	Host string
 	// Ctx is a context between a Request and a Response
 	Ctx *Context
 	// Depth is the number of the parents of the request
@@ -60,20 +62,26 @@ type serializableRequest struct {
 	ID      uint32
 	Ctx     map[string]interface{}
 	Headers http.Header
+	Host    string
 }
 
 // New creates a new request with the context of the original request
 func (r *Request) New(method, URL string, body io.Reader) (*Request, error) {
-	u, err := url.Parse(URL)
+	u, err := urlParser.Parse(URL)
+	if err != nil {
+		return nil, err
+	}
+	u2, err := url.Parse(u.Href(false))
 	if err != nil {
 		return nil, err
 	}
 	return &Request{
 		Method:    method,
-		URL:       u,
+		URL:       u2,
 		Body:      body,
 		Ctx:       r.Ctx,
 		Headers:   &http.Header{},
+		Host:      r.Host,
 		ID:        atomic.AddUint32(&r.collector.requestCount, 1),
 		collector: r.collector,
 	}, nil
@@ -97,15 +105,12 @@ func (r *Request) AbsoluteURL(u string) string {
 	} else {
 		base = r.URL
 	}
-	absURL, err := base.Parse(u)
+
+	absURL, err := urlParser.ParseRef(base.String(), u)
 	if err != nil {
 		return ""
 	}
-	absURL.Fragment = ""
-	if absURL.Scheme == "//" {
-		absURL.Scheme = r.URL.Scheme
-	}
-	return absURL.String()
+	return absURL.Href(false)
 }
 
 // Visit continues Collector's collecting job by creating a
@@ -175,6 +180,7 @@ func (r *Request) Marshal() ([]byte, error) {
 	}
 	sr := &serializableRequest{
 		URL:    r.URL.String(),
+		Host:   r.Host,
 		Method: r.Method,
 		Depth:  r.Depth,
 		Body:   body,

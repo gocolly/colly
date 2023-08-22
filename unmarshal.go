@@ -35,17 +35,17 @@ func (h *HTMLElement) UnmarshalWithMap(v interface{}, structMap map[string]strin
 // UnmarshalHTML declaratively extracts text or attributes to a struct from
 // HTML response using struct tags composed of css selectors.
 // Allowed struct tags:
-//  - "selector" (required): CSS (goquery) selector of the desired data
-//  - "attr" (optional): Selects the matching element's attribute's value.
+//   - "selector" (required): CSS (goquery) selector of the desired data
+//   - "attr" (optional): Selects the matching element's attribute's value.
 //     Leave it blank or omit to get the text of the element.
 //
 // Example struct declaration:
 //
-//   type Nested struct {
-//   	String  string   `selector:"div > p"`
-//      Classes []string `selector:"li" attr:"class"`
-//   	Struct  *Nested  `selector:"div > div"`
-//   }
+//	type Nested struct {
+//		String  string   `selector:"div > p"`
+//	   Classes []string `selector:"li" attr:"class"`
+//		Struct  *Nested  `selector:"div > div"`
+//	}
 //
 // Supported types: struct, *struct, string, []string
 func UnmarshalHTML(v interface{}, s *goquery.Selection, structMap map[string]string) error {

@@ -4,10 +4,14 @@ import (
 	"net/url"
 	"sync"
 
+	whatwgUrl "github.com/nlnwa/whatwg-url/url"
+
 	"github.com/gocolly/colly/v2"
 )
 
 const stop = true
+
+var urlParser = whatwgUrl.NewParser(whatwgUrl.WithPercentEncodeSinglePercentSign())
 
 // Storage is the interface of the queue's storage backend
 // Storage must be concurrently safe for multiple goroutines.
@@ -75,12 +79,16 @@ func (q *Queue) IsEmpty() bool {
 
 // AddURL adds a new URL to the queue
 func (q *Queue) AddURL(URL string) error {
-	u, err := url.Parse(URL)
+	u, err := urlParser.Parse(URL)
+	if err != nil {
+		return err
+	}
+	u2, err := url.Parse(u.Href(false))
 	if err != nil {
 		return err
 	}
 	r := &colly.Request{
-		URL:    u,
+		URL:    u2,
 		Method: "GET",
 	}
 	d, err := r.Marshal()
@@ -160,7 +168,7 @@ func (q *Queue) loop(c *colly.Collector, requestc chan<- *colly.Request, complet
 		if size == 0 && active == 0 || !q.running {
 			// Terminate when
 			//   1. No active requests
-			//   2. Emtpy queue
+			//   2. Empty queue
 			errc <- nil
 			break
 		}

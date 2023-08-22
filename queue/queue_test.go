@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,6 +17,8 @@ func TestQueue(t *testing.T) {
 	defer server.Close()
 
 	rng := rand.New(rand.NewSource(12387123712321232))
+	var rngMu sync.Mutex
+
 	var (
 		items    uint32
 		requests uint32
@@ -28,7 +31,9 @@ func TestQueue(t *testing.T) {
 		panic(err)
 	}
 	put := func() {
+		rngMu.Lock()
 		t := time.Duration(rng.Intn(50)) * time.Microsecond
+		rngMu.Unlock()
 		url := server.URL + "/delay?t=" + t.String()
 		atomic.AddUint32(&items, 1)
 		q.AddURL(url)
@@ -49,7 +54,9 @@ func TestQueue(t *testing.T) {
 		} else {
 			atomic.AddUint32(&failure, 1)
 		}
+		rngMu.Lock()
 		toss := rng.Intn(2) == 0
+		rngMu.Unlock()
 		if toss {
 			put()
 		}

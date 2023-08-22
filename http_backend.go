@@ -46,8 +46,8 @@ type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header
 // Both DomainRegexp and DomainGlob can be used to specify
 // the included domains patterns, but at least one is required.
 // There can be two kind of limitations:
-//  - Parallelism: Set limit for the number of concurrent requests to matching domains
-//  - Delay: Wait specified amount of time between requests (parallelism is 1 in this case)
+//   - Parallelism: Set limit for the number of concurrent requests to matching domains
+//   - Delay: Wait specified amount of time between requests (parallelism is 1 in this case)
 type LimitRule struct {
 	// DomainRegexp is a regular expression to match against domains
 	DomainRegexp string
@@ -186,10 +186,12 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	finalRequest := request
 	if res.Request != nil {
-		*request = *res.Request
+		finalRequest = res.Request
 	}
-	if !checkHeadersFunc(request, res.StatusCode, res.Header) {
+	if !checkHeadersFunc(finalRequest, res.StatusCode, res.Header) {
 		// closing res.Body (see defer above) without reading it aborts
 		// the download
 		return nil, ErrAbortedAfterHeaders
@@ -200,7 +202,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
-	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(request.URL.Path), ".xml.gz")) {
+	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(finalRequest.URL.Path), ".xml.gz")) {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
 			return nil, err
