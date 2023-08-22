@@ -29,7 +29,7 @@ func main() {
 
 	// On every a element which has .top-matter attribute call callback
 	// This class is unique to the div that holds all information about a story
-	c.OnHTML(".top-matter", func(_ string, e *colly.HTMLElement) {
+	c.OnHTML(".top-matter", "_", func(_ string, e *colly.HTMLElement) {
 		temp := item{}
 		temp.StoryURL = e.ChildAttr("a[data-event-action=title]", "href")
 		temp.Source = "https://old.reddit.com/r/programming/"
@@ -40,7 +40,7 @@ func main() {
 	})
 
 	// On every span tag with the class next-button
-	c.OnHTML("span.next-button", func(_ string, h *colly.HTMLElement) {
+	c.OnHTML("span.next-button", "_", func(_ string, h *colly.HTMLElement) {
 		t := h.ChildAttr("a", "href")
 		c.Visit(t)
 	})

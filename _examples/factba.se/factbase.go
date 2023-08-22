@@ -33,7 +33,7 @@ func main() {
 
 	d := c.Clone()
 
-	d.OnHTML("body", func(_ string, e *colly.HTMLElement) {
+	d.OnHTML("body", "_", func(_ string, e *colly.HTMLElement) {
 		t := make([]transcript, 0)
 		e.ForEach(".topic-media-row", func(_ int, el *colly.HTMLElement) {
 			t = append(t, transcript{

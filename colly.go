@@ -147,7 +147,7 @@ type ResponseHeadersCallback func(*Response)
 type ResponseCallback func(*Response)
 
 // HTMLCallback is a type alias for OnHTML callback functions
-type HTMLCallback func(selector string, element *HTMLElement)
+type HTMLCallback func(key string, element *HTMLElement)
 
 // XMLCallback is a type alias for OnXML callback functions
 type XMLCallback func(*XMLElement)
@@ -182,8 +182,9 @@ func (e *AlreadyVisitedError) Error() string {
 }
 
 type htmlCallbackContainer struct {
-	Selector string
-	Function HTMLCallback
+	UniqueKey string
+	Selector  string
+	Function  HTMLCallback
 }
 
 type xmlCallbackContainer struct {
@@ -912,14 +913,15 @@ func (c *Collector) OnResponse(f ResponseCallback) {
 // OnHTML registers a function. Function will be executed on every HTML
 // element matched by the GoQuery Selector parameter.
 // GoQuery Selector is a selector used by https://github.com/PuerkitoBio/goquery
-func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
+func (c *Collector) OnHTML(goquerySelector, uniqueKey string, f HTMLCallback) {
 	c.lock.Lock()
 	if c.htmlCallbacks == nil {
 		c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 4)
 	}
 	c.htmlCallbacks = append(c.htmlCallbacks, &htmlCallbackContainer{
-		Selector: goquerySelector,
-		Function: f,
+		UniqueKey: uniqueKey,
+		Selector:  goquerySelector,
+		Function:  f,
 	})
 	c.lock.Unlock()
 }
@@ -1139,7 +1141,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(cc.Selector, e)
+				cc.Function(cc.UniqueKey, e)
 			}
 		})
 	}
