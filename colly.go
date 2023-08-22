@@ -450,7 +450,7 @@ func DetectCharset() CollectorOption {
 // Debugger sets the debugger used by the Collector.
 func Debugger(d debug.Debugger) CollectorOption {
 	return func(c *Collector) {
-		d.Init()
+		_ = d.Init()
 		c.debugger = d
 	}
 }
@@ -470,7 +470,7 @@ func (c *Collector) Init() {
 	c.MaxDepth = 0
 	c.MaxRequests = 0
 	c.store = &storage.InMemoryStorage{}
-	c.store.Init()
+	_ = c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	jar, _ := cookiejar.New(nil)
@@ -573,7 +573,7 @@ func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Cont
 
 // SetDebugger attaches a debugger to the collector
 func (c *Collector) SetDebugger(d debug.Debugger) {
-	d.Init()
+	_ = d.Init()
 	c.debugger = d
 }
 
@@ -648,6 +648,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
+		// nolint:errcheck
 		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
 		return nil
 	}
@@ -720,12 +721,12 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 
 	err = c.handleOnHTML(response)
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		_ = c.handleOnError(response, err, request, ctx)
 	}
 
 	err = c.handleOnXML(response)
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		_ = c.handleOnError(response, err, request, ctx)
 	}
 
 	c.handleOnScraped(response)
@@ -1523,9 +1524,9 @@ func requestHash(url string, body io.Reader) uint64 {
 	h := fnv.New64a()
 	// reparse the url to fix ambiguities such as
 	// "http://example.com" vs "http://example.com/"
-	io.WriteString(h, normalizeURL(url))
+	_, _ = io.WriteString(h, normalizeURL(url))
 	if body != nil {
-		io.Copy(h, body)
+		_, _ = io.Copy(h, body)
 	}
 	return h.Sum64()
 }

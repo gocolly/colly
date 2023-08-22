@@ -194,13 +194,13 @@ func unmarshalSlice(s *goquery.Selection, selector, htmlAttr string, attrV refle
 	case reflect.Ptr:
 		s.Find(selector).Each(func(_ int, innerSel *goquery.Selection) {
 			someVal := reflect.New(attrV.Type().Elem().Elem())
-			UnmarshalHTML(someVal.Interface(), innerSel, nil)
+			_ = UnmarshalHTML(someVal.Interface(), innerSel, nil)
 			attrV.Set(reflect.Append(attrV, someVal))
 		})
 	case reflect.Struct:
 		s.Find(selector).Each(func(_ int, innerSel *goquery.Selection) {
 			someVal := reflect.New(attrV.Type().Elem())
-			UnmarshalHTML(someVal.Interface(), innerSel, nil)
+			_ = UnmarshalHTML(someVal.Interface(), innerSel, nil)
 			attrV.Set(reflect.Append(attrV, reflect.Indirect(someVal)))
 		})
 	default:

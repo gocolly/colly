@@ -113,9 +113,9 @@ func main() {
 				}
 			}
 			scraper.WriteString(scraperEndTemplate)
-			outfile.Write(scraper.Bytes())
+			_, _ = outfile.Write(scraper.Bytes())
 		}
 	})
 
-	app.Run(os.Args)
+	_ = app.Run(os.Args)
 }

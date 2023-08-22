@@ -9,8 +9,6 @@ import (
 	"github.com/gocolly/colly/v2"
 )
 
-const stop = true
-
 var urlParser = whatwgUrl.NewParser(whatwgUrl.WithPercentEncodeSinglePercentSign())
 
 // Storage is the interface of the queue's storage backend
@@ -132,7 +130,7 @@ func (q *Queue) Size() (int, error) {
 // The given Storage must not be used directly while Run blocks.
 func (q *Queue) Run(c *colly.Collector) error {
 	q.mut.Lock()
-	if q.wake != nil && q.running == true {
+	if q.wake != nil && q.running {
 		q.mut.Unlock()
 		panic("cannot call duplicate Queue.Run")
 	}
@@ -206,7 +204,7 @@ func (q *Queue) loop(c *colly.Collector, requestc chan<- *colly.Request, complet
 
 func independentRunner(requestc <-chan *colly.Request, complete chan<- struct{}) {
 	for req := range requestc {
-		req.Do()
+		_ = req.Do()
 		complete <- struct{}{}
 	}
 }
