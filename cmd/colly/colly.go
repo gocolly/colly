@@ -42,7 +42,7 @@ var scraperEndTemplate = `
 `
 
 var htmlCallbackTemplate = `
-	c.OnHTML("element-selector", func(e *colly.HTMLElement) {
+	c.OnHTML("element-selector", func(_ string, e *colly.HTMLElement) {
 		log.Println(e.Text)
 	})
 `

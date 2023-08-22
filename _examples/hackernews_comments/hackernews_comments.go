@@ -35,7 +35,7 @@ func main() {
 	c := colly.NewCollector()
 
 	// Extract comment
-	c.OnHTML(".comment-tree tr.athing", func(e *colly.HTMLElement) {
+	c.OnHTML(".comment-tree tr.athing", func(_ string, e *colly.HTMLElement) {
 		width, err := strconv.Atoi(e.ChildAttr("td.ind img", "width"))
 		if err != nil {
 			return

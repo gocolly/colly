@@ -40,12 +40,13 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/antchfx/htmlquery"
 	"github.com/antchfx/xmlquery"
-	"github.com/gocolly/colly/v2/debug"
-	"github.com/gocolly/colly/v2/storage"
 	"github.com/kennygrant/sanitize"
 	whatwgUrl "github.com/nlnwa/whatwg-url/url"
 	"github.com/temoto/robotstxt"
 	"google.golang.org/appengine/urlfetch"
+
+	"github.com/gocolly/colly/v2/debug"
+	"github.com/gocolly/colly/v2/storage"
 )
 
 // A CollectorOption sets an option on a Collector.
@@ -146,7 +147,7 @@ type ResponseHeadersCallback func(*Response)
 type ResponseCallback func(*Response)
 
 // HTMLCallback is a type alias for OnHTML callback functions
-type HTMLCallback func(*HTMLElement)
+type HTMLCallback func(selector string, element *HTMLElement)
 
 // XMLCallback is a type alias for OnXML callback functions
 type XMLCallback func(*XMLElement)
@@ -1138,7 +1139,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				cc.Function(cc.Selector, e)
 			}
 		})
 	}

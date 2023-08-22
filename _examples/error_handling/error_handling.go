@@ -12,7 +12,7 @@ func main() {
 
 	// Set HTML callback
 	// Won't be called if error occurs
-	c.OnHTML("*", func(e *colly.HTMLElement) {
+	c.OnHTML("*", func(_ string, e *colly.HTMLElement) {
 		fmt.Println(e)
 	})
 

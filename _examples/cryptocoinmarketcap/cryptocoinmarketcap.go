@@ -25,7 +25,7 @@ func main() {
 	// Instantiate default collector
 	c := colly.NewCollector()
 
-	c.OnHTML("tbody tr", func(e *colly.HTMLElement) {
+	c.OnHTML("tbody tr", func(_ string, e *colly.HTMLElement) {
 		writer.Write([]string{
 			e.ChildText(".cmc-table__column-name"),
 			e.ChildText(".cmc-table__cell--sort-by__symbol"),

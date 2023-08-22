@@ -554,21 +554,21 @@ func TestCollectorOnHTML(t *testing.T) {
 	titleCallbackCalled := false
 	paragraphCallbackCount := 0
 
-	c.OnHTML("title", func(e *HTMLElement) {
+	c.OnHTML("title", func(_ string, e *HTMLElement) {
 		titleCallbackCalled = true
 		if e.Text != "Test Page" {
 			t.Error("Title element text does not match, got", e.Text)
 		}
 	})
 
-	c.OnHTML("p", func(e *HTMLElement) {
+	c.OnHTML("p", func(_ string, e *HTMLElement) {
 		paragraphCallbackCount++
 		if e.Attr("class") != "description" {
 			t.Error("Failed to get paragraph's class attribute")
 		}
 	})
 
-	c.OnHTML("body", func(e *HTMLElement) {
+	c.OnHTML("body", func(_ string, e *HTMLElement) {
 		if e.ChildAttr("p", "class") != "description" {
 			t.Error("Invalid class value")
 		}
@@ -897,7 +897,7 @@ func TestRedirect(t *testing.T) {
 	defer ts.Close()
 
 	c := NewCollector()
-	c.OnHTML("a[href]", func(e *HTMLElement) {
+	c.OnHTML("a[href]", func(_ string, e *HTMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
 		if !strings.HasSuffix(u, "/redirected/test") {
 			t.Error("Invalid URL after redirect: " + u)
@@ -937,7 +937,7 @@ func TestRedirectWithDisallowedURLs(t *testing.T) {
 
 	c := NewCollector()
 	c.DisallowedURLFilters = []*regexp.Regexp{regexp.MustCompile(ts.URL + "/redirected/test")}
-	c.OnHTML("a[href]", func(e *HTMLElement) {
+	c.OnHTML("a[href]", func(_ string, e *HTMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
 		err := c.Visit(u)
 		if !errors.Is(err, ErrForbiddenURL) {
@@ -953,7 +953,7 @@ func TestBaseTag(t *testing.T) {
 	defer ts.Close()
 
 	c := NewCollector()
-	c.OnHTML("a[href]", func(e *HTMLElement) {
+	c.OnHTML("a[href]", func(_ string, e *HTMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
 		if u != "http://xy.com/z" {
 			t.Error("Invalid <base /> tag handling in OnHTML: expected https://xy.com/z, got " + u)
@@ -976,7 +976,7 @@ func TestBaseTagRelative(t *testing.T) {
 	defer ts.Close()
 
 	c := NewCollector()
-	c.OnHTML("a[href]", func(e *HTMLElement) {
+	c.OnHTML("a[href]", func(_ string, e *HTMLElement) {
 		u := e.Request.AbsoluteURL(e.Attr("href"))
 		expected := ts.URL + "/foobar/z"
 		if u != expected {
@@ -1013,7 +1013,7 @@ func TestTabsAndNewlines(t *testing.T) {
 	c.OnResponse(func(res *Response) {
 		visited[res.Request.URL.EscapedPath()] = struct{}{}
 	})
-	c.OnHTML("a[href]", func(e *HTMLElement) {
+	c.OnHTML("a[href]", func(_ string, e *HTMLElement) {
 		if err := e.Request.Visit(e.Attr("href")); err != nil {
 			t.Errorf("visit failed: %v", err)
 		}
@@ -1312,7 +1312,7 @@ func TestParseHTTPErrorResponse(t *testing.T) {
 		AllowURLRevisit(),
 	)
 
-	c.OnHTML("p", func(e *HTMLElement) {
+	c.OnHTML("p", func(_ string, e *HTMLElement) {
 		if e.Text == "error" {
 			contentCount++
 		}
@@ -1602,7 +1602,7 @@ func BenchmarkOnHTML(b *testing.B) {
 	defer ts.Close()
 
 	c := NewCollector()
-	c.OnHTML("p", func(_ *HTMLElement) {})
+	c.OnHTML("p", func(_ string, _ *HTMLElement) {})
 
 	for n := 0; n < b.N; n++ {
 		c.Visit(fmt.Sprintf("%s/html?q=%d", ts.URL, n))
