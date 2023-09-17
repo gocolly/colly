@@ -18,6 +18,7 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
+	"errors"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -40,7 +41,9 @@ type httpBackend struct {
 	lock       *sync.RWMutex
 }
 
-type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
+type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header) error
+
+var CheckHeaderFuncCheckError = errors.New("header no check")
 
 // LimitRule provides connection restrictions for domains.
 // Both DomainRegexp and DomainGlob can be used to specify
@@ -141,7 +144,9 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 		resp := new(Response)
 		err := gob.NewDecoder(file).Decode(resp)
 		file.Close()
-		checkHeadersFunc(request, resp.StatusCode, *resp.Headers)
+		if err = checkHeadersFunc(request, resp.StatusCode, *resp.Headers); err != nil {
+			return resp, err
+		}
 		if resp.StatusCode < 500 {
 			return resp, err
 		}
@@ -191,10 +196,10 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 	if res.Request != nil {
 		finalRequest = res.Request
 	}
-	if !checkHeadersFunc(finalRequest, res.StatusCode, res.Header) {
+	if err := checkHeadersFunc(finalRequest, res.StatusCode, res.Header); err != nil {
 		// closing res.Body (see defer above) without reading it aborts
 		// the download
-		return nil, ErrAbortedAfterHeaders
+		return nil, err
 	}
 
 	var bodyReader io.Reader = res.Body
