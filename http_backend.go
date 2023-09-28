@@ -18,14 +18,15 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
+	http "github.com/bogdanfinn/fhttp"
+	tls_client "github.com/bogdanfinn/tls-client"
+	"github.com/bogdanfinn/tls-client/profiles"
 	"io"
 	"io/ioutil"
 	"math/rand"
-	"net/http"
 	"os"
 	"path"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -36,11 +37,9 @@ import (
 
 type httpBackend struct {
 	LimitRules []*LimitRule
-	Client     *http.Client
+	Client     tls_client.HttpClient
 	lock       *sync.RWMutex
 }
-
-type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
 
 // LimitRule provides connection restrictions for domains.
 // Both DomainRegexp and DomainGlob can be used to specify
@@ -51,7 +50,7 @@ type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header
 type LimitRule struct {
 	// DomainRegexp is a regular expression to match against domains
 	DomainRegexp string
-	// DomainGlob is a glob pattern to match against domains
+	// DomainRegexp is a glob pattern to match against domains
 	DomainGlob string
 	// Delay is the duration to wait before creating a new request to the matching domains
 	Delay time.Duration
@@ -94,12 +93,20 @@ func (r *LimitRule) Init() error {
 	return nil
 }
 
-func (h *httpBackend) Init(jar http.CookieJar) {
+func (h *httpBackend) Init(checkRedirectFunc func(req *http.Request, via []*http.Request) error) {
 	rand.Seed(time.Now().UnixNano())
-	h.Client = &http.Client{
-		Jar:     jar,
-		Timeout: 10 * time.Second,
+	jar := tls_client.NewCookieJar()
+	options := []tls_client.HttpClientOption{
+		tls_client.WithTimeoutSeconds(10),
+		tls_client.WithClientProfile(profiles.Chrome_112),
+		tls_client.WithCookieJar(jar),
+		tls_client.WithCustomRedirectFunc(checkRedirectFunc),
 	}
+	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), options...)
+	if err != nil {
+		return
+	}
+	h.Client = client
 	h.lock = &sync.RWMutex{}
 }
 
@@ -129,9 +136,10 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
-	if cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache" {
-		return h.Do(request, bodySize, checkHeadersFunc)
+func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string) (*Response, error) {
+
+	if cacheDir == "" || request.Method != "GET" {
+		return h.Do(request, bodySize)
 	}
 	sum := sha1.Sum([]byte(request.URL.String()))
 	hash := hex.EncodeToString(sum[:])
@@ -141,12 +149,11 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 		resp := new(Response)
 		err := gob.NewDecoder(file).Decode(resp)
 		file.Close()
-		checkHeadersFunc(request, resp.StatusCode, *resp.Headers)
 		if resp.StatusCode < 500 {
 			return resp, err
 		}
 	}
-	resp, err := h.Do(request, bodySize, checkHeadersFunc)
+	resp, err := h.Do(request, bodySize)
 	if err != nil || resp.StatusCode >= 500 {
 		return resp, err
 	}
@@ -167,7 +174,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 	return resp, os.Rename(filename+"~", filename)
 }
 
-func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error) {
+func (h *httpBackend) Do(request *http.Request, bodySize int) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
 		r.waitChan <- true
@@ -185,31 +192,22 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
-
-	finalRequest := request
 	if res.Request != nil {
-		finalRequest = res.Request
-	}
-	if !checkHeadersFunc(finalRequest, res.StatusCode, res.Header) {
-		// closing res.Body (see defer above) without reading it aborts
-		// the download
-		return nil, ErrAbortedAfterHeaders
+		*request = *res.Request
 	}
 
 	var bodyReader io.Reader = res.Body
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
-	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
-	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(finalRequest.URL.Path), ".xml.gz")) {
+	if !res.Uncompressed && res.Header.Get("Content-Encoding") == "gzip" {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
 			return nil, err
 		}
-		defer bodyReader.(*gzip.Reader).Close()
 	}
 	body, err := ioutil.ReadAll(bodyReader)
+	defer res.Body.Close()
 	if err != nil {
 		return nil, err
 	}

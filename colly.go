@@ -17,16 +17,16 @@ package colly
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	http "github.com/bogdanfinn/fhttp"
+	"github.com/bogdanfinn/fhttp/cookiejar"
 	"hash/fnv"
 	"io"
+	"io/ioutil"
 	"log"
-	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -40,23 +40,17 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/antchfx/htmlquery"
 	"github.com/antchfx/xmlquery"
-	"github.com/gocolly/colly/v2/debug"
-	"github.com/gocolly/colly/v2/storage"
 	"github.com/kennygrant/sanitize"
-	whatwgUrl "github.com/nlnwa/whatwg-url/url"
 	"github.com/temoto/robotstxt"
-	"google.golang.org/appengine/urlfetch"
-)
 
-// A CollectorOption sets an option on a Collector.
-type CollectorOption func(*Collector)
+	"github.com/gocolly/colly/debug"
+	"github.com/gocolly/colly/storage"
+)
 
 // Collector provides the scraper instance for a scraping job
 type Collector struct {
 	// UserAgent is the User-Agent string used by HTTP requests
 	UserAgent string
-	// Custom headers for the request
-	Headers *http.Header
 	// MaxDepth limits the recursion depth of visited URLs.
 	// Set it to 0 for infinite recursion (default).
 	MaxDepth int
@@ -105,42 +99,27 @@ type Collector struct {
 	// without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
 	DetectCharset bool
 	// RedirectHandler allows control on how a redirect will be managed
-	// use c.SetRedirectHandler to set this value
-	redirectHandler func(req *http.Request, via []*http.Request) error
+	RedirectHandler func(req *http.Request, via []*http.Request) error
 	// CheckHead performs a HEAD request before every GET to pre-validate the response
-	CheckHead bool
-	// TraceHTTP enables capturing and reporting request performance for crawler tuning.
-	// When set to true, the Response.Trace will be filled in with an HTTPTrace object.
-	TraceHTTP bool
-	// Context is the context that will be used for HTTP requests. You can set this
-	// to support clean cancellation of scraping.
-	Context context.Context
-	// MaxRequests limit the number of requests done by the instance.
-	// Set it to 0 for infinite requests (default).
-	MaxRequests uint32
-
-	store                    storage.Storage
-	debugger                 debug.Debugger
-	robotsMap                map[string]*robotstxt.RobotsData
-	htmlCallbacks            []*htmlCallbackContainer
-	xmlCallbacks             []*xmlCallbackContainer
-	requestCallbacks         []RequestCallback
-	responseCallbacks        []ResponseCallback
-	responseHeadersCallbacks []ResponseHeadersCallback
-	errorCallbacks           []ErrorCallback
-	scrapedCallbacks         []ScrapedCallback
-	requestCount             uint32
-	responseCount            uint32
-	backend                  *httpBackend
-	wg                       *sync.WaitGroup
-	lock                     *sync.RWMutex
+	CheckHead         bool
+	store             storage.Storage
+	debugger          debug.Debugger
+	robotsMap         map[string]*robotstxt.RobotsData
+	htmlCallbacks     []*htmlCallbackContainer
+	xmlCallbacks      []*xmlCallbackContainer
+	requestCallbacks  []RequestCallback
+	responseCallbacks []ResponseCallback
+	errorCallbacks    []ErrorCallback
+	scrapedCallbacks  []ScrapedCallback
+	requestCount      uint32
+	responseCount     uint32
+	backend           *httpBackend
+	wg                *sync.WaitGroup
+	lock              *sync.RWMutex
 }
 
 // RequestCallback is a type alias for OnRequest callback functions
 type RequestCallback func(*Request)
-
-// ResponseHeadersCallback is a type alias for OnResponseHeaders callback functions
-type ResponseHeadersCallback func(*Response)
 
 // ResponseCallback is a type alias for OnResponse callback functions
 type ResponseCallback func(*Response)
@@ -159,26 +138,6 @@ type ScrapedCallback func(*Response)
 
 // ProxyFunc is a type alias for proxy setter functions.
 type ProxyFunc func(*http.Request) (*url.URL, error)
-
-// AlreadyVisitedError is the error type for already visited URLs.
-//
-// It's returned synchronously by Visit when the URL passed to Visit
-// is already visited.
-//
-// When already visited URL is encountered after following
-// redirects, this error appears in OnError callback, and if Async
-// mode is not enabled, is also returned by Visit.
-type AlreadyVisitedError struct {
-	// Destination is the URL that was attempted to be visited.
-	// It might not match the URL passed to Visit if redirect
-	// was followed.
-	Destination *url.URL
-}
-
-// Error implements error interface.
-func (e *AlreadyVisitedError) Error() string {
-	return fmt.Sprintf("%q already visited", e.Destination)
-}
 
 type htmlCallbackContainer struct {
 	Selector string
@@ -219,20 +178,14 @@ var (
 	// ErrNoURLFiltersMatch is the error thrown if visiting
 	// a URL which is not allowed by URLFilters
 	ErrNoURLFiltersMatch = errors.New("No URLFilters match")
+	// ErrAlreadyVisited is the error type for already visited URLs
+	ErrAlreadyVisited = errors.New("URL already visited")
 	// ErrRobotsTxtBlocked is the error type for robots.txt errors
 	ErrRobotsTxtBlocked = errors.New("URL blocked by robots.txt")
 	// ErrNoCookieJar is the error type for missing cookie jar
 	ErrNoCookieJar = errors.New("Cookie jar is not available")
 	// ErrNoPattern is the error type for LimitRules without patterns
 	ErrNoPattern = errors.New("No pattern defined in LimitRule")
-	// ErrEmptyProxyURL is the error type for empty Proxy URL list
-	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
-	// ErrAbortedAfterHeaders is the error returned when OnResponseHeaders aborts the transfer.
-	ErrAbortedAfterHeaders = errors.New("Aborted after receiving response headers")
-	// ErrQueueFull is the error returned when the queue is full
-	ErrQueueFull = errors.New("Queue MaxSize reached")
-	// ErrMaxRequests is the error returned when exceeding max requests
-	ErrMaxRequests = errors.New("Max Requests limit reached")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -246,7 +199,7 @@ var envMap = map[string]func(*Collector, string){
 		c.DetectCharset = isYesString(val)
 	},
 	"DISABLE_COOKIES": func(c *Collector, _ string) {
-		c.backend.Client.Jar = nil
+		c.backend.Client.SetCookieJar(nil)
 	},
 	"DISALLOWED_DOMAINS": func(c *Collector, val string) {
 		c.DisallowedDomains = strings.Split(val, ",")
@@ -256,7 +209,7 @@ var envMap = map[string]func(*Collector, string){
 	},
 	"FOLLOW_REDIRECTS": func(c *Collector, val string) {
 		if !isYesString(val) {
-			c.redirectHandler = func(req *http.Request, via []*http.Request) error {
+			c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			}
 		}
@@ -269,31 +222,20 @@ var envMap = map[string]func(*Collector, string){
 	},
 	"MAX_DEPTH": func(c *Collector, val string) {
 		maxDepth, err := strconv.Atoi(val)
-		if err == nil {
+		if err != nil {
 			c.MaxDepth = maxDepth
-		}
-	},
-	"MAX_REQUESTS": func(c *Collector, val string) {
-		maxRequests, err := strconv.ParseUint(val, 0, 32)
-		if err == nil {
-			c.MaxRequests = uint32(maxRequests)
 		}
 	},
 	"PARSE_HTTP_ERROR_RESPONSE": func(c *Collector, val string) {
 		c.ParseHTTPErrorResponse = isYesString(val)
-	},
-	"TRACE_HTTP": func(c *Collector, val string) {
-		c.TraceHTTP = isYesString(val)
 	},
 	"USER_AGENT": func(c *Collector, val string) {
 		c.UserAgent = val
 	},
 }
 
-var urlParser = whatwgUrl.NewParser(whatwgUrl.WithPercentEncodeSinglePercentSign())
-
 // NewCollector creates a new Collector instance with default configuration
-func NewCollector(options ...CollectorOption) *Collector {
+func NewCollector(options ...func(*Collector)) *Collector {
 	c := &Collector{}
 	c.Init()
 
@@ -307,54 +249,35 @@ func NewCollector(options ...CollectorOption) *Collector {
 }
 
 // UserAgent sets the user agent used by the Collector.
-func UserAgent(ua string) CollectorOption {
+func UserAgent(ua string) func(*Collector) {
 	return func(c *Collector) {
 		c.UserAgent = ua
 	}
 }
 
-// Headers sets the custom headers used by the Collector.
-func Headers(headers map[string]string) CollectorOption {
-	return func(c *Collector) {
-		customHeaders := make(http.Header)
-		for header, value := range headers {
-			customHeaders.Add(header, value)
-		}
-		c.Headers = &customHeaders
-	}
-}
-
 // MaxDepth limits the recursion depth of visited URLs.
-func MaxDepth(depth int) CollectorOption {
+func MaxDepth(depth int) func(*Collector) {
 	return func(c *Collector) {
 		c.MaxDepth = depth
 	}
 }
 
-// MaxRequests limit the number of requests done by the instance.
-// Set it to 0 for infinite requests (default).
-func MaxRequests(max uint32) CollectorOption {
-	return func(c *Collector) {
-		c.MaxRequests = max
-	}
-}
-
 // AllowedDomains sets the domain whitelist used by the Collector.
-func AllowedDomains(domains ...string) CollectorOption {
+func AllowedDomains(domains ...string) func(*Collector) {
 	return func(c *Collector) {
 		c.AllowedDomains = domains
 	}
 }
 
 // ParseHTTPErrorResponse allows parsing responses with HTTP errors
-func ParseHTTPErrorResponse() CollectorOption {
+func ParseHTTPErrorResponse() func(*Collector) {
 	return func(c *Collector) {
 		c.ParseHTTPErrorResponse = true
 	}
 }
 
 // DisallowedDomains sets the domain blacklist used by the Collector.
-func DisallowedDomains(domains ...string) CollectorOption {
+func DisallowedDomains(domains ...string) func(*Collector) {
 	return func(c *Collector) {
 		c.DisallowedDomains = domains
 	}
@@ -362,7 +285,7 @@ func DisallowedDomains(domains ...string) CollectorOption {
 
 // DisallowedURLFilters sets the list of regular expressions which restricts
 // visiting URLs. If any of the rules matches to a URL the request will be stopped.
-func DisallowedURLFilters(filters ...*regexp.Regexp) CollectorOption {
+func DisallowedURLFilters(filters ...*regexp.Regexp) func(*Collector) {
 	return func(c *Collector) {
 		c.DisallowedURLFilters = filters
 	}
@@ -370,28 +293,28 @@ func DisallowedURLFilters(filters ...*regexp.Regexp) CollectorOption {
 
 // URLFilters sets the list of regular expressions which restricts
 // visiting URLs. If any of the rules matches to a URL the request won't be stopped.
-func URLFilters(filters ...*regexp.Regexp) CollectorOption {
+func URLFilters(filters ...*regexp.Regexp) func(*Collector) {
 	return func(c *Collector) {
 		c.URLFilters = filters
 	}
 }
 
 // AllowURLRevisit instructs the Collector to allow multiple downloads of the same URL
-func AllowURLRevisit() CollectorOption {
+func AllowURLRevisit() func(*Collector) {
 	return func(c *Collector) {
 		c.AllowURLRevisit = true
 	}
 }
 
 // MaxBodySize sets the limit of the retrieved response body in bytes.
-func MaxBodySize(sizeInBytes int) CollectorOption {
+func MaxBodySize(sizeInBytes int) func(*Collector) {
 	return func(c *Collector) {
 		c.MaxBodySize = sizeInBytes
 	}
 }
 
 // CacheDir specifies the location where GET requests are cached as files.
-func CacheDir(path string) CollectorOption {
+func CacheDir(path string) func(*Collector) {
 	return func(c *Collector) {
 		c.CacheDir = path
 	}
@@ -399,111 +322,57 @@ func CacheDir(path string) CollectorOption {
 
 // IgnoreRobotsTxt instructs the Collector to ignore any restrictions
 // set by the target host's robots.txt file.
-func IgnoreRobotsTxt() CollectorOption {
+func IgnoreRobotsTxt() func(*Collector) {
 	return func(c *Collector) {
 		c.IgnoreRobotsTxt = true
 	}
 }
 
-// TraceHTTP instructs the Collector to collect and report request trace data
-// on the Response.Trace.
-func TraceHTTP() CollectorOption {
-	return func(c *Collector) {
-		c.TraceHTTP = true
-	}
-}
-
-// StdlibContext sets the context that will be used for HTTP requests.
-// You can set this to support clean cancellation of scraping.
-func StdlibContext(ctx context.Context) CollectorOption {
-	return func(c *Collector) {
-		c.Context = ctx
-	}
-}
-
 // ID sets the unique identifier of the Collector.
-func ID(id uint32) CollectorOption {
+func ID(id uint32) func(*Collector) {
 	return func(c *Collector) {
 		c.ID = id
 	}
 }
 
 // Async turns on asynchronous network requests.
-func Async(a ...bool) CollectorOption {
+func Async(a bool) func(*Collector) {
 	return func(c *Collector) {
-		if len(a) > 0 {
-			c.Async = a[0]
-		} else {
-			c.Async = true
-		}
+		c.Async = a
 	}
 }
 
 // DetectCharset enables character encoding detection for non-utf8 response bodies
 // without explicit charset declaration. This feature uses https://github.com/saintfish/chardet
-func DetectCharset() CollectorOption {
+func DetectCharset() func(*Collector) {
 	return func(c *Collector) {
 		c.DetectCharset = true
 	}
 }
 
 // Debugger sets the debugger used by the Collector.
-func Debugger(d debug.Debugger) CollectorOption {
+func Debugger(d debug.Debugger) func(*Collector) {
 	return func(c *Collector) {
 		d.Init()
 		c.debugger = d
 	}
 }
 
-// CheckHead performs a HEAD request before every GET to pre-validate the response
-func CheckHead() CollectorOption {
-	return func(c *Collector) {
-		c.CheckHead = true
-	}
-}
-
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
-	c.UserAgent = "colly - https://github.com/gocolly/colly/v2"
-	c.Headers = nil
+	c.UserAgent = "colly - https://github.com/gocolly/colly"
 	c.MaxDepth = 0
-	c.MaxRequests = 0
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
-	jar, _ := cookiejar.New(nil)
-	c.backend.Init(jar)
-	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
+	c.backend.Init(c.checkRedirectFunc())
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData)
 	c.IgnoreRobotsTxt = true
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
-	c.TraceHTTP = false
-	c.Context = context.Background()
-}
-
-// Appengine will replace the Collector's backend http.Client
-// With an Http.Client that is provided by appengine/urlfetch
-// This function should be used when the scraper is run on
-// Google App Engine. Example:
-//
-//	func startScraper(w http.ResponseWriter, r *http.Request) {
-//	  ctx := appengine.NewContext(r)
-//	  c := colly.NewCollector()
-//	  c.Appengine(ctx)
-//	   ...
-//	  c.Visit("https://google.ca")
-//	}
-func (c *Collector) Appengine(ctx context.Context) {
-	client := urlfetch.Client(ctx)
-	client.Jar = c.backend.Client.Jar
-	client.CheckRedirect = c.backend.Client.CheckRedirect
-	client.Timeout = c.backend.Client.Timeout
-
-	c.backend.Client = client
 }
 
 // Visit starts Collector's collecting job by creating a
@@ -516,17 +385,6 @@ func (c *Collector) Visit(URL string) error {
 		}
 	}
 	return c.scrape(URL, "GET", 1, nil, nil, nil, true)
-}
-
-// HasVisited checks if the provided URL has been visited
-func (c *Collector) HasVisited(URL string) (bool, error) {
-	return c.checkHasVisited(URL, nil)
-}
-
-// HasPosted checks if the provided URL and requestData has been visited
-// This method is useful more likely to prevent re-visit same URL and POST body
-func (c *Collector) HasPosted(URL string, requestData map[string]string) (bool, error) {
-	return c.checkHasVisited(URL, requestData)
 }
 
 // Head starts a collector job by creating a HEAD request.
@@ -598,7 +456,6 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	return &Request{
 		Method:    req.Method,
 		URL:       u,
-		Depth:     req.Depth,
 		Body:      bytes.NewReader(req.Body),
 		Ctx:       ctx,
 		ID:        atomic.AddUint32(&c.requestCount, 1),
@@ -608,43 +465,37 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 }
 
 func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, checkRevisit bool) error {
-	parsedWhatwgURL, err := urlParser.Parse(u)
+	if err := c.requestCheck(u, method, depth, checkRevisit); err != nil {
+		return err
+	}
+	parsedURL, err := url.Parse(u)
 	if err != nil {
 		return err
 	}
-	parsedURL, err := url.Parse(parsedWhatwgURL.Href(false))
-	if err != nil {
-		return err
+	if parsedURL.Scheme == "" {
+		parsedURL.Scheme = "http"
+	}
+	if !c.isDomainAllowed(parsedURL.Host) {
+		return ErrForbiddenDomain
 	}
 	if hdr == nil {
-		hdr = http.Header{}
-		if c.Headers != nil {
-			for k, v := range *c.Headers {
-				for _, value := range v {
-					hdr.Add(k, value)
-				}
-			}
-		}
+		hdr = http.Header{"User-Agent": []string{c.UserAgent}}
 	}
-	if _, ok := hdr["User-Agent"]; !ok {
-		hdr.Set("User-Agent", c.UserAgent)
+	rc, ok := requestData.(io.ReadCloser)
+	if !ok && requestData != nil {
+		rc = ioutil.NopCloser(requestData)
 	}
-	req, err := http.NewRequest(method, parsedURL.String(), requestData)
-	if err != nil {
-		return err
+	req := &http.Request{
+		Method:     method,
+		URL:        parsedURL,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     hdr,
+		Body:       rc,
+		Host:       parsedURL.Host,
 	}
-	req.Header = hdr
-	// The Go HTTP API ignores "Host" in the headers, preferring the client
-	// to use the Host field on Request.
-	if hostHeader := hdr.Get("Host"); hostHeader != "" {
-		req.Host = hostHeader
-	}
-	// note: once 1.13 is minimum supported Go version,
-	// replace this with http.NewRequestWithContext
-	req = req.WithContext(c.Context)
-	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
-		return err
-	}
+	setRequestBody(req, requestData)
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
@@ -652,6 +503,38 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		return nil
 	}
 	return c.fetch(u, method, depth, requestData, ctx, hdr, req)
+}
+
+func setRequestBody(req *http.Request, body io.Reader) {
+	if body != nil {
+		switch v := body.(type) {
+		case *bytes.Buffer:
+			req.ContentLength = int64(v.Len())
+			buf := v.Bytes()
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := bytes.NewReader(buf)
+				return ioutil.NopCloser(r), nil
+			}
+		case *bytes.Reader:
+			req.ContentLength = int64(v.Len())
+			snapshot := *v
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := snapshot
+				return ioutil.NopCloser(&r), nil
+			}
+		case *strings.Reader:
+			req.ContentLength = int64(v.Len())
+			snapshot := *v
+			req.GetBody = func() (io.ReadCloser, error) {
+				r := snapshot
+				return ioutil.NopCloser(&r), nil
+			}
+		}
+		if req.GetBody != nil && req.ContentLength == 0 {
+			req.Body = http.NoBody
+			req.GetBody = func() (io.ReadCloser, error) { return http.NoBody, nil }
+		}
+	}
 }
 
 func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request) error {
@@ -662,7 +545,6 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	request := &Request{
 		URL:       req.URL,
 		Headers:   &req.Header,
-		Host:      req.Host,
 		Ctx:       ctx,
 		Depth:     depth,
 		Method:    method,
@@ -685,31 +567,21 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req.Header.Set("Accept", "*/*")
 	}
 
-	var hTrace *HTTPTrace
-	if c.TraceHTTP {
-		hTrace = &HTTPTrace{}
-		req = hTrace.WithTrace(req)
-	}
 	origURL := req.URL
-	checkHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
-		if req.URL != origURL {
-			request.URL = req.URL
-			request.Headers = &req.Header
-		}
-		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
-		return !request.abort
-	}
-	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
+	response, err := c.backend.Cache(req, c.MaxBodySize, c.CacheDir)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
+	if req.URL != origURL {
+		request.URL = req.URL
+		request.Headers = &req.Header
+	}
 	atomic.AddUint32(&c.responseCount, 1)
 	response.Ctx = ctx
 	response.Request = request
-	response.Trace = hTrace
 
 	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
 	if err != nil {
@@ -733,65 +605,35 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	return err
 }
 
-func (c *Collector) requestCheck(parsedURL *url.URL, method string, getBody func() (io.ReadCloser, error), depth int, checkRevisit bool) error {
-	u := parsedURL.String()
+func (c *Collector) requestCheck(u, method string, depth int, checkRevisit bool) error {
+	if u == "" {
+		return ErrMissingURL
+	}
 	if c.MaxDepth > 0 && c.MaxDepth < depth {
 		return ErrMaxDepth
 	}
-	if c.MaxRequests > 0 && c.requestCount >= c.MaxRequests {
-		return ErrMaxRequests
-	}
-	if err := c.checkFilters(u, parsedURL.Hostname()); err != nil {
-		return err
-	}
-	if method != "HEAD" && !c.IgnoreRobotsTxt {
-		if err := c.checkRobots(parsedURL); err != nil {
-			return err
+	if len(c.DisallowedURLFilters) > 0 {
+		if isMatchingFilter(c.DisallowedURLFilters, []byte(u)) {
+			return ErrForbiddenURL
 		}
 	}
-	if checkRevisit && !c.AllowURLRevisit {
-		// TODO weird behaviour, it allows CheckHead to work correctly,
-		// but it should probably better be solved with
-		// "check-but-not-save" flag or something
-		if method != "GET" && getBody == nil {
-			return nil
+	if len(c.URLFilters) > 0 {
+		if !isMatchingFilter(c.URLFilters, []byte(u)) {
+			return ErrNoURLFiltersMatch
 		}
-
-		var body io.ReadCloser
-		if getBody != nil {
-			var err error
-			body, err = getBody()
-			if err != nil {
-				return err
-			}
-			defer body.Close()
-		}
-		uHash := requestHash(u, body)
+	}
+	if checkRevisit && !c.AllowURLRevisit && method == "GET" {
+		h := fnv.New64a()
+		h.Write([]byte(u))
+		uHash := h.Sum64()
 		visited, err := c.store.IsVisited(uHash)
 		if err != nil {
 			return err
 		}
 		if visited {
-			return &AlreadyVisitedError{parsedURL}
+			return ErrAlreadyVisited
 		}
 		return c.store.Visited(uHash)
-	}
-	return nil
-}
-
-func (c *Collector) checkFilters(URL, domain string) error {
-	if len(c.DisallowedURLFilters) > 0 {
-		if isMatchingFilter(c.DisallowedURLFilters, []byte(URL)) {
-			return ErrForbiddenURL
-		}
-	}
-	if len(c.URLFilters) > 0 {
-		if !isMatchingFilter(c.URLFilters, []byte(URL)) {
-			return ErrNoURLFiltersMatch
-		}
-	}
-	if !c.isDomainAllowed(domain) {
-		return ErrForbiddenDomain
 	}
 	return nil
 }
@@ -813,50 +655,13 @@ func (c *Collector) isDomainAllowed(domain string) bool {
 	return false
 }
 
-func (c *Collector) checkRobots(u *url.URL) error {
-	c.lock.RLock()
-	robot, ok := c.robotsMap[u.Host]
-	c.lock.RUnlock()
-
-	if !ok {
-		// no robots file cached
-		resp, err := c.backend.Client.Get(u.Scheme + "://" + u.Host + "/robots.txt")
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-
-		robot, err = robotstxt.FromResponse(resp)
-		if err != nil {
-			return err
-		}
-		c.lock.Lock()
-		c.robotsMap[u.Host] = robot
-		c.lock.Unlock()
-	}
-
-	uaGroup := robot.FindGroup(c.UserAgent)
-	if uaGroup == nil {
-		return nil
-	}
-
-	eu := u.EscapedPath()
-	if u.RawQuery != "" {
-		eu += "?" + u.Query().Encode()
-	}
-	if !uaGroup.Test(eu) {
-		return ErrRobotsTxtBlocked
-	}
-	return nil
-}
-
 // String is the text representation of the collector.
 // It contains useful debug information about the collector's internals
 func (c *Collector) String() string {
 	return fmt.Sprintf(
 		"Requests made: %d (%d responses) | Callbacks: OnRequest: %d, OnHTML: %d, OnResponse: %d, OnError: %d",
-		atomic.LoadUint32(&c.requestCount),
-		atomic.LoadUint32(&c.responseCount),
+		c.requestCount,
+		c.responseCount,
 		len(c.requestCallbacks),
 		len(c.htmlCallbacks),
 		len(c.responseCallbacks),
@@ -877,23 +682,6 @@ func (c *Collector) OnRequest(f RequestCallback) {
 		c.requestCallbacks = make([]RequestCallback, 0, 4)
 	}
 	c.requestCallbacks = append(c.requestCallbacks, f)
-	c.lock.Unlock()
-}
-
-// OnResponseHeaders registers a function. Function will be executed on every response
-// when headers and status are already received, but body is not yet read.
-//
-// Like in OnRequest, you can call Request.Abort to abort the transfer. This might be
-// useful if, for example, you're following all hyperlinks, but want to avoid
-// downloading files.
-//
-// Be aware that using this will prevent HTTP/1.1 connection reuse, as
-// the only way to abort a download is to immediately close the connection.
-// HTTP/2 doesn't suffer from this problem, as it's possible to close
-// specific stream inside the connection.
-func (c *Collector) OnResponseHeaders(f ResponseHeadersCallback) {
-	c.lock.Lock()
-	c.responseHeadersCallbacks = append(c.responseHeadersCallbacks, f)
 	c.lock.Unlock()
 }
 
@@ -991,29 +779,20 @@ func (c *Collector) OnScraped(f ScrapedCallback) {
 	c.lock.Unlock()
 }
 
-// SetClient will override the previously set http.Client
-func (c *Collector) SetClient(client *http.Client) {
-	c.backend.Client = client
-}
-
 // WithTransport allows you to set a custom http.RoundTripper (transport)
-func (c *Collector) WithTransport(transport http.RoundTripper) {
-	c.backend.Client.Transport = transport
-}
-
+//
+//	func (c *Collector) WithTransport(transport http.RoundTripper) {
+//		c.backend.Client.Transport = transport
+//	}
+//
 // DisableCookies turns off cookie handling
 func (c *Collector) DisableCookies() {
-	c.backend.Client.Jar = nil
+	c.backend.Client.SetCookieJar(nil)
 }
 
 // SetCookieJar overrides the previously set cookie jar
-func (c *Collector) SetCookieJar(j http.CookieJar) {
-	c.backend.Client.Jar = j
-}
-
-// SetRequestTimeout overrides the default timeout (10 seconds) for this collector
-func (c *Collector) SetRequestTimeout(timeout time.Duration) {
-	c.backend.Client.Timeout = timeout
+func (c *Collector) SetCookieJar(j *cookiejar.Jar) {
+	c.backend.Client.SetCookieJar(j)
 }
 
 // SetStorage overrides the default in-memory storage.
@@ -1023,7 +802,7 @@ func (c *Collector) SetStorage(s storage.Storage) error {
 		return err
 	}
 	c.store = s
-	c.backend.Client.Jar = createJar(s)
+	c.backend.Client.SetCookieJar(createJar(s))
 	return nil
 }
 
@@ -1033,34 +812,11 @@ func (c *Collector) SetStorage(s storage.Storage) error {
 // and "socks5" are supported. If the scheme is empty,
 // "http" is assumed.
 func (c *Collector) SetProxy(proxyURL string) error {
-	proxyParsed, err := url.Parse(proxyURL)
+	err := c.backend.Client.SetProxy(proxyURL)
 	if err != nil {
 		return err
 	}
-
-	c.SetProxyFunc(http.ProxyURL(proxyParsed))
-
 	return nil
-}
-
-// SetProxyFunc sets a custom proxy setter/switcher function.
-// See built-in ProxyFuncs for more details.
-// This method overrides the previously used http.Transport
-// if the type of the transport is not http.RoundTripper.
-// The proxy type is determined by the URL scheme. "http"
-// and "socks5" are supported. If the scheme is empty,
-// "http" is assumed.
-func (c *Collector) SetProxyFunc(p ProxyFunc) {
-	t, ok := c.backend.Client.Transport.(*http.Transport)
-	if c.backend.Client.Transport != nil && ok {
-		t.Proxy = p
-		t.DisableKeepAlives = true
-	} else {
-		c.backend.Client.Transport = &http.Transport{
-			Proxy:             p,
-			DisableKeepAlives: true,
-		}
-	}
 }
 
 func createEvent(eventType string, requestID, collectorID uint32, kvargs map[string]string) *debug.Event {
@@ -1095,18 +851,6 @@ func (c *Collector) handleOnResponse(r *Response) {
 	}
 }
 
-func (c *Collector) handleOnResponseHeaders(r *Response) {
-	if c.debugger != nil {
-		c.debugger.Event(createEvent("responseHeaders", r.Request.ID, c.ID, map[string]string{
-			"url":    r.Request.URL.String(),
-			"status": http.StatusText(r.StatusCode),
-		}))
-	}
-	for _, f := range c.responseHeadersCallbacks {
-		f(r)
-	}
-}
-
 func (c *Collector) handleOnHTML(resp *Response) error {
 	if len(c.htmlCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
 		return nil
@@ -1116,14 +860,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 		return err
 	}
 	if href, found := doc.Find("base[href]").Attr("href"); found {
-		u, err := urlParser.ParseRef(resp.Request.URL.String(), href)
-		if err == nil {
-			baseURL, err := url.Parse(u.Href(false))
-			if err == nil {
-				resp.Request.baseURL = baseURL
-			}
-		}
-
+		resp.Request.baseURL, _ = url.Parse(href)
 	}
 	for _, cc := range c.htmlCallbacks {
 		i := 0
@@ -1149,8 +886,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		return nil
 	}
 	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
-	isXMLFile := strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml") || strings.HasSuffix(strings.ToLower(resp.Request.URL.Path), ".xml.gz")
-	if !strings.Contains(contentType, "html") && (!strings.Contains(contentType, "xml") && !isXMLFile) {
+	if !strings.Contains(contentType, "html") && !strings.Contains(contentType, "xml") {
 		return nil
 	}
 
@@ -1162,10 +898,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		if e := htmlquery.FindOne(doc, "//base"); e != nil {
 			for _, a := range e.Attr {
 				if a.Key == "href" {
-					baseURL, err := resp.Request.URL.Parse(a.Val)
-					if err == nil {
-						resp.Request.baseURL = baseURL
-					}
+					resp.Request.baseURL, _ = url.Parse(a.Val)
 					break
 				}
 			}
@@ -1183,7 +916,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 				cc.Function(e)
 			}
 		}
-	} else if strings.Contains(contentType, "xml") || isXMLFile {
+	} else if strings.Contains(contentType, "xml") {
 		doc, err := xmlquery.Parse(bytes.NewBuffer(resp.Body))
 		if err != nil {
 			return err
@@ -1257,35 +990,29 @@ func (c *Collector) Limits(rules []*LimitRule) error {
 	return c.backend.Limits(rules)
 }
 
-// SetRedirectHandler instructs the Collector to allow multiple downloads of the same URL
-func (c *Collector) SetRedirectHandler(f func(req *http.Request, via []*http.Request) error) {
-	c.redirectHandler = f
-	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
-}
-
 // SetCookies handles the receipt of the cookies in a reply for the given URL
 func (c *Collector) SetCookies(URL string, cookies []*http.Cookie) error {
-	if c.backend.Client.Jar == nil {
+	if c.backend.Client.GetCookieJar() == nil {
 		return ErrNoCookieJar
 	}
 	u, err := url.Parse(URL)
 	if err != nil {
 		return err
 	}
-	c.backend.Client.Jar.SetCookies(u, cookies)
+	c.backend.Client.SetCookies(u, cookies)
 	return nil
 }
 
 // Cookies returns the cookies to send in a request for the given URL.
 func (c *Collector) Cookies(URL string) []*http.Cookie {
-	if c.backend.Client.Jar == nil {
+	if c.backend.Client.GetCookieJar() == nil {
 		return nil
 	}
 	u, err := url.Parse(URL)
 	if err != nil {
 		return nil
 	}
-	return c.backend.Client.Jar.Cookies(u)
+	return c.backend.Client.GetCookies(u)
 }
 
 // Clone creates an exact copy of a Collector without callbacks.
@@ -1302,20 +1029,15 @@ func (c *Collector) Clone() *Collector {
 		IgnoreRobotsTxt:        c.IgnoreRobotsTxt,
 		MaxBodySize:            c.MaxBodySize,
 		MaxDepth:               c.MaxDepth,
-		MaxRequests:            c.MaxRequests,
 		DisallowedURLFilters:   c.DisallowedURLFilters,
 		URLFilters:             c.URLFilters,
-		CheckHead:              c.CheckHead,
 		ParseHTTPErrorResponse: c.ParseHTTPErrorResponse,
 		UserAgent:              c.UserAgent,
-		Headers:                c.Headers,
-		TraceHTTP:              c.TraceHTTP,
-		Context:                c.Context,
 		store:                  c.store,
 		backend:                c.backend,
 		debugger:               c.debugger,
 		Async:                  c.Async,
-		redirectHandler:        c.redirectHandler,
+		RedirectHandler:        c.RedirectHandler,
 		errorCallbacks:         make([]ErrorCallback, 0, 8),
 		htmlCallbacks:          make([]*htmlCallbackContainer, 0, 8),
 		xmlCallbacks:           make([]*xmlCallbackContainer, 0, 8),
@@ -1330,41 +1052,12 @@ func (c *Collector) Clone() *Collector {
 
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
-		if err := c.checkFilters(req.URL.String(), req.URL.Hostname()); err != nil {
-			return fmt.Errorf("Not following redirect to %q: %w", req.URL, err)
+		if !c.isDomainAllowed(req.URL.Host) {
+			return fmt.Errorf("Not following redirect to %s because its not in AllowedDomains", req.URL.Host)
 		}
 
-		// allow redirects to the original destination
-		// to support websites redirecting to the same page while setting
-		// session cookies
-		samePageRedirect := normalizeURL(req.URL.String()) == normalizeURL(via[0].URL.String())
-
-		if !c.AllowURLRevisit && !samePageRedirect {
-			var body io.ReadCloser
-			if req.GetBody != nil {
-				var err error
-				body, err = req.GetBody()
-				if err != nil {
-					return err
-				}
-				defer body.Close()
-			}
-			uHash := requestHash(req.URL.String(), body)
-			visited, err := c.store.IsVisited(uHash)
-			if err != nil {
-				return err
-			}
-			if visited {
-				return &AlreadyVisitedError{req.URL}
-			}
-			err = c.store.Visited(uHash)
-			if err != nil {
-				return err
-			}
-		}
-
-		if c.redirectHandler != nil {
-			return c.redirectHandler(req, via)
+		if c.RedirectHandler != nil {
+			return c.RedirectHandler(req, via)
 		}
 
 		// Honor golangs default of maximum of 10 redirects
@@ -1373,6 +1066,13 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 		}
 
 		lastRequest := via[len(via)-1]
+
+		// Copy the headers from last request
+		for hName, hValues := range lastRequest.Header {
+			for _, hValue := range hValues {
+				req.Header.Set(hName, hValue)
+			}
+		}
 
 		// If domain has changed, remove the Authorization-header if it exists
 		if req.URL.Host != lastRequest.URL.Host {
@@ -1395,11 +1095,6 @@ func (c *Collector) parseSettingsFromEnv() {
 			log.Println("Unknown environment variable:", pair[0])
 		}
 	}
-}
-
-func (c *Collector) checkHasVisited(URL string, requestData map[string]string) (bool, error) {
-	hash := requestHash(URL, createFormReader(requestData))
-	return c.store.IsVisited(hash)
 }
 
 // SanitizeFileName replaces dangerous characters in a string
@@ -1509,23 +1204,4 @@ func isMatchingFilter(fs []*regexp.Regexp, d []byte) bool {
 		}
 	}
 	return false
-}
-
-func normalizeURL(u string) string {
-	parsed, err := urlParser.Parse(u)
-	if err != nil {
-		return u
-	}
-	return parsed.String()
-}
-
-func requestHash(url string, body io.Reader) uint64 {
-	h := fnv.New64a()
-	// reparse the url to fix ambiguities such as
-	// "http://example.com" vs "http://example.com/"
-	io.WriteString(h, normalizeURL(url))
-	if body != nil {
-		io.Copy(h, body)
-	}
-	return h.Sum64()
 }
