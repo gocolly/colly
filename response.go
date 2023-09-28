@@ -17,9 +17,9 @@ package colly
 import (
 	"bytes"
 	"fmt"
+	http "github.com/bogdanfinn/fhttp"
 	"io/ioutil"
 	"mime"
-	"net/http"
 	"strings"
 
 	"github.com/saintfish/chardet"
@@ -38,9 +38,6 @@ type Response struct {
 	Request *Request
 	// Headers contains the Response's HTTP headers
 	Headers *http.Header
-	// Trace contains the HTTPTrace for the request. Will only be set by the
-	// collector if Collector.TraceHTTP is set to true.
-	Trace *HTTPTrace
 }
 
 // Save writes response body to disk
@@ -62,9 +59,6 @@ func (r *Response) FileName() string {
 }
 
 func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error {
-	if len(r.Body) == 0 {
-		return nil
-	}
 	if defaultEncoding != "" {
 		tmpBody, err := encodeBytes(r.Body, "text/plain; charset="+defaultEncoding)
 		if err != nil {
@@ -74,16 +68,6 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		return nil
 	}
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
-
-	if strings.Contains(contentType, "image/") ||
-		strings.Contains(contentType, "video/") ||
-		strings.Contains(contentType, "audio/") ||
-		strings.Contains(contentType, "font/") {
-		// These MIME types should not have textual data.
-
-		return nil
-	}
-
 	if !strings.Contains(contentType, "charset") {
 		if !detectCharset {
 			return nil
