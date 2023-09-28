@@ -137,7 +137,7 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 
 func (h *httpBackend) Cache(request *http.Request, bodySize int, cacheDir string) (*Response, error) {
 
-	if cacheDir == "" || request.Method != "GET" {
+	if cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache" {
 		return h.Do(request, bodySize)
 	}
 	sum := sha1.Sum([]byte(request.URL.String()))
