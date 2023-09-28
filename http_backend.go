@@ -94,11 +94,10 @@ func (r *LimitRule) Init() error {
 }
 
 func (h *httpBackend) Init(checkRedirectFunc func(req *http.Request, via []*http.Request) error) {
-	rand.Seed(time.Now().UnixNano())
 	jar := tls_client.NewCookieJar()
 	options := []tls_client.HttpClientOption{
 		tls_client.WithTimeoutSeconds(10),
-		tls_client.WithClientProfile(profiles.Chrome_112),
+		tls_client.WithClientProfile(profiles.Chrome_117),
 		tls_client.WithCookieJar(jar),
 		tls_client.WithCustomRedirectFunc(checkRedirectFunc),
 	}
