@@ -17,9 +17,10 @@ package colly
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/saintfish/chardet"
@@ -45,7 +46,7 @@ type Response struct {
 
 // Save writes response body to disk
 func (r *Response) Save(fileName string) error {
-	return ioutil.WriteFile(fileName, r.Body, 0644)
+	return os.WriteFile(fileName, r.Body, 0644)
 }
 
 // FileName returns the sanitized file name parsed from "Content-Disposition"
@@ -111,5 +112,5 @@ func encodeBytes(b []byte, contentType string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }

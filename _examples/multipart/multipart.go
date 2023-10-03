@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -14,7 +14,7 @@ func generateFormData() map[string][]byte {
 	f, _ := os.Open("gocolly.jpg")
 	defer f.Close()
 
-	imgData, _ := ioutil.ReadAll(f)
+	imgData, _ := io.ReadAll(f)
 
 	return map[string][]byte{
 		"firstname": []byte("one"),

@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -173,7 +172,7 @@ func (r *Request) Marshal() ([]byte, error) {
 	var err error
 	var body []byte
 	if r.Body != nil {
-		body, err = ioutil.ReadAll(r.Body)
+		body, err = io.ReadAll(r.Body)
 		if err != nil {
 			return nil, err
 		}
