@@ -73,7 +73,6 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		return nil
 	}
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
-	fmt.Println(detectCharset)
 	if strings.Contains(contentType, "image/") ||
 		strings.Contains(contentType, "video/") ||
 		strings.Contains(contentType, "audio/") ||
@@ -87,8 +86,7 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		if !detectCharset {
 			return nil
 		}
-		_, nameOfEncoding, _ := charset.DetermineEncoding(r.Body, contentType)
-		fmt.Println(nameOfEncoding) //name of charset/encoding
+		_, nameOfEncoding, _ := charset.DetermineEncoding(r.Body, contentType) //name of charset/encoding
 		contentType = "text/plain; charset=" + nameOfEncoding
 	}
 	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
