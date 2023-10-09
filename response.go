@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/saintfish/chardet"
 	"golang.org/x/net/html/charset"
 )
 
@@ -74,7 +73,7 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		return nil
 	}
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
-
+	fmt.Println(detectCharset)
 	if strings.Contains(contentType, "image/") ||
 		strings.Contains(contentType, "video/") ||
 		strings.Contains(contentType, "audio/") ||
@@ -88,12 +87,9 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		if !detectCharset {
 			return nil
 		}
-		d := chardet.NewTextDetector()
-		r, err := d.DetectBest(r.Body)
-		if err != nil {
-			return err
-		}
-		contentType = "text/plain; charset=" + r.Charset
+		_, nameOfEncoding, _ := charset.DetermineEncoding(r.Body, contentType)
+		fmt.Println(nameOfEncoding) //name of charset/encoding
+		contentType = "text/plain; charset=" + nameOfEncoding
 	}
 	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
 		return nil
@@ -105,7 +101,6 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 	r.Body = tmpBody
 	return nil
 }
-
 func encodeBytes(b []byte, contentType string) ([]byte, error) {
 	r, err := charset.NewReader(bytes.NewReader(b), contentType)
 	if err != nil {
