@@ -14,7 +14,7 @@ require (
 	github.com/nlnwa/whatwg-url v0.1.2
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
 	github.com/temoto/robotstxt v1.1.1
-	golang.org/x/net v0.7.0
+	golang.org/x/net v0.17.0
 	google.golang.org/appengine v1.6.6
 	google.golang.org/protobuf v1.24.0 // indirect
 )
