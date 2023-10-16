@@ -19,7 +19,6 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -209,7 +208,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 		}
 		defer bodyReader.(*gzip.Reader).Close()
 	}
-	body, err := ioutil.ReadAll(bodyReader)
+	body, err := io.ReadAll(bodyReader)
 	if err != nil {
 		return nil, err
 	}
