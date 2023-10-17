@@ -424,6 +424,19 @@ var newCollectorTests = map[string]func(*testing.T){
 	},
 }
 
+func TestNoAcceptHeader(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	c.OnRequest(func(r *Request) {
+		r.Headers.Del("Accept")
+	})
+
+	c.Visit(ts.URL)
+}
+
 func TestNewCollector(t *testing.T) {
 	t.Run("Functional Options", func(t *testing.T) {
 		for name, test := range newCollectorTests {
