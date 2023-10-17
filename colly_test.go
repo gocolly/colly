@@ -434,6 +434,13 @@ func TestNoAcceptHeader(t *testing.T) {
 		r.Headers.Del("Accept")
 	})
 
+	c.OnResponse(func(r *Response) {
+		ret := r.Request.Headers.Get("Accept")
+		if ret != "" {
+			t.Error("Failed to pass request with no Accept header.")
+		}
+	})
+
 	c.Visit(ts.URL)
 }
 
