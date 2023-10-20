@@ -671,6 +671,10 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		ID:        atomic.AddUint32(&c.requestCount, 1),
 	}
 
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", "*/*")
+	}
+
 	c.handleOnRequest(request)
 
 	if request.abort {
@@ -679,10 +683,6 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 
 	if method == "POST" && req.Header.Get("Content-Type") == "" {
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	}
-
-	if req.Header.Get("Accept") == "" {
-		req.Header.Set("Accept", "*/*")
 	}
 
 	var hTrace *HTTPTrace

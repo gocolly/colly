@@ -147,6 +147,11 @@ func newUnstartedTestServer() *httptest.Server {
 		w.Write([]byte(r.Host))
 	})
 
+	mux.HandleFunc("/accept_header", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte(r.Header.Get("Accept")))
+	})
+
 	mux.HandleFunc("/custom_header", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(r.Header.Get("Test")))
@@ -422,6 +427,39 @@ var newCollectorTests = map[string]func(*testing.T){
 			t.Fatal("c.Async = false, want true")
 		}
 	},
+}
+
+func TestNoAcceptHeader(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	var receivedHeader string
+	// checks if Accept is enabled by default
+	func() {
+		c := NewCollector()
+		c.OnResponse(func(resp *Response) {
+			receivedHeader = string(resp.Body)
+		})
+		c.Visit(ts.URL + "/accept_header")
+		if receivedHeader != "*/*" {
+			t.Errorf("default Accept header isn't */*. got: %v", receivedHeader)
+		}
+	}()
+
+	// checks if Accept can be disabled
+	func() {
+		c := NewCollector()
+		c.OnRequest(func(r *Request) {
+			r.Headers.Del("Accept")
+		})
+		c.OnResponse(func(resp *Response) {
+			receivedHeader = string(resp.Body)
+		})
+		c.Visit(ts.URL + "/accept_header")
+		if receivedHeader != "" {
+			t.Errorf("failed to pass request with no Accept header. got: %v", receivedHeader)
+		}
+	}()
 }
 
 func TestNewCollector(t *testing.T) {
