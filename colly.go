@@ -140,19 +140,19 @@ type Collector struct {
 type RequestCallback func(*Request)
 
 // ResponseHeadersCallback is a type alias for OnResponseHeaders callback functions
-type ResponseHeadersCallback func(*Response)
+type ResponseHeadersCallback func(*Response) error
 
 // ResponseCallback is a type alias for OnResponse callback functions
-type ResponseCallback func(*Response)
+type ResponseCallback func(*Response) error
 
 // HTMLCallback is a type alias for OnHTML callback functions
-type HTMLCallback func(*HTMLElement)
+type HTMLCallback func(*HTMLElement) error
 
 // XMLCallback is a type alias for OnXML callback functions
-type XMLCallback func(*XMLElement)
+type XMLCallback func(*XMLElement) error
 
 // ErrorCallback is a type alias for OnError callback functions
-type ErrorCallback func(*Response, error)
+type ErrorCallback func(*Response, error) error
 
 // ScrapedCallback is a type alias for OnScraped callback functions
 type ScrapedCallback func(*Response)
@@ -691,13 +691,18 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req = hTrace.WithTrace(req)
 	}
 	origURL := req.URL
-	checkHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
+	checkHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) error {
 		if req.URL != origURL {
 			request.URL = req.URL
 			request.Headers = &req.Header
 		}
-		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
-		return !request.abort
+		if err := c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers}); err != nil {
+			return err
+		}
+		if request.abort {
+			return ErrAbortedAfterHeaders
+		}
+		return nil
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
@@ -716,16 +721,24 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		return err
 	}
 
-	c.handleOnResponse(response)
+	if err := c.handleOnResponse(response); err != nil {
+		if err = c.handleOnError(response, err, request, ctx); err != nil {
+			return err
+		}
+	}
 
 	err = c.handleOnHTML(response)
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		if err = c.handleOnError(response, err, request, ctx); err != nil {
+			return err
+		}
 	}
 
 	err = c.handleOnXML(response)
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		if err = c.handleOnError(response, err, request, ctx); err != nil {
+			return err
+		}
 	}
 
 	c.handleOnScraped(response)
@@ -1083,7 +1096,7 @@ func (c *Collector) handleOnRequest(r *Request) {
 	}
 }
 
-func (c *Collector) handleOnResponse(r *Response) {
+func (c *Collector) handleOnResponse(r *Response) error {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("response", r.Request.ID, c.ID, map[string]string{
 			"url":    r.Request.URL.String(),
@@ -1091,11 +1104,14 @@ func (c *Collector) handleOnResponse(r *Response) {
 		}))
 	}
 	for _, f := range c.responseCallbacks {
-		f(r)
+		if err := f(r); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (c *Collector) handleOnResponseHeaders(r *Response) {
+func (c *Collector) handleOnResponseHeaders(r *Response) error {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("responseHeaders", r.Request.ID, c.ID, map[string]string{
 			"url":    r.Request.URL.String(),
@@ -1103,17 +1119,20 @@ func (c *Collector) handleOnResponseHeaders(r *Response) {
 		}))
 	}
 	for _, f := range c.responseHeadersCallbacks {
-		f(r)
+		if err := f(r); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (c *Collector) handleOnHTML(resp *Response) error {
+func (c *Collector) handleOnHTML(resp *Response) (err error) {
 	if len(c.htmlCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
 		return nil
 	}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(resp.Body))
 	if err != nil {
-		return err
+		return
 	}
 	if href, found := doc.Find("base[href]").Attr("href"); found {
 		u, err := urlParser.ParseRef(resp.Request.URL.String(), href)
@@ -1127,7 +1146,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 	}
 	for _, cc := range c.htmlCallbacks {
 		i := 0
-		doc.Find(cc.Selector).Each(func(_ int, s *goquery.Selection) {
+		doc.Find(cc.Selector).EachWithBreak(func(_ int, s *goquery.Selection) bool {
 			for _, n := range s.Nodes {
 				e := NewHTMLElementFromSelectionNode(resp, s, n, i)
 				i++
@@ -1137,11 +1156,17 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				if err = cc.Function(e); err != nil {
+					return false
+				}
 			}
+			return true
 		})
+		if err != nil {
+			return
+		}
 	}
-	return nil
+	return
 }
 
 func (c *Collector) handleOnXML(resp *Response) error {
@@ -1180,7 +1205,9 @@ func (c *Collector) handleOnXML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				if err := cc.Function(e); err != nil {
+					return err
+				}
 			}
 		}
 	} else if strings.Contains(contentType, "xml") || isXMLFile {
@@ -1198,8 +1225,11 @@ func (c *Collector) handleOnXML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				err = cc.Function(e)
 			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -1230,10 +1260,15 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	if response.Ctx == nil {
 		response.Ctx = request.Ctx
 	}
-	for _, f := range c.errorCallbacks {
-		f(response, err)
+	if len(c.errorCallbacks) < 1 {
+		return err
 	}
-	return err
+	for _, f := range c.errorCallbacks {
+		if abortErr := f(response, err); abortErr != nil {
+			return abortErr
+		}
+	}
+	return nil
 }
 
 func (c *Collector) handleOnScraped(r *Response) {

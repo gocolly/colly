@@ -48,7 +48,7 @@ func TestQueue(t *testing.T) {
 	c.OnRequest(func(req *colly.Request) {
 		atomic.AddUint32(&requests, 1)
 	})
-	c.OnResponse(func(resp *colly.Response) {
+	c.OnResponse(func(resp *colly.Response) error {
 		if resp.StatusCode == http.StatusOK {
 			atomic.AddUint32(&success, 1)
 		} else {
@@ -60,9 +60,11 @@ func TestQueue(t *testing.T) {
 		if toss {
 			put()
 		}
+		return nil
 	})
-	c.OnError(func(resp *colly.Response, err error) {
+	c.OnError(func(resp *colly.Response, err error) error {
 		atomic.AddUint32(&failure, 1)
+		return err
 	})
 	err = q.Run(c)
 	if err != nil {
