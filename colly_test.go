@@ -131,6 +131,11 @@ func newUnstartedTestServer() *httptest.Server {
 		w.Write([]byte("ok"))
 	})
 
+	mux.HandleFunc("/204_enc_gzip", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(204)
+	})
+
 	mux.HandleFunc("/500", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(500)
@@ -1370,6 +1375,22 @@ func TestParseHTTPErrorResponse(t *testing.T) {
 		t.Fatal("Content isn't parsed with ParseHTTPErrorResponse enabled")
 	}
 
+}
+
+func TestGzipEncodingNoContent(t *testing.T) {
+	// This is a regression test to ensure successful visits on
+	// servers that send a "Content-Encoding: gzip" header with
+	// responses that cannot contain content
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(
+		// Allow parsing 204 responses
+		ParseHTTPErrorResponse(),
+	)
+	if err := c.Visit(ts.URL + "/204_enc_gzip"); err != nil {
+		t.Errorf("visit failed: %v", err)
+	}
 }
 
 func TestHTMLElement(t *testing.T) {

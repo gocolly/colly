@@ -201,6 +201,14 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
+
+	if strings.Contains(contentEncoding, "gzip") && !res.Uncompressed && (res.StatusCode < 200 || res.StatusCode == 204 || res.StatusCode == 304) {
+		// RFC 9110, section 15: 1xx, 204, and 304 responses cannot contain content.
+		// However, some servers may still send "Content-Encoding: gzip" in these scenarios
+		// so mark the response as uncompressed to avoid trying to read gzip data below.
+		res.Uncompressed = true
+	}
+
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(finalRequest.URL.Path), ".xml.gz")) {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
