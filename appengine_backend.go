@@ -184,9 +184,11 @@ func (h *appEngineBackend) Proxy(pf ProxyFunc) {
 	t, ok := h.Client.Transport.(*http.Transport)
 	if h.Client.Transport != nil && ok {
 		t.Proxy = pf
+		t.DisableKeepAlives = true
 	} else {
 		h.Client.Transport = &http.Transport{
-			Proxy: pf,
+			Proxy:             pf,
+			DisableKeepAlives: true,
 		}
 	}
 }
