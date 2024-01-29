@@ -1284,7 +1284,9 @@ func (c *Collector) SetCookies(URL string, cookies []*http.Cookie) error {
 	if err != nil {
 		return err
 	}
-	c.backend.SetCookies(u, cookies)
+	if err := c.backend.SetCookies(u, cookies); err != nil {
+		return err
+	}
 	return nil
 }
 
