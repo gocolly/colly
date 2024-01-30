@@ -1635,6 +1635,43 @@ func TestCollectorContext(t *testing.T) {
 
 }
 
+func TestSetHTTPDriver(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	type testCase struct {
+		name   string
+		driver HTTPDriver
+	}
+
+	tests := []testCase{
+		{name: "test http backend", driver: NewHttpBackend()},
+		// not currently working
+		//{name: "test appengine backend", driver: NewAppEngineBackend()},
+	}
+
+	for _, tc := range tests {
+		c := NewCollector(
+			SetHTTPDriver(tc.driver),
+		)
+
+		titleCallbackCalled := false
+
+		c.OnHTML("title", func(e *HTMLElement) {
+			titleCallbackCalled = true
+			if e.Text != "Test Page" {
+				t.Errorf("%s: Title element text does not match, got %s", tc.name, e.Text)
+			}
+		})
+
+		c.Visit(ts.URL + "/html")
+
+		if !titleCallbackCalled {
+			t.Errorf("%s: Failed to call OnHTML callback for <title> tag", tc.name)
+		}
+	}
+}
+
 func BenchmarkOnHTML(b *testing.B) {
 	ts := newTestServer()
 	defer ts.Close()
