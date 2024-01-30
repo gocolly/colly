@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path"
@@ -38,15 +39,20 @@ type appEngineBackend struct {
 	lock       *sync.RWMutex
 }
 
-func (h *appEngineBackend) Init(jar http.CookieJar) {
+func NewAppEngineBackend(ctx context.Context) *appEngineBackend {
 	rand.Seed(time.Now().UnixNano())
 
-	ctx := context.Background()
-	h.Client = urlfetch.Client(ctx)
-	h.Client.Jar = jar
-	h.Client.Timeout = 10 * time.Second
+	e := &appEngineBackend{
+		Client: urlfetch.Client(ctx),
+		lock:   &sync.RWMutex{},
+	}
 
-	h.lock = &sync.RWMutex{}
+	jar, _ := cookiejar.New(nil)
+
+	e.Client.Jar = jar
+	e.Client.Timeout = 10 * time.Second
+
+	return e
 }
 
 func (h *appEngineBackend) GetMatchingRule(domain string) *LimitRule {

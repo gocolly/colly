@@ -21,6 +21,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path"
@@ -39,8 +40,6 @@ import (
 // Collector's HTTPDriver can be changed by calling Collector.SetHTTPDriver()
 // function.
 type HTTPDriver interface {
-	// Init initializes the HTTPDriver implementation
-	Init(jar http.CookieJar)
 	//GetMatchingRule returns the LimitRule for a given domain
 	GetMatchingRule(domain string) *LimitRule
 	// Cache caches the
@@ -103,6 +102,19 @@ type LimitRule struct {
 	compiledGlob   glob.Glob
 }
 
+func NewHttpBackend() *httpBackend {
+	rand.Seed(time.Now().UnixNano())
+	jar, _ := cookiejar.New(nil)
+
+	return &httpBackend{
+		Client: &http.Client{
+			Timeout: 10 * time.Second,
+			Jar:     jar,
+		},
+		lock: &sync.RWMutex{},
+	}
+}
+
 // Init initializes the private members of LimitRule
 func (r *LimitRule) Init() error {
 	waitChanSize := 1
@@ -131,15 +143,6 @@ func (r *LimitRule) Init() error {
 		return ErrNoPattern
 	}
 	return nil
-}
-
-func (h *httpBackend) Init(jar http.CookieJar) {
-	rand.Seed(time.Now().UnixNano())
-	h.Client = &http.Client{
-		Jar:     jar,
-		Timeout: 10 * time.Second,
-	}
-	h.lock = &sync.RWMutex{}
 }
 
 // Match checks that the domain parameter triggers the rule

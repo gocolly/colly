@@ -29,11 +29,7 @@ type CDPDriver struct {
 	timeOut    time.Duration
 }
 
-func ChromeDriver() *CDPDriver {
-	return &CDPDriver{lock: &sync.RWMutex{}}
-}
-
-func (c *CDPDriver) Init(jar http.CookieJar) {
+func NewChromeDriver() *CDPDriver {
 	opts := []chromedp.ExecAllocatorOption{
 		chromedp.NoFirstRun,
 		chromedp.NoDefaultBrowserCheck,
@@ -44,7 +40,11 @@ func (c *CDPDriver) Init(jar http.CookieJar) {
 
 	// create context
 	ctx, _ := chromedp.NewContext(actx) // create new tab
-	c.ctx = ctx
+
+	return &CDPDriver{
+		ctx:  ctx,
+		lock: &sync.RWMutex{},
+	}
 }
 
 func (c *CDPDriver) GetMatchingRule(domain string) *colly.LimitRule {
@@ -198,6 +198,7 @@ func (c *CDPDriver) Cookies(url *url.URL) []*http.Cookie {
 func (c *CDPDriver) CheckRedirect(f func(req *http.Request, via []*http.Request) error) {
 
 }
+
 func (c *CDPDriver) SetClient(client *http.Client) {
 
 }

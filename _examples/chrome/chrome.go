@@ -11,7 +11,7 @@ func main() {
 	c := colly.NewCollector(
 		// Visit only domains: hackerspaces.org, wiki.hackerspaces.org
 		colly.AllowedDomains("hackerspaces.org", "wiki.hackerspaces.org"),
-		colly.SetHTTPDriver(extensions.ChromeDriver()),
+		colly.SetHTTPDriver(extensions.NewChromeDriver()),
 	)
 
 	// On every a element which has href attribute call callback

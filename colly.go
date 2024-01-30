@@ -464,11 +464,8 @@ func CheckHead() CollectorOption {
 // SetHTTPDriver sets the HTTPDriver used by the Collector.
 func SetHTTPDriver(backend HTTPDriver) func(*Collector) {
 	return func(c *Collector) {
-		jar := c.backend.GetJar()
-		timeout := c.backend.GetTimeout()
 		c.backend = backend
-		c.backend.Init(jar)
-		c.backend.Timeout(timeout)
+		c.backend.CheckRedirect(c.checkRedirectFunc())
 	}
 }
 
@@ -482,9 +479,7 @@ func (c *Collector) Init() {
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
-	c.backend = &httpBackend{}
-	jar, _ := cookiejar.New(nil)
-	c.backend.Init(jar)
+	c.backend = NewHttpBackend()
 	c.backend.CheckRedirect(c.checkRedirectFunc())
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
@@ -493,36 +488,6 @@ func (c *Collector) Init() {
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
 	c.Context = context.Background()
-}
-
-// Appengine will replace the Collector's backend http.Client
-// With an Http.Client that is provided by appengine/urlfetch
-// This function should be used when the scraper is run on
-// Google App Engine. Example:
-//
-//	func startScraper(w http.ResponseWriter, r *http.Request) {
-//	  ctx := appengine.NewContext(r)
-//	  c := colly.NewCollector()
-//	  c.Appengine(ctx)
-//	   ...
-//	  c.Visit("https://google.ca")
-//	}
-func (c *Collector) Appengine(ctx context.Context) {
-	var jar http.CookieJar
-	var timeout time.Duration
-
-	if c.backend != nil {
-		jar = c.backend.GetJar()
-		timeout = c.backend.GetTimeout()
-	} else {
-		jar, _ = cookiejar.New(nil)
-		timeout = 10 * time.Second
-	}
-
-	c.backend = &appEngineBackend{}
-	c.backend.Init(jar)
-	c.backend.CheckRedirect(c.checkRedirectFunc())
-	c.backend.Timeout(timeout)
 }
 
 // Visit starts Collector's collecting job by creating a
