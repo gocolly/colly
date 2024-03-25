@@ -233,6 +233,8 @@ var (
 	ErrQueueFull = errors.New("Queue MaxSize reached")
 	// ErrMaxRequests is the error returned when exceeding max requests
 	ErrMaxRequests = errors.New("Max Requests limit reached")
+	// ErrRetryBodyUnseekable is the error when retry with not seekable body
+	ErrRetryBodyUnseekable = errors.New("Retry Body Unseekable")
 )
 
 var envMap = map[string]func(*Collector, string){
@@ -629,6 +631,13 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if _, ok := hdr["User-Agent"]; !ok {
 		hdr.Set("User-Agent", c.UserAgent)
 	}
+	if seeker, ok := requestData.(io.ReadSeeker); ok {
+		_, err := seeker.Seek(0, io.SeekStart)
+		if err != nil {
+			return err
+		}
+	}
+
 	req, err := http.NewRequest(method, parsedURL.String(), requestData)
 	if err != nil {
 		return err
@@ -1440,7 +1449,8 @@ func createMultipartReader(boundary string, data map[string][]byte) io.Reader {
 		buffer.WriteString("\n")
 	}
 	buffer.WriteString(dashBoundary + "--\n\n")
-	return buffer
+	return bytes.NewReader(buffer.Bytes())
+
 }
 
 // randomBoundary was borrowed from

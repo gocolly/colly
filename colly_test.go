@@ -1703,3 +1703,82 @@ func requireSessionCookieAuthPage(handler http.Handler) http.Handler {
 		handler.ServeHTTP(w, r)
 	})
 }
+
+func TestCollectorPostRetry(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	postValue := "hello"
+	c := NewCollector()
+	try := false
+	c.OnResponse(func(r *Response) {
+		if r.Ctx.Get("notFirst") == "" {
+			r.Ctx.Put("notFirst", "first")
+			_ = r.Request.Retry()
+			return
+		}
+		if postValue != string(r.Body) {
+			t.Error("Failed to send data with POST")
+		}
+		try = true
+	})
+
+	c.Post(ts.URL+"/login", map[string]string{
+		"name": postValue,
+	})
+	if !try {
+		t.Error("OnResponse Retry was not called")
+	}
+}
+func TestCollectorGetRetry(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+	try := false
+
+	c := NewCollector()
+
+	c.OnResponse(func(r *Response) {
+		if r.Ctx.Get("notFirst") == "" {
+			r.Ctx.Put("notFirst", "first")
+			_ = r.Request.Retry()
+			return
+		}
+		if !bytes.Equal(r.Body, serverIndexResponse) {
+			t.Error("Response body does not match with the original content")
+		}
+		try = true
+	})
+
+	c.Visit(ts.URL)
+	if !try {
+		t.Error("OnResponse Retry was not called")
+	}
+}
+
+func TestCollectorPostRetryUnseekable(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+	try := false
+	postValue := "hello"
+	c := NewCollector()
+
+	c.OnResponse(func(r *Response) {
+		if postValue != string(r.Body) {
+			t.Error("Failed to send data with POST")
+		}
+
+		if r.Ctx.Get("notFirst") == "" {
+			r.Ctx.Put("notFirst", "first")
+			err := r.Request.Retry()
+			if !errors.Is(err, ErrRetryBodyUnseekable) {
+				t.Errorf("Unexpected error Type ErrRetryBodyUnseekable : %v", err)
+			}
+			return
+		}
+		try = true
+	})
+	c.Request("POST", ts.URL+"/login", bytes.NewBuffer([]byte("name="+postValue)), nil, nil)
+	if try {
+		t.Error("OnResponse Retry was called but BodyUnseekable")
+	}
+}
