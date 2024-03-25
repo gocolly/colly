@@ -52,7 +52,11 @@ func newUnstartedTestServer() *httptest.Server {
 	})
 
 	mux.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
+		if r.URL.Query().Get("no-content-type") != "" {
+			w.Header()["Content-Type"] = nil
+		} else {
+			w.Header().Set("Content-Type", "text/html")
+		}
 		w.Write([]byte(`<!DOCTYPE html>
 <html>
 <head>
@@ -624,6 +628,34 @@ func TestCollectorOnHTML(t *testing.T) {
 
 	if paragraphCallbackCount != 2 {
 		t.Error("Failed to find all <p> tags")
+	}
+}
+
+func TestCollectorContentSniffing(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	htmlCallbackCalled := false
+
+	c.OnResponse(func(r *Response) {
+		if (*r.Headers)["Content-Type"] != nil {
+			t.Error("Content-Type unexpectedly not nil")
+		}
+	})
+
+	c.OnHTML("html", func(e *HTMLElement) {
+		htmlCallbackCalled = true
+	})
+
+	err := c.Visit(ts.URL + "/html?no-content-type=yes")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !htmlCallbackCalled {
+		t.Error("OnHTML was not called")
 	}
 }
 

@@ -1122,6 +1122,9 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 	}
 
 	contentType := resp.Headers.Get("Content-Type")
+	if contentType == "" {
+		contentType = http.DetectContentType(resp.Body)
+	}
 	// implementation of mime.ParseMediaType without parsing the params
 	// part
 	mediatype, _, _ := strings.Cut(contentType, ";")
