@@ -1343,12 +1343,26 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 			return fmt.Errorf("Not following redirect to %q: %w", req.URL, err)
 		}
 
-		// allow redirects to the original destination
-		// to support websites redirecting to the same page while setting
-		// session cookies
-		samePageRedirect := normalizeURL(req.URL.String()) == normalizeURL(via[0].URL.String())
+		// Page may set cookies and respond with a redirect to itself.
+		// Some example of such redirect "cycles":
+		//
+		// example.com -(set cookie)-> example.com
+		// example.com -> auth.example.com -(set cookie)-> example.com
+		// www.example.com -> example.com -(set cookie)-> example.com
+		//
+		// We must not return "already visited" error in such cases.
+		// So ignore redirect cycles when checking for URL revisit.
+		redirectCycle := false
+		normalizedURL := normalizeURL(req.URL.String())
+		for _, viaReq := range via {
+			viaURL := normalizeURL(viaReq.URL.String())
+			if viaURL == normalizedURL {
+				redirectCycle = true
+				break
+			}
+		}
 
-		if !c.AllowURLRevisit && !samePageRedirect {
+		if !c.AllowURLRevisit && !redirectCycle {
 			var body io.ReadCloser
 			if req.GetBody != nil {
 				var err error
