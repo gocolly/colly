@@ -1117,9 +1117,27 @@ func (c *Collector) handleOnResponseHeaders(r *Response) {
 }
 
 func (c *Collector) handleOnHTML(resp *Response) error {
-	if len(c.htmlCallbacks) == 0 || !strings.Contains(strings.ToLower(resp.Headers.Get("Content-Type")), "html") {
+	if len(c.htmlCallbacks) == 0 {
 		return nil
 	}
+
+	contentType := resp.Headers.Get("Content-Type")
+	if contentType == "" {
+		contentType = http.DetectContentType(resp.Body)
+	}
+	// implementation of mime.ParseMediaType without parsing the params
+	// part
+	mediatype, _, _ := strings.Cut(contentType, ";")
+	mediatype = strings.TrimSpace(strings.ToLower(mediatype))
+
+	// TODO we also want to parse application/xml as XHTML if it has
+	// appropriate doctype
+	switch mediatype {
+	case "text/html", "application/xhtml+xml":
+	default:
+		return nil
+	}
+
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(resp.Body))
 	if err != nil {
 		return err
