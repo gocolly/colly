@@ -57,6 +57,7 @@ func (w *WebDebugger) Init() error {
 	http.HandleFunc("/", w.indexHandler)
 	http.HandleFunc("/status", w.statusHandler)
 	log.Println("Starting debug webserver on", w.Address)
+	// nolint:errcheck
 	go http.ListenAndServe(w.Address, nil)
 	return nil
 }
@@ -84,7 +85,7 @@ func (w *WebDebugger) Event(e *Event) {
 }
 
 func (w *WebDebugger) indexHandler(wr http.ResponseWriter, r *http.Request) {
-	wr.Write([]byte(`<!DOCTYPE html>
+	_, _ = wr.Write([]byte(`<!DOCTYPE html>
 <html>
 <head>
  <title>Colly Debugger WebUI</title>
@@ -149,5 +150,5 @@ func (w *WebDebugger) statusHandler(wr http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	wr.Write(jsonData)
+	_, _ = wr.Write(jsonData)
 }

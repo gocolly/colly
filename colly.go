@@ -40,12 +40,13 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/antchfx/htmlquery"
 	"github.com/antchfx/xmlquery"
-	"github.com/gocolly/colly/v2/debug"
-	"github.com/gocolly/colly/v2/storage"
 	"github.com/kennygrant/sanitize"
 	whatwgUrl "github.com/nlnwa/whatwg-url/url"
 	"github.com/temoto/robotstxt"
 	"google.golang.org/appengine/urlfetch"
+
+	"github.com/gocolly/colly/v2/debug"
+	"github.com/gocolly/colly/v2/storage"
 )
 
 // A CollectorOption sets an option on a Collector.
@@ -146,7 +147,7 @@ type ResponseHeadersCallback func(*Response)
 type ResponseCallback func(*Response)
 
 // HTMLCallback is a type alias for OnHTML callback functions
-type HTMLCallback func(*HTMLElement)
+type HTMLCallback func(key string, element *HTMLElement)
 
 // XMLCallback is a type alias for OnXML callback functions
 type XMLCallback func(*XMLElement)
@@ -181,8 +182,9 @@ func (e *AlreadyVisitedError) Error() string {
 }
 
 type htmlCallbackContainer struct {
-	Selector string
-	Function HTMLCallback
+	UniqueKey string
+	Selector  string
+	Function  HTMLCallback
 }
 
 type xmlCallbackContainer struct {
@@ -452,7 +454,7 @@ func DetectCharset() CollectorOption {
 // Debugger sets the debugger used by the Collector.
 func Debugger(d debug.Debugger) CollectorOption {
 	return func(c *Collector) {
-		d.Init()
+		_ = d.Init()
 		c.debugger = d
 	}
 }
@@ -472,7 +474,7 @@ func (c *Collector) Init() {
 	c.MaxDepth = 0
 	c.MaxRequests = 0
 	c.store = &storage.InMemoryStorage{}
-	c.store.Init()
+	_ = c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	jar, _ := cookiejar.New(nil)
@@ -575,7 +577,7 @@ func (c *Collector) Request(method, URL string, requestData io.Reader, ctx *Cont
 
 // SetDebugger attaches a debugger to the collector
 func (c *Collector) SetDebugger(d debug.Debugger) {
-	d.Init()
+	_ = d.Init()
 	c.debugger = d
 }
 
@@ -657,6 +659,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
+		// nolint:errcheck
 		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
 		return nil
 	}
@@ -729,12 +732,12 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 
 	err = c.handleOnHTML(response)
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		_ = c.handleOnError(response, err, request, ctx)
 	}
 
 	err = c.handleOnXML(response)
 	if err != nil {
-		c.handleOnError(response, err, request, ctx)
+		_ = c.handleOnError(response, err, request, ctx)
 	}
 
 	c.handleOnScraped(response)
@@ -919,14 +922,15 @@ func (c *Collector) OnResponse(f ResponseCallback) {
 // OnHTML registers a function. Function will be executed on every HTML
 // element matched by the GoQuery Selector parameter.
 // GoQuery Selector is a selector used by https://github.com/PuerkitoBio/goquery
-func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
+func (c *Collector) OnHTML(goquerySelector, uniqueKey string, f HTMLCallback) {
 	c.lock.Lock()
 	if c.htmlCallbacks == nil {
 		c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 4)
 	}
 	c.htmlCallbacks = append(c.htmlCallbacks, &htmlCallbackContainer{
-		Selector: goquerySelector,
-		Function: f,
+		UniqueKey: uniqueKey,
+		Selector:  goquerySelector,
+		Function:  f,
 	})
 	c.lock.Unlock()
 }
@@ -1164,7 +1168,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 						"url":      resp.Request.URL.String(),
 					}))
 				}
-				cc.Function(e)
+				cc.Function(cc.UniqueKey, e)
 			}
 		})
 	}
@@ -1551,9 +1555,9 @@ func requestHash(url string, body io.Reader) uint64 {
 	h := fnv.New64a()
 	// reparse the url to fix ambiguities such as
 	// "http://example.com" vs "http://example.com/"
-	io.WriteString(h, normalizeURL(url))
+	_, _ = io.WriteString(h, normalizeURL(url))
 	if body != nil {
-		io.Copy(h, body)
+		_, _ = io.Copy(h, body)
 	}
 	return h.Sum64()
 }

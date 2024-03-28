@@ -23,11 +23,11 @@ func main() {
 
 	pages := []string{}
 
-	c.OnHTML("h1", func(e *colly.HTMLElement) {
+	c.OnHTML("h1", "_", func(_ string, e *colly.HTMLElement) {
 		pages = append(pages, e.Text)
 	})
 
-	c.OnHTML("a", func(e *colly.HTMLElement) {
+	c.OnHTML("a", "_", func(_ string, e *colly.HTMLElement) {
 		c.Visit("file://" + dir + "/html" + e.Attr("href"))
 	})
 
