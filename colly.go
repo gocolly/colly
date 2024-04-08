@@ -653,8 +653,7 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	// note: once 1.13 is minimum supported Go version,
 	// replace this with http.NewRequestWithContext
-	//c.Context = context.WithValue(c.Context, CheckRevisitKey, checkRevisit)
-	req = req.WithContext(c.Context)
+	req = req.WithContext(context.WithValue(req.WithContext(c.Context).Context(), CheckRevisitKey, checkRevisit))
 	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
 		return err
 	}
