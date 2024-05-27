@@ -101,10 +101,11 @@ jobs:
       - name: Get next version
         id: new_git_tag
         run: |
-          git fetch --prune --tags --force
+          git remote add upstream https://github.com/gocolly/colly || true
+          git fetch upstream --tags
           git tag # This is just for future debug, lists the past tags
           go install github.com/caarlos0/svu@latest
-          NEW_TAG=$(svu next --force-patch-increment)
+          NEW_TAG=$(svu next --tag-mode all-branches --force-patch-increment)
           echo "Using the next tag of ${NEW_TAG} for this release"
           echo "new_tag=$NEW_TAG" >> $GITHUB_ENV
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
