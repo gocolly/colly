@@ -15,6 +15,7 @@
 package colly
 
 import (
+	"bufio"
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
@@ -202,11 +203,27 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc c
 	}
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || strings.HasSuffix(strings.ToLower(finalRequest.URL.Path), ".xml.gz")) {
-		bodyReader, err = gzip.NewReader(bodyReader)
-		if err != nil {
+		// Even if URL contains .xml.gz, it doesn't mean that we get gzip
+		// compressed data back. We might get 404 error page instead,
+		// for example. So check gzip magic bytes.
+		bufReader := bufio.NewReader(bodyReader)
+		bodyReader = bufReader
+		magic, err := bufReader.Peek(2)
+		switch err {
+		case io.EOF:
+			// less than 2 bytes, do nothing
+		case nil:
+			// gzip magic, as specified in RFC 1952
+			if magic[0] == 0x1f && magic[1] == 0x8b {
+				bodyReader, err = gzip.NewReader(bufReader)
+				if err != nil {
+					return nil, err
+				}
+				defer bodyReader.(*gzip.Reader).Close()
+			}
+		default:
 			return nil, err
 		}
-		defer bodyReader.(*gzip.Reader).Close()
 	}
 	body, err := io.ReadAll(bodyReader)
 	if err != nil {
