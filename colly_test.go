@@ -1814,3 +1814,25 @@ func TestCollectorPostRetryUnseekable(t *testing.T) {
 		t.Error("OnResponse Retry was called but BodyUnseekable")
 	}
 }
+
+func TestRedirectErrorRetry(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+	c := NewCollector()
+	c.OnError(func(r *Response, err error) {
+		if r.Ctx.Get("notFirst") == "" {
+			r.Ctx.Put("notFirst", "first")
+			_ = r.Request.Retry()
+			return
+		}
+		if e := (&AlreadyVisitedError{}); errors.As(err, &e) {
+			t.Error("loop AlreadyVisitedError")
+		}
+
+	})
+	c.OnResponse(func(response *Response) {
+		//println(1)
+	})
+	c.Visit(ts.URL + "/redirected/")
+	c.Visit(ts.URL + "/redirect")
+}
