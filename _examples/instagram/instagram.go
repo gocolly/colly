@@ -103,7 +103,7 @@ func main() {
 		}
 	})
 
-	c.OnHTML("html", func(e *colly.HTMLElement) {
+	c.OnHTML("html", "_", func(_ string, e *colly.HTMLElement) {
 		d := c.Clone()
 		d.OnResponse(func(r *colly.Response) {
 			requestIds = queryIdPattern.FindAll(r.Body, -1)

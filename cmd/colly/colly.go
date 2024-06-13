@@ -42,7 +42,7 @@ var scraperEndTemplate = `
 `
 
 var htmlCallbackTemplate = `
-	c.OnHTML("element-selector", func(e *colly.HTMLElement) {
+	c.OnHTML("element-selector", "unique-key", func(_ string, e *colly.HTMLElement) {
 		log.Println(e.Text)
 	})
 `
@@ -113,9 +113,9 @@ func main() {
 				}
 			}
 			scraper.WriteString(scraperEndTemplate)
-			outfile.Write(scraper.Bytes())
+			_, _ = outfile.Write(scraper.Bytes())
 		}
 	})
 
-	app.Run(os.Args)
+	_ = app.Run(os.Args)
 }

@@ -46,7 +46,7 @@ func main() {
 	courses := make([]Course, 0, 200)
 
 	// On every <a> element which has "href" attribute call callback
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+	c.OnHTML("a[href]", "_", func(_ string, e *colly.HTMLElement) {
 		// If attribute class is this long string return from callback
 		// As this a is irrelevant
 		if e.Attr("class") == "Button_1qxkboh-o_O-primary_cv02ee-o_O-md_28awn8-o_O-primaryLink_109aggg" {
@@ -67,7 +67,7 @@ func main() {
 	})
 
 	// On every <a> element with collection-product-card class call callback
-	c.OnHTML(`a.collection-product-card`, func(e *colly.HTMLElement) {
+	c.OnHTML(`a.collection-product-card`, "_", func(_ string, e *colly.HTMLElement) {
 		// Activate detailCollector if the link contains "coursera.org/learn"
 		courseURL := e.Request.AbsoluteURL(e.Attr("href"))
 		if strings.Index(courseURL, "coursera.org/learn") != -1 {
@@ -76,7 +76,7 @@ func main() {
 	})
 
 	// Extract details of the course
-	detailCollector.OnHTML(`div[id=rendered-content]`, func(e *colly.HTMLElement) {
+	detailCollector.OnHTML(`div[id=rendered-content]`, "_", func(_ string, e *colly.HTMLElement) {
 		log.Println("Course found", e.Request.URL)
 		title := e.ChildText(".banner-title")
 		if title == "" {

@@ -49,7 +49,7 @@ func main() {
 	c := colly.NewCollector(colly.AllowURLRevisit(), colly.MaxDepth(5))
 
 	// On every a element which has href attribute call callback
-	c.OnHTML("html", func(e *colly.HTMLElement) {
+	c.OnHTML("html", "_", func(_ string, e *colly.HTMLElement) {
 		fmt.Println(e.Text)
 		time.Sleep(1 * time.Second)
 		e.Request.PostMultipart("http://localhost:8080/", generateFormData())

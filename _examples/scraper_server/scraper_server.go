@@ -26,7 +26,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	p := &pageInfo{Links: make(map[string]int)}
 
 	// count links
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+	c.OnHTML("a[href]", "_", func(_ string, e *colly.HTMLElement) {
 		link := e.Request.AbsoluteURL(e.Attr("href"))
 		if link != "" {
 			p.Links[link]++
