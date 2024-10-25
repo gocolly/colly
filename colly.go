@@ -1444,6 +1444,7 @@ func SanitizeFileName(fileName string) string {
 	), "-", "_", -1)
 }
 
+// CreateFormReader creates a form reader from a map.
 func CreateFormReader(data map[string]string) io.Reader {
 	form := url.Values{}
 	for k, v := range data {
