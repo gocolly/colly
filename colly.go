@@ -539,7 +539,7 @@ func (c *Collector) Head(URL string) error {
 // Post starts a collector job by creating a POST request.
 // Post also calls the previously provided callbacks
 func (c *Collector) Post(URL string, requestData map[string]string) error {
-	return c.scrape(URL, "POST", 1, createFormReader(requestData), nil, nil, true)
+	return c.scrape(URL, "POST", 1, CreateFormReader(requestData), nil, nil, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
@@ -1425,7 +1425,7 @@ func (c *Collector) parseSettingsFromEnv() {
 }
 
 func (c *Collector) checkHasVisited(URL string, requestData map[string]string) (bool, error) {
-	hash := requestHash(URL, createFormReader(requestData))
+	hash := requestHash(URL, CreateFormReader(requestData))
 	return c.store.IsVisited(hash)
 }
 
@@ -1444,7 +1444,7 @@ func SanitizeFileName(fileName string) string {
 	), "-", "_", -1)
 }
 
-func createFormReader(data map[string]string) io.Reader {
+func CreateFormReader(data map[string]string) io.Reader {
 	form := url.Values{}
 	for k, v := range data {
 		form.Add(k, v)
