@@ -116,7 +116,10 @@ func (r *Request) AbsoluteURL(u string) string {
 // request and preserves the Context of the previous request.
 // Visit also calls the previously provided callbacks
 func (r *Request) Visit(URL string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "GET", r.Depth+1, nil, r.Ctx, nil, true)
+	var hdr = make(http.Header)
+	abs := r.AbsoluteURL(URL)
+	hdr.Add("Referer", r.AbsoluteURL(r.URL.String()))
+	return r.collector.scrape(abs, "GET", r.Depth+1, nil, r.Ctx, hdr, true)
 }
 
 // HasVisited checks if the provided URL has been visited
