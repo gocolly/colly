@@ -829,7 +829,31 @@ func (c *Collector) checkRobots(u *url.URL) error {
 
 	if !ok {
 		// no robots file cached
-		resp, err := c.backend.Client.Get(u.Scheme + "://" + u.Host + "/robots.txt")
+
+		// Prepare request,
+		req, err := http.NewRequest("GET", u.Scheme+"://"+u.Host+"/robots.txt", nil)
+		if err != nil {
+			return err
+		}
+		hdr := http.Header{}
+		if c.Headers != nil {
+			for k, v := range *c.Headers {
+				for _, value := range v {
+					hdr.Add(k, value)
+				}
+			}
+		}
+		if _, ok := hdr["User-Agent"]; !ok {
+			hdr.Set("User-Agent", c.UserAgent)
+		}
+		req.Header = hdr
+		// The Go HTTP API ignores "Host" in the headers, preferring the client
+		// to use the Host field on Request.
+		if hostHeader := hdr.Get("Host"); hostHeader != "" {
+			req.Host = hostHeader
+		}
+
+		resp, err := c.backend.Client.Do(req)
 		if err != nil {
 			return err
 		}
