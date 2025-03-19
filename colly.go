@@ -1013,8 +1013,8 @@ func (c *Collector) OnError(f ErrorCallback) {
 	c.lock.Unlock()
 }
 
-// OnScraped registers a function. Function will be executed after
-// OnHTML, as a final part of the scraping.
+// OnScraped registers a function that will be executed as the final part of
+// the scraping, after OnHTML and OnXML have finished.
 func (c *Collector) OnScraped(f ScrapedCallback) {
 	c.lock.Lock()
 	if c.scrapedCallbacks == nil {
