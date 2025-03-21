@@ -23,7 +23,7 @@ import (
 
 var basicTestData = []byte(`<ul><li class="x">list <span>item</span> 1</li><li>list item 2</li><li>3</li></ul>`)
 var nestedTestData = []byte(`<div><p>a</p><div><p>b</p><div><p>c</p></div></div></div>`)
-var pointerSliceTestData = []byte(`<ul class="object"><li class="info">Information: <span>Info 1</span></li><li class="info">Information: <span>Info 2</span></li></ul>`)
+var pointerSliceTestData = []byte(`<ul class="object"><li class="info">Information: <span>Info 1</span></li><li class="info">Information: <span>Info 2</span></li> <a href="url1">Name 1</a><a href="url2">Name 2</a></ul>`)
 
 func TestBasicUnmarshal(t *testing.T) {
 	doc, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(basicTestData))
@@ -138,8 +138,14 @@ func TestStructSliceUnmarshall(t *testing.T) {
 	type info struct {
 		Text string `selector:"span"`
 	}
+	type urlWithName struct {
+		Name string `selector:""`
+		URL  string `selector:"" attr:"href"`
+	}
+
 	type object struct {
-		Info []info `selector:"li.info"`
+		Info []info         `selector:"li.info"`
+		Urls []*urlWithName `selector:"a"`
 	}
 
 	doc, _ := goquery.NewDocumentFromReader(bytes.NewBuffer(pointerSliceTestData))
@@ -160,4 +166,13 @@ func TestStructSliceUnmarshall(t *testing.T) {
 		t.Errorf("Invalid data for Info.[1].Text: %s, expected Info 2", o.Info[1].Text)
 	}
 
+	if len(o.Urls) != 2 {
+		t.Errorf("Invalid length for Urls: %d, expected 2", len(o.Info))
+	}
+	if o.Urls[0].Name != "Name 1" || o.Urls[0].URL != "url1" {
+		t.Errorf("Invalid data for Urls.[0].Name: %s or Urls.[0].URL: %s, expected Name 1 and url1", o.Urls[0].Name, o.Urls[0].URL)
+	}
+	if o.Urls[1].Name != "Name 2" || o.Urls[1].URL != "url2" {
+		t.Errorf("Invalid data for Urls.[1].Name: %s or Urls.[1].URL: %s, expected Name 2 and url2", o.Urls[1].Name, o.Urls[1].URL)
+	}
 }
