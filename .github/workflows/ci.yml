@@ -23,10 +23,12 @@ jobs:
 
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: ${{matrix.go}}
 
@@ -55,10 +57,12 @@ jobs:
 
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{matrix.go}}
 
@@ -79,3 +83,118 @@ jobs:
     steps:
       - name: Run Codecov 
         run: bash <(curl -s https://codecov.io/bash)
+
+  # Increments to the next tag on master only, bumps version based on the recent commits
+  new_tag:
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Get next version
+        id: new_git_tag
+        run: |
+          git remote add upstream https://github.com/gocolly/colly || true
+          git fetch upstream --tags
+          git tag # This is just for future debug, lists the past tags
+          go install github.com/caarlos0/svu@latest
+          NEW_TAG=$(svu next --tag-mode all-branches --force-patch-increment)
+          echo "Using the next tag of ${NEW_TAG} for this release"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_ENV
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+    outputs:
+      new_tag: ${{ steps.new_git_tag.outputs.new_tag }}
+
+  # Creates a new release page on GitHub when master changes
+  create_release:
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: new_tag
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.new_tag.outputs.new_tag }}
+          release_name: Release ${{ needs.new_tag.outputs.new_tag }}
+          draft: false
+          prerelease: false
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+
+  # In this Release section, we are re-building the binaries because eventually we can include the new git tag as their
+  #   version string when saying 'colly --version'
+  build_and_upload:
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [test, new_tag, create_release]
+    strategy:
+      matrix:
+        include:
+          - target: linux-i386
+            goos: linux
+            goarch: 386
+          - target: linux-x86_64
+            goos: linux
+            goarch: amd64
+          - target: linux-armv6
+            goos: linux
+            goarch: arm
+            goarm: 6
+          - target: linux-armv7
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - target: linux-arm64
+            goos: linux
+            goarch: arm64
+          - target: linux-riscv64
+            goos: linux
+            goarch: riscv64
+          - target: darwin-x86_64
+            goos: darwin
+            goarch: amd64
+          - target: darwin-arm64
+            goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Build binaries
+        env:
+          TARGET: ${{ matrix.target }}
+          GOARCH: ${{ matrix.goarch }}
+          GOOS: ${{ matrix.goos }}
+          GOARM: ${{ matrix.goarm }}
+        run: |
+          OUT_DIR=dist/colly-$TARGET
+          mkdir -p $OUT_DIR
+          go build -o $OUT_DIR/colly ./cmd/colly
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./dist/colly-${{ matrix.target }}/colly
+          asset_name: colly-${{ matrix.target }}/colly
+          asset_content_type: application/octet-stream
