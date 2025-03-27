@@ -36,6 +36,19 @@ import (
 )
 
 var serverIndexResponse = []byte("hello world\n")
+var callbackTestHTML = []byte(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>Callback Test Page</title>
+</head>
+<body>
+<div id="firstElem">First</div>
+<div id="secondElem">Second</div>
+<div id="thirdElem">Third</div>
+</body>
+</html>
+`)
 var robotsFile = `
 User-agent: *
 Allow: /allowed
@@ -49,6 +62,12 @@ func newUnstartedTestServer() *httptest.Server {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write(serverIndexResponse)
+	})
+
+	mux.HandleFunc("/callback_test", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(200)
+		w.Write(callbackTestHTML)
 	})
 
 	mux.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
@@ -1734,6 +1753,47 @@ func requireSessionCookieAuthPage(handler http.Handler) http.Handler {
 		}
 		handler.ServeHTTP(w, r)
 	})
+}
+
+func TestCallbackDetachment(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.AllowURLRevisit = true
+
+	var executions [3]int // tracks callback executions for each element
+
+	c.OnHTML("#firstElem", func(e *HTMLElement) {
+		executions[0]++
+	})
+
+	c.OnHTML("#secondElem", func(e *HTMLElement) {
+		executions[1]++
+		// Detach this callback after first execution
+		c.OnHTMLDetach("#secondElem")
+	})
+
+	c.OnHTML("#thirdElem", func(e *HTMLElement) {
+		executions[2]++
+	})
+
+	// First visit - all callbacks should execute
+	c.Visit(ts.URL + "/callback_test")
+
+	// Second visit - second callback should NOT execute
+	c.Visit(ts.URL + "/callback_test")
+
+	// Verify callback counts
+	if executions[0] != 2 {
+		t.Errorf("firstElem callback executed %d times, expected 2", executions[0])
+	}
+	if executions[1] != 1 {
+		t.Errorf("secondElem callback executed %d times, expected 1", executions[1])
+	}
+	if executions[2] != 2 {
+		t.Errorf("thirdElem callback executed %d times, expected 2", executions[2])
+	}
 }
 
 func TestCollectorPostRetry(t *testing.T) {
