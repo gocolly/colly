@@ -186,18 +186,10 @@ type htmlCallbackContainer struct {
 	active   atomic.Bool
 }
 
-func (c *htmlCallbackContainer) init() {
-	c.active.Store(true)
-}
-
 type xmlCallbackContainer struct {
 	Query    string
 	Function XMLCallback
 	active   atomic.Bool
-}
-
-func (c *xmlCallbackContainer) init() {
-	c.active.Store(true)
 }
 
 type cookieJarSerializer struct {
@@ -962,7 +954,7 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 		Selector: goquerySelector,
 		Function: f,
 	}
-	cc.init()
+	cc.active.Store(true)
 	c.htmlCallbacks = append(c.htmlCallbacks, cc)
 	c.lock.Unlock()
 }
@@ -979,7 +971,7 @@ func (c *Collector) OnXML(xpathQuery string, f XMLCallback) {
 		Query:    xpathQuery,
 		Function: f,
 	}
-	cc.init()
+	cc.active.Store(true)
 	c.xmlCallbacks = append(c.xmlCallbacks, cc)
 	c.lock.Unlock()
 }
