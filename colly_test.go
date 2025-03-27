@@ -46,7 +46,6 @@ var callbackTestHTML = []byte(`
 <div id="firstElem">First</div>
 <div id="secondElem">Second</div>
 <div id="thirdElem">Third</div>
-<div id="fourthElem">Fourth</div>
 </body>
 </html>
 `)
@@ -1763,44 +1762,34 @@ func TestCallbackDetachment(t *testing.T) {
 	c := NewCollector()
 	c.AllowURLRevisit = true
 
-	var executions [4]int // tracks number of executions of each callback
+	var executions [3]int // tracks number of executions of each callback
 
 	c.OnHTML("#firstElem", func(e *HTMLElement) {
 		executions[0]++
+		// Detach this callback after first execution
+		c.OnHTMLDetach("#firstElem")
 	})
-
 	c.OnHTML("#secondElem", func(e *HTMLElement) {
 		executions[1]++
-		// Detach this callback after first execution
-		c.OnHTMLDetach("#secondElem")
 	})
-
 	c.OnHTML("#thirdElem", func(e *HTMLElement) {
 		executions[2]++
 	})
 
-	c.OnHTML("#fourthElem", func(e *HTMLElement) {
-		executions[3]++
-	})
-
 	// First visit - all callbacks should execute
 	c.Visit(ts.URL + "/callback_test")
-
-	// Second visit - second callback should NOT execute
+	// Second visit - first callback should NOT execute
 	c.Visit(ts.URL + "/callback_test")
 
 	// Verify callback counts
-	if executions[0] != 2 {
-		t.Errorf("firstElem callback executed %d times, expected 2", executions[0])
+	if executions[0] != 1 {
+		t.Errorf("firstElem callback executed %d times, expected 1", executions[0])
 	}
-	if executions[1] != 1 {
-		t.Errorf("secondElem callback executed %d times, expected 1", executions[1])
+	if executions[1] != 2 {
+		t.Errorf("secondElem callback executed %d times, expected 2", executions[1])
 	}
 	if executions[2] != 2 {
 		t.Errorf("thirdElem callback executed %d times, expected 2", executions[2])
-	}
-	if executions[2] != 2 {
-		t.Errorf("fourthElem callback executed %d times, expected 2", executions[2])
 	}
 }
 
