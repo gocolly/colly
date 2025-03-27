@@ -183,11 +183,13 @@ func (e *AlreadyVisitedError) Error() string {
 type htmlCallbackContainer struct {
 	Selector string
 	Function HTMLCallback
+	active   atomic.Bool
 }
 
 type xmlCallbackContainer struct {
 	Query    string
 	Function XMLCallback
+	active   atomic.Bool
 }
 
 type cookieJarSerializer struct {
@@ -948,10 +950,12 @@ func (c *Collector) OnHTML(goquerySelector string, f HTMLCallback) {
 	if c.htmlCallbacks == nil {
 		c.htmlCallbacks = make([]*htmlCallbackContainer, 0, 4)
 	}
-	c.htmlCallbacks = append(c.htmlCallbacks, &htmlCallbackContainer{
+	cc := &htmlCallbackContainer{
 		Selector: goquerySelector,
 		Function: f,
-	})
+	}
+	cc.active.Store(true)
+	c.htmlCallbacks = append(c.htmlCallbacks, cc)
 	c.lock.Unlock()
 }
 
@@ -963,43 +967,37 @@ func (c *Collector) OnXML(xpathQuery string, f XMLCallback) {
 	if c.xmlCallbacks == nil {
 		c.xmlCallbacks = make([]*xmlCallbackContainer, 0, 4)
 	}
-	c.xmlCallbacks = append(c.xmlCallbacks, &xmlCallbackContainer{
+	cc := &xmlCallbackContainer{
 		Query:    xpathQuery,
 		Function: f,
-	})
+	}
+	cc.active.Store(true)
+	c.xmlCallbacks = append(c.xmlCallbacks, cc)
 	c.lock.Unlock()
 }
 
 // OnHTMLDetach deregister a function. Function will not be execute after detached
 func (c *Collector) OnHTMLDetach(goquerySelector string) {
 	c.lock.Lock()
-	deleteIdx := -1
-	for i, cc := range c.htmlCallbacks {
+	defer c.lock.Unlock()
+
+	for _, cc := range c.htmlCallbacks {
 		if cc.Selector == goquerySelector {
-			deleteIdx = i
-			break
+			cc.active.Store(false)
 		}
 	}
-	if deleteIdx != -1 {
-		c.htmlCallbacks = append(c.htmlCallbacks[:deleteIdx], c.htmlCallbacks[deleteIdx+1:]...)
-	}
-	c.lock.Unlock()
 }
 
 // OnXMLDetach deregister a function. Function will not be execute after detached
 func (c *Collector) OnXMLDetach(xpathQuery string) {
 	c.lock.Lock()
-	deleteIdx := -1
-	for i, cc := range c.xmlCallbacks {
+	defer c.lock.Unlock()
+
+	for _, cc := range c.xmlCallbacks {
 		if cc.Query == xpathQuery {
-			deleteIdx = i
-			break
+			cc.active.Store(false)
 		}
 	}
-	if deleteIdx != -1 {
-		c.xmlCallbacks = append(c.xmlCallbacks[:deleteIdx], c.xmlCallbacks[deleteIdx+1:]...)
-	}
-	c.lock.Unlock()
 }
 
 // OnError registers a function. Function will be executed if an error
@@ -1177,6 +1175,9 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 
 	}
 	for _, cc := range c.htmlCallbacks {
+		if !cc.active.Load() {
+			continue
+		}
 		i := 0
 		doc.Find(cc.Selector).Each(func(_ int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
@@ -1223,6 +1224,9 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		}
 
 		for _, cc := range c.xmlCallbacks {
+			if !cc.active.Load() {
+				continue
+			}
 			for _, n := range htmlquery.Find(doc, cc.Query) {
 				e := NewXMLElementFromHTMLNode(resp, n)
 				if c.debugger != nil {
@@ -1241,6 +1245,9 @@ func (c *Collector) handleOnXML(resp *Response) error {
 		}
 
 		for _, cc := range c.xmlCallbacks {
+			if !cc.active.Load() {
+				continue
+			}
 			xmlquery.FindEach(doc, cc.Query, func(i int, n *xmlquery.Node) {
 				e := NewXMLElementFromXMLNode(resp, n)
 				if c.debugger != nil {
@@ -1287,6 +1294,29 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	return err
 }
 
+func (c *Collector) cleanupCallbacks() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	// Clean HTML callbacks
+	activeHTML := make([]*htmlCallbackContainer, 0, len(c.htmlCallbacks))
+	for _, cc := range c.htmlCallbacks {
+		if cc.active.Load() {
+			activeHTML = append(activeHTML, cc)
+		}
+	}
+	c.htmlCallbacks = activeHTML
+
+	// Clean XML callbacks
+	activeXML := make([]*xmlCallbackContainer, 0, len(c.xmlCallbacks))
+	for _, cc := range c.xmlCallbacks {
+		if cc.active.Load() {
+			activeXML = append(activeXML, cc)
+		}
+	}
+	c.xmlCallbacks = activeXML
+}
+
 func (c *Collector) handleOnScraped(r *Response) {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("scraped", r.Request.ID, c.ID, map[string]string{
@@ -1296,6 +1326,9 @@ func (c *Collector) handleOnScraped(r *Response) {
 	for _, f := range c.scrapedCallbacks {
 		f(r)
 	}
+
+	// Cleanup inactive callbacks after processing each response
+	c.cleanupCallbacks()
 }
 
 // Limit adds a new LimitRule to the collector
