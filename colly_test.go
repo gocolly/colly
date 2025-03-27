@@ -46,6 +46,7 @@ var callbackTestHTML = []byte(`
 <div id="firstElem">First</div>
 <div id="secondElem">Second</div>
 <div id="thirdElem">Third</div>
+<div id="fourthElem">Fourth</div>
 </body>
 </html>
 `)
@@ -1762,7 +1763,7 @@ func TestCallbackDetachment(t *testing.T) {
 	c := NewCollector()
 	c.AllowURLRevisit = true
 
-	var executions [3]int // tracks callback executions for each element
+	var executions [4]int // tracks number of executions of each callback
 
 	c.OnHTML("#firstElem", func(e *HTMLElement) {
 		executions[0]++
@@ -1776,6 +1777,10 @@ func TestCallbackDetachment(t *testing.T) {
 
 	c.OnHTML("#thirdElem", func(e *HTMLElement) {
 		executions[2]++
+	})
+
+	c.OnHTML("#fourthElem", func(e *HTMLElement) {
+		executions[3]++
 	})
 
 	// First visit - all callbacks should execute
@@ -1793,6 +1798,9 @@ func TestCallbackDetachment(t *testing.T) {
 	}
 	if executions[2] != 2 {
 		t.Errorf("thirdElem callback executed %d times, expected 2", executions[2])
+	}
+	if executions[2] != 2 {
+		t.Errorf("fourthElem callback executed %d times, expected 2", executions[2])
 	}
 }
 
