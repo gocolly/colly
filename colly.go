@@ -1141,8 +1141,7 @@ func (c *Collector) handleOnResponseHeaders(r *Response) {
 
 func (c *Collector) handleOnHTML(resp *Response) error {
 	c.lock.RLock()
-	htmlCallbacks := make([]*htmlCallbackContainer, len(c.htmlCallbacks))
-	copy(htmlCallbacks, c.htmlCallbacks)
+	htmlCallbacks := slices.Clone(c.htmlCallbacks)
 	c.lock.RUnlock()
 
 	if len(htmlCallbacks) == 0 {
@@ -1204,8 +1203,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 
 func (c *Collector) handleOnXML(resp *Response) error {
 	c.lock.RLock()
-	xmlCallbacks := make([]*xmlCallbackContainer, len(c.xmlCallbacks))
-	copy(xmlCallbacks, c.xmlCallbacks)
+	xmlCallbacks := slices.Clone(c.xmlCallbacks)
 	c.lock.RUnlock()
 
 	if len(xmlCallbacks) == 0 {
