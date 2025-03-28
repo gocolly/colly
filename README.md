@@ -18,22 +18,6 @@ With Colly you can easily extract structured data from websites, which can be us
 ------
 
 
-## Sponsors
-
-
-<a href="https://scrapfly.io/?utm_source=Github&utm_medium=repo&utm_campaign=colly" target="_blank"><img src="assets/scrapfly.png" alt="Scrapfly.io" width="149"></a>
-
-[Scrapfly](https://scrapfly.io/?utm_source=Github&utm_medium=repo&utm_campaign=colly)
-is an enterprise-grade solution providing Web Scraping API that aims to simplify the
-scraping process by managing everything: real browser rendering, rotating proxies, and
-fingerprints (TLS, HTTP, browser) to bypass all major anti-bots. Scrapfly also unlocks the
-observability by providing an analytical dashboard and measuring the success rate/block
-rate in detail.
-
-
-------
-
-
 
 ## Features
 
