@@ -31,6 +31,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1139,7 +1140,11 @@ func (c *Collector) handleOnResponseHeaders(r *Response) {
 }
 
 func (c *Collector) handleOnHTML(resp *Response) error {
-	if len(c.htmlCallbacks) == 0 {
+	c.lock.RLock()
+	htmlCallbacks := slices.Clone(c.htmlCallbacks)
+	c.lock.RUnlock()
+
+	if len(htmlCallbacks) == 0 {
 		return nil
 	}
 
@@ -1174,7 +1179,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 		}
 
 	}
-	for _, cc := range c.htmlCallbacks {
+	for _, cc := range htmlCallbacks {
 		if !cc.active.Load() {
 			continue
 		}
@@ -1197,7 +1202,11 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 }
 
 func (c *Collector) handleOnXML(resp *Response) error {
-	if len(c.xmlCallbacks) == 0 {
+	c.lock.RLock()
+	xmlCallbacks := slices.Clone(c.xmlCallbacks)
+	c.lock.RUnlock()
+
+	if len(xmlCallbacks) == 0 {
 		return nil
 	}
 	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
@@ -1223,7 +1232,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 			}
 		}
 
-		for _, cc := range c.xmlCallbacks {
+		for _, cc := range xmlCallbacks {
 			if !cc.active.Load() {
 				continue
 			}
@@ -1244,7 +1253,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 			return err
 		}
 
-		for _, cc := range c.xmlCallbacks {
+		for _, cc := range xmlCallbacks {
 			if !cc.active.Load() {
 				continue
 			}
@@ -1299,22 +1308,14 @@ func (c *Collector) cleanupCallbacks() {
 	defer c.lock.Unlock()
 
 	// Clean HTML callbacks
-	activeHTML := make([]*htmlCallbackContainer, 0, len(c.htmlCallbacks))
-	for _, cc := range c.htmlCallbacks {
-		if cc.active.Load() {
-			activeHTML = append(activeHTML, cc)
-		}
-	}
-	c.htmlCallbacks = activeHTML
+	c.htmlCallbacks = slices.DeleteFunc(c.htmlCallbacks, func(cc *htmlCallbackContainer) bool {
+		return !cc.active.Load()
+	})
 
 	// Clean XML callbacks
-	activeXML := make([]*xmlCallbackContainer, 0, len(c.xmlCallbacks))
-	for _, cc := range c.xmlCallbacks {
-		if cc.active.Load() {
-			activeXML = append(activeXML, cc)
-		}
-	}
-	c.xmlCallbacks = activeXML
+	c.xmlCallbacks = slices.DeleteFunc(c.xmlCallbacks, func(cc *xmlCallbackContainer) bool {
+		return !cc.active.Load()
+	})
 }
 
 func (c *Collector) handleOnScraped(r *Response) {
