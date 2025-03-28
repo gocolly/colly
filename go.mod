@@ -9,13 +9,12 @@ require (
 	github.com/antchfx/htmlquery v1.3.4
 	github.com/antchfx/xmlquery v1.4.4
 	github.com/gobwas/glob v0.2.3
-	github.com/gocolly/colly v1.2.0
-	github.com/jawher/mow.cli v1.1.0
+	github.com/jawher/mow.cli v1.2.0
 	github.com/kennygrant/sanitize v1.2.4
 	github.com/nlnwa/whatwg-url v0.6.1
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d
 	github.com/temoto/robotstxt v1.1.2
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	google.golang.org/appengine v1.6.8
 )
 
