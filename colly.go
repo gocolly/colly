@@ -1139,7 +1139,12 @@ func (c *Collector) handleOnResponseHeaders(r *Response) {
 }
 
 func (c *Collector) handleOnHTML(resp *Response) error {
-	if len(c.htmlCallbacks) == 0 {
+	c.lock.RLock()
+	htmlCallbacks := make([]*htmlCallbackContainer, len(c.htmlCallbacks))
+	copy(htmlCallbacks, c.htmlCallbacks)
+	c.lock.RUnlock()
+
+	if len(htmlCallbacks) == 0 {
 		return nil
 	}
 
@@ -1174,7 +1179,7 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 		}
 
 	}
-	for _, cc := range c.htmlCallbacks {
+	for _, cc := range htmlCallbacks {
 		if !cc.active.Load() {
 			continue
 		}
@@ -1197,7 +1202,12 @@ func (c *Collector) handleOnHTML(resp *Response) error {
 }
 
 func (c *Collector) handleOnXML(resp *Response) error {
-	if len(c.xmlCallbacks) == 0 {
+	c.lock.RLock()
+	xmlCallbacks := make([]*xmlCallbackContainer, len(c.xmlCallbacks))
+	copy(xmlCallbacks, c.xmlCallbacks)
+	c.lock.RUnlock()
+
+	if len(xmlCallbacks) == 0 {
 		return nil
 	}
 	contentType := strings.ToLower(resp.Headers.Get("Content-Type"))
@@ -1223,7 +1233,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 			}
 		}
 
-		for _, cc := range c.xmlCallbacks {
+		for _, cc := range xmlCallbacks {
 			if !cc.active.Load() {
 				continue
 			}
@@ -1244,7 +1254,7 @@ func (c *Collector) handleOnXML(resp *Response) error {
 			return err
 		}
 
-		for _, cc := range c.xmlCallbacks {
+		for _, cc := range xmlCallbacks {
 			if !cc.active.Load() {
 				continue
 			}
