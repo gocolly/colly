@@ -128,7 +128,7 @@ func (r *Request) HasVisited(URL string) (bool, error) {
 // of the previous request.
 // Post also calls the previously provided callbacks
 func (r *Request) Post(URL string, requestData map[string]string) error {
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createFormReader(requestData), r.Ctx, nil, true)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, CreateFormReader(requestData), r.Ctx, nil, true)
 }
 
 // PostRaw starts a collector job by creating a POST request with raw binary data.
