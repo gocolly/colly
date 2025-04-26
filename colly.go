@@ -1078,7 +1078,7 @@ func (c *Collector) SetProxy(proxyURL string) error {
 // SetProxyFunc sets a custom proxy setter/switcher function.
 // See built-in ProxyFuncs for more details.
 // This method overrides the previously used http.Transport
-// if the type of the transport is not http.RoundTripper.
+// if the type of the transport is not *http.Transport.
 // The proxy type is determined by the URL scheme. "http"
 // and "socks5" are supported. If the scheme is empty,
 // "http" is assumed.
