@@ -26,7 +26,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -46,7 +45,6 @@ import (
 	"github.com/kennygrant/sanitize"
 	whatwgUrl "github.com/nlnwa/whatwg-url/url"
 	"github.com/temoto/robotstxt"
-	"google.golang.org/appengine/urlfetch"
 )
 
 // A CollectorOption sets an option on a Collector.
@@ -132,7 +130,7 @@ type Collector struct {
 	scrapedCallbacks         []ScrapedCallback
 	requestCount             uint32
 	responseCount            uint32
-	backend                  *httpBackend
+	backend                  HTTPDriver
 	wg                       *sync.WaitGroup
 	lock                     *sync.RWMutex
 }
@@ -251,7 +249,7 @@ var envMap = map[string]func(*Collector, string){
 		c.DetectCharset = isYesString(val)
 	},
 	"DISABLE_COOKIES": func(c *Collector, _ string) {
-		c.backend.Client.Jar = nil
+		c.backend.Jar(nil)
 	},
 	"DISALLOWED_DOMAINS": func(c *Collector, val string) {
 		c.DisallowedDomains = strings.Split(val, ",")
@@ -467,6 +465,14 @@ func CheckHead() CollectorOption {
 	}
 }
 
+// SetHTTPDriver sets the HTTPDriver used by the Collector.
+func SetHTTPDriver(backend HTTPDriver) func(*Collector) {
+	return func(c *Collector) {
+		c.backend = backend
+		c.backend.CheckRedirect(c.checkRedirectFunc())
+	}
+}
+
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
@@ -477,10 +483,8 @@ func (c *Collector) Init() {
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
-	c.backend = &httpBackend{}
-	jar, _ := cookiejar.New(nil)
-	c.backend.Init(jar)
-	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
+	c.backend = NewHttpBackend()
+	c.backend.CheckRedirect(c.checkRedirectFunc())
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData)
@@ -488,27 +492,6 @@ func (c *Collector) Init() {
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
 	c.Context = context.Background()
-}
-
-// Appengine will replace the Collector's backend http.Client
-// With an Http.Client that is provided by appengine/urlfetch
-// This function should be used when the scraper is run on
-// Google App Engine. Example:
-//
-//	func startScraper(w http.ResponseWriter, r *http.Request) {
-//	  ctx := appengine.NewContext(r)
-//	  c := colly.NewCollector()
-//	  c.Appengine(ctx)
-//	   ...
-//	  c.Visit("https://google.ca")
-//	}
-func (c *Collector) Appengine(ctx context.Context) {
-	client := urlfetch.Client(ctx)
-	client.Jar = c.backend.Client.Jar
-	client.CheckRedirect = c.backend.Client.CheckRedirect
-	client.Timeout = c.backend.Client.Timeout
-
-	c.backend.Client = client
 }
 
 // Visit starts Collector's collecting job by creating a
@@ -856,13 +839,14 @@ func (c *Collector) checkRobots(u *url.URL) error {
 			req.Host = hostHeader
 		}
 
-		resp, err := c.backend.Client.Do(req)
+		emptyCheckHeadersFunc := func(req *http.Request, statusCode int, header http.Header) bool { return true }
+
+		resp, err := c.backend.Do(req, c.MaxBodySize, emptyCheckHeadersFunc)
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
 
-		robot, err = robotstxt.FromResponse(resp)
+		robot, err = robotstxt.FromResponse(resp.StatusCode, resp.Body)
 		if err != nil {
 			return err
 		}
@@ -1025,27 +1009,27 @@ func (c *Collector) OnScraped(f ScrapedCallback) {
 
 // SetClient will override the previously set http.Client
 func (c *Collector) SetClient(client *http.Client) {
-	c.backend.Client = client
+	c.backend.SetClient(client)
 }
 
 // WithTransport allows you to set a custom http.RoundTripper (transport)
 func (c *Collector) WithTransport(transport http.RoundTripper) {
-	c.backend.Client.Transport = transport
+	c.backend.Transport(transport)
 }
 
 // DisableCookies turns off cookie handling
 func (c *Collector) DisableCookies() {
-	c.backend.Client.Jar = nil
+	c.backend.Jar(nil)
 }
 
 // SetCookieJar overrides the previously set cookie jar
 func (c *Collector) SetCookieJar(j http.CookieJar) {
-	c.backend.Client.Jar = j
+	c.backend.Jar(j)
 }
 
 // SetRequestTimeout overrides the default timeout (10 seconds) for this collector
 func (c *Collector) SetRequestTimeout(timeout time.Duration) {
-	c.backend.Client.Timeout = timeout
+	c.backend.Timeout(timeout)
 }
 
 // SetStorage overrides the default in-memory storage.
@@ -1055,7 +1039,7 @@ func (c *Collector) SetStorage(s storage.Storage) error {
 		return err
 	}
 	c.store = s
-	c.backend.Client.Jar = createJar(s)
+	c.backend.Jar(createJar(s))
 	return nil
 }
 
@@ -1083,16 +1067,7 @@ func (c *Collector) SetProxy(proxyURL string) error {
 // and "socks5" are supported. If the scheme is empty,
 // "http" is assumed.
 func (c *Collector) SetProxyFunc(p ProxyFunc) {
-	t, ok := c.backend.Client.Transport.(*http.Transport)
-	if c.backend.Client.Transport != nil && ok {
-		t.Proxy = p
-		t.DisableKeepAlives = true
-	} else {
-		c.backend.Client.Transport = &http.Transport{
-			Proxy:             p,
-			DisableKeepAlives: true,
-		}
-	}
+	c.backend.Proxy(p)
 }
 
 func createEvent(eventType string, requestID, collectorID uint32, kvargs map[string]string) *debug.Event {
@@ -1345,32 +1320,28 @@ func (c *Collector) Limits(rules []*LimitRule) error {
 // SetRedirectHandler instructs the Collector to allow multiple downloads of the same URL
 func (c *Collector) SetRedirectHandler(f func(req *http.Request, via []*http.Request) error) {
 	c.redirectHandler = f
-	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
+	c.backend.CheckRedirect(c.checkRedirectFunc())
 }
 
 // SetCookies handles the receipt of the cookies in a reply for the given URL
 func (c *Collector) SetCookies(URL string, cookies []*http.Cookie) error {
-	if c.backend.Client.Jar == nil {
-		return ErrNoCookieJar
-	}
 	u, err := url.Parse(URL)
 	if err != nil {
 		return err
 	}
-	c.backend.Client.Jar.SetCookies(u, cookies)
+	if err := c.backend.SetCookies(u, cookies); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Cookies returns the cookies to send in a request for the given URL.
 func (c *Collector) Cookies(URL string) []*http.Cookie {
-	if c.backend.Client.Jar == nil {
-		return nil
-	}
 	u, err := url.Parse(URL)
 	if err != nil {
 		return nil
 	}
-	return c.backend.Client.Jar.Cookies(u)
+	return c.backend.Cookies(u)
 }
 
 // Clone creates an exact copy of a Collector without callbacks.
