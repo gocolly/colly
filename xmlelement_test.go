@@ -15,11 +15,13 @@
 package colly_test
 
 import (
-	"github.com/antchfx/htmlquery"
-	"github.com/gocolly/colly/v2"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/antchfx/htmlquery"
+
+	"github.com/gocolly/colly/v2"
 )
 
 // Borrowed from http://infohost.nmt.edu/tcc/help/pubs/xhtml/example.html
