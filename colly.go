@@ -135,6 +135,8 @@ type Collector struct {
 	backend                  *httpBackend
 	wg                       *sync.WaitGroup
 	lock                     *sync.RWMutex
+
+	fixCharset bool
 }
 
 // RequestCallback is a type alias for OnRequest callback functions
@@ -467,6 +469,12 @@ func CheckHead() CollectorOption {
 	}
 }
 
+func FixCharset(f bool) CollectorOption {
+	return func(c *Collector) {
+		c.fixCharset = f
+	}
+}
+
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
@@ -488,6 +496,9 @@ func (c *Collector) Init() {
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
 	c.Context = context.Background()
+
+	// default true same as colly
+	c.fixCharset = true
 }
 
 // Appengine will replace the Collector's backend http.Client
@@ -723,9 +734,11 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	response.Request = request
 	response.Trace = hTrace
 
-	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
-	if err != nil {
-		return err
+	if c.fixCharset {
+		err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
+		if err != nil {
+			return err
+		}
 	}
 
 	c.handleOnResponse(response)
