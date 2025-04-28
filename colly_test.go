@@ -396,8 +396,9 @@ var newCollectorTests = map[string]func(*testing.T){
 		} {
 			c := NewCollector(CacheDir(path))
 
-			if got, want := c.CacheDir, path; got != want {
-				t.Fatalf("c.CacheDir = %q, want %q", got, want)
+			fileSystemCache := c.backend.CacheBackend.(*FileSystemCache)
+			if got, want := fileSystemCache.BaseDir, path; got != want {
+				t.Fatalf("c.backend.CacheBackend.BaseDir = %q, want %q", got, want)
 			}
 		}
 	},

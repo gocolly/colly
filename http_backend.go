@@ -15,14 +15,9 @@
 package colly
 
 import (
-	"crypto/sha1"
-	"encoding/gob"
-	"encoding/hex"
 	"io"
 	"math/rand"
 	"net/http"
-	"os"
-	"path"
 	"regexp"
 	"strings"
 	"sync"
@@ -34,9 +29,10 @@ import (
 )
 
 type httpBackend struct {
-	LimitRules []*LimitRule
-	Client     *http.Client
-	lock       *sync.RWMutex
+	LimitRules   []*LimitRule
+	Client       *http.Client
+	lock         *sync.RWMutex
+	CacheBackend Cache
 }
 
 type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
@@ -93,13 +89,14 @@ func (r *LimitRule) Init() error {
 	return nil
 }
 
-func (h *httpBackend) Init(jar http.CookieJar) {
+func (h *httpBackend) Init(jar http.CookieJar, cache Cache) {
 	rand.Seed(time.Now().UnixNano())
 	h.Client = &http.Client{
 		Jar:     jar,
 		Timeout: 10 * time.Second,
 	}
 	h.lock = &sync.RWMutex{}
+	h.CacheBackend = cache
 }
 
 // Match checks that the domain parameter triggers the rule
@@ -128,42 +125,21 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
-	if cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache" {
-		return h.Do(request, bodySize, checkHeadersFunc)
-	}
-	sum := sha1.Sum([]byte(request.URL.String()))
-	hash := hex.EncodeToString(sum[:])
-	dir := path.Join(cacheDir, hash[:2])
-	filename := path.Join(dir, hash)
-	if file, err := os.Open(filename); err == nil {
-		resp := new(Response)
-		err := gob.NewDecoder(file).Decode(resp)
-		file.Close()
+func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error) {
+	if resp, err := h.CacheBackend.Get(request); err == nil {
 		checkHeadersFunc(request, resp.StatusCode, *resp.Headers)
 		if resp.StatusCode < 500 {
 			return resp, err
 		}
 	}
+
 	resp, err := h.Do(request, bodySize, checkHeadersFunc)
 	if err != nil || resp.StatusCode >= 500 {
 		return resp, err
 	}
-	if _, err := os.Stat(dir); err != nil {
-		if err := os.MkdirAll(dir, 0750); err != nil {
-			return resp, err
-		}
-	}
-	file, err := os.Create(filename + "~")
-	if err != nil {
-		return resp, err
-	}
-	if err := gob.NewEncoder(file).Encode(resp); err != nil {
-		file.Close()
-		return resp, err
-	}
-	file.Close()
-	return resp, os.Rename(filename+"~", filename)
+
+	err = h.CacheBackend.Put(request, resp)
+	return resp, err
 }
 
 func (h *httpBackend) Do(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc) (*Response, error) {

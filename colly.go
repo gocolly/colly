@@ -86,9 +86,6 @@ type Collector struct {
 	// 0 means unlimited.
 	// The default value for MaxBodySize is 10MB (10 * 1024 * 1024 bytes).
 	MaxBodySize int
-	// CacheDir specifies a location where GET requests are cached as files.
-	// When it's not defined, caching is disabled.
-	CacheDir string
 	// IgnoreRobotsTxt allows the Collector to ignore any restrictions set by
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
 	// information.
@@ -120,6 +117,7 @@ type Collector struct {
 	// Set it to 0 for infinite requests (default).
 	MaxRequests uint32
 
+	cache                    Cache
 	store                    storage.Storage
 	debugger                 debug.Debugger
 	robotsMap                map[string]*robotstxt.RobotsData
@@ -245,7 +243,14 @@ var envMap = map[string]func(*Collector, string){
 		c.AllowedDomains = strings.Split(val, ",")
 	},
 	"CACHE_DIR": func(c *Collector, val string) {
-		c.CacheDir = val
+		if c.cache != nil {
+			c.cache.Close()
+		}
+		c.cache = &FileSystemCache{
+			BaseDir: val,
+		}
+		c.cache.Init()
+		c.backend.CacheBackend = c.cache
 	},
 	"DETECT_CHARSET": func(c *Collector, val string) {
 		c.DetectCharset = isYesString(val)
@@ -398,7 +403,14 @@ func MaxBodySize(sizeInBytes int) CollectorOption {
 // CacheDir specifies the location where GET requests are cached as files.
 func CacheDir(path string) CollectorOption {
 	return func(c *Collector) {
-		c.CacheDir = path
+		if c.cache != nil {
+			c.cache.Close()
+		}
+		c.cache = &FileSystemCache{
+			BaseDir: path,
+		}
+		c.cache.Init()
+		c.backend.CacheBackend = c.cache
 	}
 }
 
@@ -476,10 +488,12 @@ func (c *Collector) Init() {
 	c.MaxRequests = 0
 	c.store = &storage.InMemoryStorage{}
 	c.store.Init()
+	c.cache = &NullCache{}
+	c.cache.Init()
 	c.MaxBodySize = 10 * 1024 * 1024
 	c.backend = &httpBackend{}
 	jar, _ := cookiejar.New(nil)
-	c.backend.Init(jar)
+	c.backend.Init(jar, c.cache)
 	c.backend.Client.CheckRedirect = c.checkRedirectFunc()
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
@@ -711,7 +725,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
 		return !request.abort
 	}
-	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
+	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}
@@ -1059,6 +1073,16 @@ func (c *Collector) SetStorage(s storage.Storage) error {
 	return nil
 }
 
+// SetCache overrides the default in-memory storage.
+// Storage stores scraping related data like cookies and visited urls
+func (c *Collector) SetCache(cache Cache) error {
+	if err := cache.Init(); err != nil {
+		return err
+	}
+	c.cache = cache
+	return nil
+}
+
 // SetProxy sets a proxy for the collector. This method overrides the previously
 // used http.Transport if the type of the transport is not http.RoundTripper.
 // The proxy type is determined by the URL scheme. "http"
@@ -1380,7 +1404,6 @@ func (c *Collector) Clone() *Collector {
 	return &Collector{
 		AllowedDomains:         c.AllowedDomains,
 		AllowURLRevisit:        c.AllowURLRevisit,
-		CacheDir:               c.CacheDir,
 		DetectCharset:          c.DetectCharset,
 		DisallowedDomains:      c.DisallowedDomains,
 		ID:                     atomic.AddUint32(&collectorCounter, 1),
