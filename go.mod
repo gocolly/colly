@@ -8,8 +8,8 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.2
 	github.com/antchfx/htmlquery v1.3.4
 	github.com/antchfx/xmlquery v1.4.4
+	github.com/go-rod/rod v0.116.2
 	github.com/gobwas/glob v0.2.3
-	github.com/gocolly/colly v1.2.0
 	github.com/jawher/mow.cli v1.1.0
 	github.com/kennygrant/sanitize v1.2.4
 	github.com/nlnwa/whatwg-url v0.6.1
@@ -25,6 +25,11 @@ require (
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/ysmood/fetchup v0.2.3 // indirect
+	github.com/ysmood/goob v0.4.0 // indirect
+	github.com/ysmood/got v0.40.0 // indirect
+	github.com/ysmood/gson v0.7.3 // indirect
+	github.com/ysmood/leakless v0.9.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
