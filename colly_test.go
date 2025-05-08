@@ -104,7 +104,21 @@ func newUnstartedTestServer() *httptest.Server {
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(r.FormValue("name")))
+			if strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
+				if err := r.ParseMultipartForm(1024); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				// For multipart form, return the first form value
+				for _, values := range r.MultipartForm.Value {
+					if len(values) > 0 {
+						w.Write([]byte(values[0]))
+						return
+					}
+				}
+			} else {
+				w.Write([]byte(r.FormValue("name")))
+			}
 		}
 	})
 
@@ -1869,5 +1883,99 @@ func TestCollectorPostRetryUnseekable(t *testing.T) {
 	c.Request("POST", ts.URL+"/login", bytes.NewBuffer([]byte("name="+postValue)), nil, nil)
 	if try {
 		t.Error("OnResponse Retry was called but BodyUnseekable")
+	}
+}
+
+func TestCollectorPostMultipart(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	// Test basic multipart form submission
+	fields := []FormField{
+		{Name: "text1", Value: []byte("value1")},
+		{Name: "text2", Value: []byte("value2")},
+	}
+
+	c.OnResponse(func(r *Response) {
+		if r.StatusCode != 200 {
+			t.Errorf("Expected status code 200, got %d", r.StatusCode)
+		}
+	})
+
+	err := c.PostMultipart(ts.URL+"/login", fields)
+	if err != nil {
+		t.Errorf("PostMultipart failed: %v", err)
+	}
+}
+
+func TestCollectorPostMultipartWithFile(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	// Test multipart form with file upload
+	fields := []FormField{
+		{Name: "text1", Value: []byte("value1")},
+		{Name: "file1", Value: []byte("file content"), Filename: "test.txt"},
+	}
+
+	c.OnResponse(func(r *Response) {
+		if r.StatusCode != 200 {
+			t.Errorf("Expected status code 200, got %d", r.StatusCode)
+		}
+	})
+
+	err := c.PostMultipart(ts.URL+"/login", fields)
+	if err != nil {
+		t.Errorf("PostMultipart with file failed: %v", err)
+	}
+}
+
+func TestCollectorPostMultipartWithDifferentFields(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Errorf("Expected POST request, got %s", r.Method)
+		}
+		if err := r.ParseMultipartForm(1024); err != nil {
+			t.Errorf("Failed to parse multipart form: %v", err)
+		}
+		// Get the first form value from either Form or MultipartForm
+		var firstValue string
+		if r.MultipartForm != nil {
+			for _, values := range r.MultipartForm.Value {
+				if len(values) > 0 {
+					firstValue = values[0]
+					break
+				}
+			}
+		}
+		if firstValue == "" {
+			firstValue = r.FormValue("name")
+		}
+		w.Write([]byte(firstValue))
+	}))
+	defer server.Close()
+
+	c := NewCollector()
+
+	// First visit with username/password
+	err := c.PostMultipart(server.URL+"/login", []FormField{
+		{Name: "username", Value: []byte("testuser")},
+		{Name: "password", Value: []byte("testpass")},
+	})
+	if err != nil {
+		t.Errorf("Failed to post multipart form: %v", err)
+	}
+
+	// Second visit with different fields
+	err = c.PostMultipart(server.URL+"/login", []FormField{
+		{Name: "email", Value: []byte("test@example.com")},
+		{Name: "message", Value: []byte("Hello")},
+	})
+	if err != nil {
+		t.Errorf("Failed to post multipart form with different fields: %v", err)
 	}
 }
