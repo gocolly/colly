@@ -18,7 +18,6 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -164,7 +163,6 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 	}
 	file, err := os.Create(filename + "~")
 	if err != nil {
-		fmt.Println("made file", file)
 		return resp, err
 	}
 	if err := gob.NewEncoder(file).Encode(resp); err != nil {
