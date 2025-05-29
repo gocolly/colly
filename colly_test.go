@@ -401,6 +401,19 @@ var newCollectorTests = map[string]func(*testing.T){
 			}
 		}
 	},
+	"CacheExpiration": func(t *testing.T) {
+		for _, d := range []time.Duration{
+			5 * time.Second,
+			10 * time.Minute,
+			0,
+		} {
+			c := NewCollector(CacheExpiration(d))
+
+			if got, want := c.CacheExpiration, d; got != want {
+				t.Fatalf("c.CacheExpiration = %v, want %v", got, want)
+			}
+		}
+	},
 	"IgnoreRobotsTxt": func(t *testing.T) {
 		c := NewCollector(IgnoreRobotsTxt())
 
