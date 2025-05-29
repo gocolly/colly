@@ -135,6 +135,9 @@ type Collector struct {
 	backend                  *httpBackend
 	wg                       *sync.WaitGroup
 	lock                     *sync.RWMutex
+	// CacheExpiration sets the maximum age for cache files.
+	// If a cached file is older than this duration, it will be ignored and refreshed.
+	CacheExpiration time.Duration
 }
 
 // RequestCallback is a type alias for OnRequest callback functions
@@ -467,6 +470,14 @@ func CheckHead() CollectorOption {
 	}
 }
 
+// CacheExpiration sets the maximum age for cache files.
+// If a cached file is older than this duration, it will be ignored and refreshed.
+func CacheExpiration(d time.Duration) CollectorOption {
+	return func(c *Collector) {
+		c.CacheExpiration = d
+	}
+}
+
 // Init initializes the Collector's private variables and sets default
 // configuration for the Collector
 func (c *Collector) Init() {
@@ -711,7 +722,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
 		return !request.abort
 	}
-	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir)
+	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir, c.CacheExpiration)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}

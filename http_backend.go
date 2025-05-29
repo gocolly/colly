@@ -18,6 +18,7 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
@@ -128,7 +129,7 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string) (*Response, error) {
+func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFunc checkHeadersFunc, cacheDir string, cacheExpiration time.Duration) (*Response, error) {
 	if cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache" {
 		return h.Do(request, bodySize, checkHeadersFunc)
 	}
@@ -136,6 +137,13 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 	hash := hex.EncodeToString(sum[:])
 	dir := path.Join(cacheDir, hash[:2])
 	filename := path.Join(dir, hash)
+
+	if fileInfo, err := os.Stat(filename); err == nil && cacheExpiration > 0 {
+		if time.Since(fileInfo.ModTime()) > cacheExpiration {
+			_ = os.Remove(filename)
+		}
+	}
+
 	if file, err := os.Open(filename); err == nil {
 		resp := new(Response)
 		err := gob.NewDecoder(file).Decode(resp)
@@ -156,6 +164,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkHeadersFun
 	}
 	file, err := os.Create(filename + "~")
 	if err != nil {
+		fmt.Println("made file", file)
 		return resp, err
 	}
 	if err := gob.NewEncoder(file).Encode(resp); err != nil {
