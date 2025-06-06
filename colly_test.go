@@ -904,7 +904,7 @@ func TestCollectorPostURLRevisitCheck(t *testing.T) {
 	}
 }
 
-// TestCollectorURLRevisitDisallowed ensures that disallowed URL is not considered visited.
+// TestCollectorURLRevisitDomainDisallowed ensures that disallowed URL is not considered visited.
 func TestCollectorURLRevisitDomainDisallowed(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
