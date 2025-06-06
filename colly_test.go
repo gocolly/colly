@@ -17,6 +17,7 @@ package colly
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -56,6 +57,15 @@ Disallow: /disallowed
 Disallow: /allowed*q=
 `
 
+const testXML = `<?xml version="1.0" encoding="UTF-8"?>
+<page>
+	<title>Test Page</title>
+	<paragraph type="description">This is a test page</paragraph>
+	<paragraph type="description">This is a test paragraph</paragraph>
+</page>`
+
+const custom404 = `404 not found`
+
 func newUnstartedTestServer() *httptest.Server {
 	mux := http.NewServeMux()
 
@@ -92,13 +102,21 @@ func newUnstartedTestServer() *httptest.Server {
 
 	mux.HandleFunc("/xml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
-		w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
-<page>
-	<title>Test Page</title>
-	<paragraph type="description">This is a test page</paragraph>
-	<paragraph type="description">This is a test paragraph</paragraph>
-</page>
-		`))
+		w.Write([]byte(testXML))
+	})
+
+	mux.HandleFunc("/test.xml.gz", func(w http.ResponseWriter, r *http.Request) {
+		ww := gzip.NewWriter(w)
+		defer ww.Close()
+		ww.Write([]byte(testXML))
+	})
+
+	mux.HandleFunc("/nonexistent.xml.gz", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, custom404, http.StatusNotFound)
+	})
+
+	mux.HandleFunc("/empty-response.xml.gz", func(w http.ResponseWriter, r *http.Request) {
+		// write nothing
 	})
 
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -1519,7 +1537,7 @@ func TestCollectorOnXMLWithHtml(t *testing.T) {
 	}
 }
 
-func TestCollectorOnXMLWithXML(t *testing.T) {
+func testCollectorOnXMLWithXML(t *testing.T, path string) {
 	ts := newTestServer()
 	defer ts.Close()
 
@@ -1552,7 +1570,7 @@ func TestCollectorOnXMLWithXML(t *testing.T) {
 		}
 	})
 
-	c.Visit(ts.URL + "/xml")
+	c.Visit(ts.URL + path)
 
 	if !titleCallbackCalled {
 		t.Error("Failed to call OnXML callback for <title> tag")
@@ -1560,6 +1578,72 @@ func TestCollectorOnXMLWithXML(t *testing.T) {
 
 	if paragraphCallbackCount != 2 {
 		t.Error("Failed to find all <paragraph> tags")
+	}
+}
+
+func TestCollectorOnXMLWithXML(t *testing.T) {
+	testCollectorOnXMLWithXML(t, "/xml")
+}
+
+func TestCollectorOnXMLWithXMLCompressed(t *testing.T) {
+	testCollectorOnXMLWithXML(t, "/test.xml.gz")
+}
+
+func TestCollectorNonexistentXMLGZ(t *testing.T) {
+	// This is a regression test for colly
+	// attempting to decompress all .xml.gz URLs
+	// even if they're not compressed.
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(ParseHTTPErrorResponse())
+
+	onResponseCalled := false
+
+	c.OnResponse(func(resp *Response) {
+		onResponseCalled = true
+		if got, want := strings.TrimSpace(string(resp.Body)), custom404; got != want {
+			t.Errorf("wrong response body got=%q want=%q", got, want)
+		}
+	})
+
+	c.OnError(func(resp *Response, err error) {
+		t.Errorf("called on OnError: err=%v", err)
+	})
+
+	c.Visit(ts.URL + "/nonexistent.xml.gz")
+
+	if !onResponseCalled {
+		t.Error("OnResponse was not called")
+	}
+}
+
+func TestCollectorEmptyXMLGZ(t *testing.T) {
+	// This is a regression test for colly
+	// attempting to decompress all .xml.gz URLs
+	// even if they're not compressed.
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	onResponseCalled := false
+
+	c.OnResponse(func(resp *Response) {
+		onResponseCalled = true
+		if got, want := strings.TrimSpace(string(resp.Body)), ""; got != want {
+			t.Errorf("wrong response body got=%q want=%q", got, want)
+		}
+	})
+
+	c.OnError(func(resp *Response, err error) {
+		t.Errorf("called on OnError: err=%v", err)
+	})
+
+	c.Visit(ts.URL + "/empty-response.xml.gz")
+
+	if !onResponseCalled {
+		t.Error("OnResponse was not called")
 	}
 }
 
