@@ -49,17 +49,23 @@ func (r *Response) Save(fileName string) error {
 	return os.WriteFile(fileName, r.Body, 0644)
 }
 
+// RawFileName returns the unsanitized file name parsed from "Content-Disposition"
+// header or from URL. Be aware that the name may contain unsafe characters.
+func (r *Response) RawFileName() string {
+	_, params, err := mime.ParseMediaType(r.Headers.Get("Content-Disposition"))
+	if fName, ok := params["filename"]; ok && err == nil {
+		return fName
+	}
+	if r.Request.URL.RawQuery != "" {
+		return fmt.Sprintf("%s_%s", r.Request.URL.Path, r.Request.URL.RawQuery)
+	}
+	return strings.TrimPrefix(r.Request.URL.Path, "/")
+}
+
 // FileName returns the sanitized file name parsed from "Content-Disposition"
 // header or from URL
 func (r *Response) FileName() string {
-	_, params, err := mime.ParseMediaType(r.Headers.Get("Content-Disposition"))
-	if fName, ok := params["filename"]; ok && err == nil {
-		return SanitizeFileName(fName)
-	}
-	if r.Request.URL.RawQuery != "" {
-		return SanitizeFileName(fmt.Sprintf("%s_%s", r.Request.URL.Path, r.Request.URL.RawQuery))
-	}
-	return SanitizeFileName(strings.TrimPrefix(r.Request.URL.Path, "/"))
+	return SanitizeFileName(r.RawFileName())
 }
 
 func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error {
