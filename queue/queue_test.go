@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"fmt"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -73,6 +74,59 @@ func TestQueue(t *testing.T) {
 			"items = %d, requests = %d, success = %d, failure = %d",
 			items, requests, success, failure)
 	}
+}
+
+func TestCollectorDepth(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(serverHandler))
+	defer server.Close()
+	maxDepth := 4
+	c := colly.NewCollector(
+		colly.MaxDepth(maxDepth),
+		colly.AllowURLRevisit(),
+	)
+
+	storage := &InMemoryQueueStorage{MaxSize: 100000}
+	q, err := New(10, storage)
+	if err != nil {
+		panic(err)
+	}
+
+	c.OnRequest(func(req *colly.Request) {
+		if req.Depth > maxDepth {
+			errMsg := fmt.Sprintf("Invalid depth value! Expected %d, got %d", maxDepth, req.Depth)
+			panic(errMsg)
+		}
+		req.Visit(server.URL)
+	})
+
+	q.AddURL(server.URL)
+
+	err = q.Run(c)
+	if err != nil {
+		t.Fatalf("Queue.Run() return an error: %v", err)
+	}
+}
+
+func TestAsyncPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	c := colly.NewCollector(
+		colly.MaxDepth(5),
+		colly.AllowURLRevisit(),
+		colly.Async(true),
+	)
+
+	storage := &InMemoryQueueStorage{MaxSize: 100000}
+	q, err := New(10, storage)
+	if err != nil {
+		panic(err)
+	}
+
+	q.Run(c)
 }
 
 func serverHandler(w http.ResponseWriter, req *http.Request) {
