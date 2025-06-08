@@ -10,17 +10,17 @@ import (
 	"github.com/gocolly/colly/v2"
 )
 
-func generateFormData() map[string][]byte {
+func generateFormData() []colly.FormField {
 	f, _ := os.Open("gocolly.jpg")
 	defer f.Close()
 
 	imgData, _ := io.ReadAll(f)
 
-	return map[string][]byte{
-		"firstname": []byte("one"),
-		"lastname":  []byte("two"),
-		"email":     []byte("onetwo@example.com"),
-		"file":      imgData,
+	return []colly.FormField{
+		{Name: "firstname", Value: []byte("one")},
+		{Name: "lastname", Value: []byte("two")},
+		{Name: "email", Value: []byte("onetwo@example.com")},
+		{Name: "file", Value: imgData, Filename: "gocolly.jpg"},
 	}
 }
 

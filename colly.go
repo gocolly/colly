@@ -563,13 +563,13 @@ func (c *Collector) PostRaw(URL string, requestData []byte) error {
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
-// with raw binary data.  PostMultipart also calls the previously provided callbacks
-func (c *Collector) PostMultipart(URL string, requestData map[string][]byte) error {
+// with form fields. PostMultipart also calls the previously provided callbacks
+func (c *Collector) PostMultipart(URL string, fields []FormField) error {
 	boundary := randomBoundary()
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", c.UserAgent)
-	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, requestData), nil, hdr, true)
+	return c.scrape(URL, "POST", 1, createMultipartReader(boundary, fields), nil, hdr, true)
 }
 
 // Request starts a collector job by creating a custom HTTP request
@@ -1521,23 +1521,26 @@ func createFormReader(data map[string]string) io.Reader {
 	return strings.NewReader(form.Encode())
 }
 
-func createMultipartReader(boundary string, data map[string][]byte) io.Reader {
+func createMultipartReader(boundary string, fields []FormField) io.Reader {
 	dashBoundary := "--" + boundary
 
 	body := []byte{}
 	buffer := bytes.NewBuffer(body)
 
 	buffer.WriteString("Content-type: multipart/form-data; boundary=" + boundary + "\n\n")
-	for contentType, content := range data {
+	for _, field := range fields {
 		buffer.WriteString(dashBoundary + "\n")
-		buffer.WriteString("Content-Disposition: form-data; name=" + contentType + "\n")
-		buffer.WriteString(fmt.Sprintf("Content-Length: %d \n\n", len(content)))
-		buffer.Write(content)
+		buffer.WriteString("Content-Disposition: form-data; name=\"" + field.Name + "\"")
+		if field.Filename != "" {
+			buffer.WriteString("; filename=\"" + field.Filename + "\"")
+		}
+		buffer.WriteString("\n")
+		buffer.WriteString(fmt.Sprintf("Content-Length: %d \n\n", len(field.Value)))
+		buffer.Write(field.Value)
 		buffer.WriteString("\n")
 	}
 	buffer.WriteString(dashBoundary + "--\n\n")
 	return bytes.NewReader(buffer.Bytes())
-
 }
 
 // randomBoundary was borrowed from
@@ -1625,4 +1628,14 @@ func requestHash(url string, body io.Reader) uint64 {
 		io.Copy(h, body)
 	}
 	return h.Sum64()
+}
+
+// FormField represents a single field in a multipart form
+type FormField struct {
+	// Name is the form field name
+	Name string
+	// Value is the form field value
+	Value []byte
+	// Filename is the name of the file being uploaded (optional)
+	Filename string
 }

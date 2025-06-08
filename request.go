@@ -139,14 +139,14 @@ func (r *Request) PostRaw(URL string, requestData []byte) error {
 }
 
 // PostMultipart starts a collector job by creating a Multipart POST request
-// with raw binary data.  PostMultipart also calls the previously provided.
-// callbacks
-func (r *Request) PostMultipart(URL string, requestData map[string][]byte) error {
+// with form fields. PostMultipart preserves the Context of the previous request
+// and calls the previously provided callbacks
+func (r *Request) PostMultipart(URL string, fields []FormField) error {
 	boundary := randomBoundary()
 	hdr := http.Header{}
 	hdr.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	hdr.Set("User-Agent", r.collector.UserAgent)
-	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, requestData), r.Ctx, hdr, true)
+	return r.collector.scrape(r.AbsoluteURL(URL), "POST", r.Depth+1, createMultipartReader(boundary, fields), r.Ctx, hdr, true)
 }
 
 // Retry submits HTTP request again with the same parameters
