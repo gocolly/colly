@@ -22,9 +22,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
+	"github.com/antchfx/htmlquery"
+	"github.com/antchfx/xmlquery"
+	"github.com/gocolly/colly/v2/debug"
+	"github.com/gocolly/colly/v2/storage"
+	"github.com/kennygrant/sanitize"
+	whatwgUrl "github.com/nlnwa/whatwg-url/url"
+	"github.com/temoto/robotstxt"
+	"google.golang.org/appengine/urlfetch"
 	"hash/fnv"
 	"io"
 	"log"
+	mrand "math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -37,16 +47,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/PuerkitoBio/goquery"
-	"github.com/antchfx/htmlquery"
-	"github.com/antchfx/xmlquery"
-	"github.com/gocolly/colly/v2/debug"
-	"github.com/gocolly/colly/v2/storage"
-	"github.com/kennygrant/sanitize"
-	whatwgUrl "github.com/nlnwa/whatwg-url/url"
-	"github.com/temoto/robotstxt"
-	"google.golang.org/appengine/urlfetch"
 )
 
 // A CollectorOption sets an option on a Collector.
@@ -669,15 +669,29 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 		return err
 	}
 	u = parsedURL.String()
+
+	r := c.backend.GetMatchingRule(parsedURL.Host)
+	if r != nil {
+		r.waitChan <- true
+		defer func(r *LimitRule) {
+			randomDelay := time.Duration(0)
+			if r.RandomDelay != 0 {
+				randomDelay = time.Duration(mrand.Int63n(int64(r.RandomDelay)))
+			}
+			time.Sleep(r.Delay + randomDelay)
+			<-r.waitChan
+		}(r)
+	}
+
 	c.wg.Add(1)
 	if c.Async {
-		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
+		go c.fetch(method, depth, requestData, ctx, hdr, req)
 		return nil
 	}
-	return c.fetch(u, method, depth, requestData, ctx, hdr, req)
+	return c.fetch(method, depth, requestData, ctx, hdr, req)
 }
 
-func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request) error {
+func (c *Collector) fetch(method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request) error {
 	defer c.wg.Done()
 	if ctx == nil {
 		ctx = NewContext()
