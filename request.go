@@ -194,3 +194,14 @@ func (r *Request) Marshal() ([]byte, error) {
 	}
 	return json.Marshal(sr)
 }
+
+func NewRequest(url *url.URL, opts ...RequestOpt) *Request {
+	req := &Request{
+		URL:    url,
+		Method: "GET",
+	}
+	for _, opt := range opts {
+		opt(req)
+	}
+	return req
+}
