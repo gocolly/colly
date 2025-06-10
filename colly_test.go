@@ -1906,7 +1906,7 @@ func TestRedirectErrorRetry(t *testing.T) {
 	})
 	c.Visit(ts.URL + "/redirected/")
 	c.Visit(ts.URL + "/redirect")
-
+}
 func TestCheckRequestHeadersFunc(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
