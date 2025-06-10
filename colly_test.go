@@ -847,6 +847,30 @@ func TestSetCookieRedirect(t *testing.T) {
 	}
 }
 
+func TestSetCookieComplexRedirectCycle(t *testing.T) {
+	// server2 -> server1 -(set cookie)-> server1
+	ts1 := newUnstartedTestServer()
+	ts1.Config.Handler = requireSessionCookieSimple(ts1.Config.Handler)
+	ts1.Start()
+	defer ts1.Close()
+
+	ts2 := httptest.NewServer(http.RedirectHandler(ts1.URL, http.StatusMovedPermanently))
+	defer ts2.Close()
+
+	c := NewCollector()
+	c.OnResponse(func(r *Response) {
+		if got, want := r.Body, serverIndexResponse; !bytes.Equal(got, want) {
+			t.Errorf("bad response body got=%q want=%q", got, want)
+		}
+		if got, want := r.StatusCode, http.StatusOK; got != want {
+			t.Errorf("bad response code got=%d want=%d", got, want)
+		}
+	})
+	if err := c.Visit(ts2.URL); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestCollectorPostURLRevisitCheck(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
