@@ -96,7 +96,12 @@ func unmarshalSelector(s *goquery.Selection, attrV reflect.Value, selector strin
 			return err
 		}
 	case reflect.String:
-		val := getDOMValue(s.Find(selector), htmlAttr)
+		var val string
+		if selector == "" && htmlAttr != "" {
+			val = getDOMValue(s, htmlAttr)
+		} else {
+			val = getDOMValue(s.Find(selector), htmlAttr)
+		}
 		attrV.Set(reflect.Indirect(reflect.ValueOf(val)))
 	case reflect.Struct:
 		if err := unmarshalStruct(s, selector, attrV); err != nil {
