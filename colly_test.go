@@ -36,6 +36,19 @@ import (
 )
 
 var serverIndexResponse = []byte("hello world\n")
+var callbackTestHTML = []byte(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>Callback Test Page</title>
+</head>
+<body>
+<div id="firstElem">First</div>
+<div id="secondElem">Second</div>
+<div id="thirdElem">Third</div>
+</body>
+</html>
+`)
 var robotsFile = `
 User-agent: *
 Allow: /allowed
@@ -49,6 +62,12 @@ func newUnstartedTestServer() *httptest.Server {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write(serverIndexResponse)
+	})
+
+	mux.HandleFunc("/callback_test", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(200)
+		w.Write(callbackTestHTML)
 	})
 
 	mux.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
@@ -379,6 +398,19 @@ var newCollectorTests = map[string]func(*testing.T){
 
 			if got, want := c.CacheDir, path; got != want {
 				t.Fatalf("c.CacheDir = %q, want %q", got, want)
+			}
+		}
+	},
+	"CacheExpiration": func(t *testing.T) {
+		for _, d := range []time.Duration{
+			5 * time.Second,
+			10 * time.Minute,
+			0,
+		} {
+			c := NewCollector(CacheExpiration(d))
+
+			if got, want := c.CacheExpiration, d; got != want {
+				t.Fatalf("c.CacheExpiration = %v, want %v", got, want)
 			}
 		}
 	},
@@ -872,7 +904,7 @@ func TestCollectorPostURLRevisitCheck(t *testing.T) {
 	}
 }
 
-// TestCollectorURLRevisitDisallowed ensures that disallowed URL is not considered visited.
+// TestCollectorURLRevisitDomainDisallowed ensures that disallowed URL is not considered visited.
 func TestCollectorURLRevisitDomainDisallowed(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
@@ -1734,6 +1766,44 @@ func requireSessionCookieAuthPage(handler http.Handler) http.Handler {
 		}
 		handler.ServeHTTP(w, r)
 	})
+}
+
+func TestCallbackDetachment(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+	c.AllowURLRevisit = true
+
+	var executions [3]int // tracks number of executions of each callback
+
+	c.OnHTML("#firstElem", func(e *HTMLElement) {
+		executions[0]++
+		// Detach this callback after first execution
+		c.OnHTMLDetach("#firstElem")
+	})
+	c.OnHTML("#secondElem", func(e *HTMLElement) {
+		executions[1]++
+	})
+	c.OnHTML("#thirdElem", func(e *HTMLElement) {
+		executions[2]++
+	})
+
+	// First visit - all callbacks should execute
+	c.Visit(ts.URL + "/callback_test")
+	// Second visit - first callback should NOT execute
+	c.Visit(ts.URL + "/callback_test")
+
+	// Verify callback counts
+	if executions[0] != 1 {
+		t.Errorf("firstElem callback executed %d times, expected 1", executions[0])
+	}
+	if executions[1] != 2 {
+		t.Errorf("secondElem callback executed %d times, expected 2", executions[1])
+	}
+	if executions[2] != 2 {
+		t.Errorf("thirdElem callback executed %d times, expected 2", executions[2])
+	}
 }
 
 func TestCollectorPostRetry(t *testing.T) {
