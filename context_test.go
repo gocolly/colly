@@ -37,3 +37,24 @@ func TestContextIteration(t *testing.T) {
 		}
 	}
 }
+
+func TestContextClone(t *testing.T) {
+	ctxOrg := NewContext()
+	for i := 0; i < 10; i++ {
+		ctxOrg.Put(strconv.Itoa(i), i)
+	}
+
+	ctx := ctxOrg.Clone()
+	values := ctx.ForEach(func(k string, v interface{}) interface{} {
+		return v.(int)
+	})
+	if len(values) != 10 {
+		t.Fatal("fail to iterate context")
+	}
+	for _, i := range values {
+		v := i.(int)
+		if v != ctx.GetAny(strconv.Itoa(v)).(int) {
+			t.Fatal("value not equal")
+		}
+	}
+}

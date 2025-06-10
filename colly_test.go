@@ -1885,6 +1885,7 @@ func TestCollectorPostRetryUnseekable(t *testing.T) {
 	}
 }
 
+
 func TestRedirectErrorRetry(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
@@ -1905,4 +1906,23 @@ func TestRedirectErrorRetry(t *testing.T) {
 	})
 	c.Visit(ts.URL + "/redirected/")
 	c.Visit(ts.URL + "/redirect")
+
+func TestCheckRequestHeadersFunc(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+	try := false
+
+	c := NewCollector()
+
+	c.OnRequestHeaders(func(r *Request) {
+		try = true
+		r.Abort()
+	})
+	c.OnScraped(func(r *Response) {
+		try = false
+	})
+	c.Visit(ts.URL)
+	if try == false {
+		t.Error("TestCheckRequestHeadersFunc failed")
+	}
 }

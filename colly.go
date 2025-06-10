@@ -128,6 +128,7 @@ type Collector struct {
 	requestCallbacks         []RequestCallback
 	responseCallbacks        []ResponseCallback
 	responseHeadersCallbacks []ResponseHeadersCallback
+	requestHeadersCallbacks  []RequestCallback
 	errorCallbacks           []ErrorCallback
 	scrapedCallbacks         []ScrapedCallback
 	requestCount             uint32
@@ -238,6 +239,8 @@ var (
 	ErrEmptyProxyURL = errors.New("Proxy URL list is empty")
 	// ErrAbortedAfterHeaders is the error returned when OnResponseHeaders aborts the transfer.
 	ErrAbortedAfterHeaders = errors.New("Aborted after receiving response headers")
+	// ErrAbortedBeforeRequest is the error returned when OnResponseHeaders aborts the transfer.
+	ErrAbortedBeforeRequest = errors.New("Aborted before Do Request")
 	// ErrQueueFull is the error returned when the queue is full
 	ErrQueueFull = errors.New("Queue MaxSize reached")
 	// ErrMaxRequests is the error returned when exceeding max requests
@@ -718,7 +721,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req = hTrace.WithTrace(req)
 	}
 	origURL := req.URL
-	checkHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
+	checkResponseHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
 		if req.URL != origURL {
 			request.URL = req.URL
 			request.Headers = &req.Header
@@ -726,7 +729,11 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
 		return !request.abort
 	}
-	response, err := c.backend.Cache(req, c.MaxBodySize, checkHeadersFunc, c.CacheDir, c.CacheExpiration)
+	checkRequestHeadersFunc := func(req *http.Request) bool {
+		c.handleOnRequestHeaders(request)
+		return !request.abort
+	}
+	response, err := c.backend.Cache(req, c.MaxBodySize, checkRequestHeadersFunc, checkResponseHeadersFunc, c.CacheDir, c.CacheExpiration)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}
@@ -948,6 +955,14 @@ func (c *Collector) OnResponseHeaders(f ResponseHeadersCallback) {
 	c.lock.Unlock()
 }
 
+// OnRequestHeaders registers a function. Function will be executed on every
+// request made by the Collector before Request Do
+func (c *Collector) OnRequestHeaders(f RequestCallback) {
+	c.lock.Lock()
+	c.requestHeadersCallbacks = append(c.requestHeadersCallbacks, f)
+	c.lock.Unlock()
+}
+
 // OnResponse registers a function. Function will be executed on every response
 func (c *Collector) OnResponse(f ResponseCallback) {
 	c.lock.Lock()
@@ -1150,6 +1165,16 @@ func (c *Collector) handleOnResponseHeaders(r *Response) {
 		}))
 	}
 	for _, f := range c.responseHeadersCallbacks {
+		f(r)
+	}
+}
+func (c *Collector) handleOnRequestHeaders(r *Request) {
+	if c.debugger != nil {
+		c.debugger.Event(createEvent("requestHeaders", r.ID, c.ID, map[string]string{
+			"url": r.URL.String(),
+		}))
+	}
+	for _, f := range c.requestHeadersCallbacks {
 		f(r)
 	}
 }
