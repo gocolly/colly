@@ -1247,8 +1247,8 @@ func (c *Collector) handleOnXML(resp *Response) error {
 			if !cc.active.Load() {
 				continue
 			}
-			for _, n := range htmlquery.Find(doc, cc.Query) {
-				e := NewXMLElementFromHTMLNode(resp, n)
+			for i, n := range htmlquery.Find(doc, cc.Query) {
+				e := NewXMLElementFromHTMLNode(resp, n, i)
 				if c.debugger != nil {
 					c.debugger.Event(createEvent("xml", resp.Request.ID, c.ID, map[string]string{
 						"selector": cc.Query,
