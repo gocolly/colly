@@ -85,3 +85,15 @@ func (c *Context) ForEach(fn func(k string, v interface{}) interface{}) []interf
 
 	return ret
 }
+
+// Clone clones context
+func (c *Context) Clone() *Context {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	newCtx := NewContext()
+	c.ForEach(func(key string, value interface{}) interface{} {
+		newCtx.Put(key, value)
+		return nil
+	})
+	return newCtx
+}
