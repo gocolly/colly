@@ -717,7 +717,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req = hTrace.WithTrace(req)
 	}
 	origURL := req.URL
-	checkHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
+	checkResponseHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
 		if req.URL != origURL {
 			request.URL = req.URL
 			request.Headers = &req.Header
@@ -729,7 +729,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		c.handleOnRequestHeaders(request)
 		return !request.abort
 	}
-	response, err := c.backend.Cache(req, c.MaxBodySize, checkRequestHeadersFunc, checkHeadersFunc, c.CacheDir, c.CacheExpiration)
+	response, err := c.backend.Cache(req, c.MaxBodySize, checkRequestHeadersFunc, checkResponseHeadersFunc, c.CacheDir, c.CacheExpiration)
 	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
 		request.ProxyURL = proxyURL
 	}

@@ -39,7 +39,7 @@ type httpBackend struct {
 	lock       *sync.RWMutex
 }
 
-type checkHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
+type checkResponseHeadersFunc func(req *http.Request, statusCode int, header http.Header) bool
 type checkRequestHeadersFunc func(req *http.Request) bool
 
 // LimitRule provides connection restrictions for domains.
@@ -129,9 +129,9 @@ func (h *httpBackend) GetMatchingRule(domain string) *LimitRule {
 	return nil
 }
 
-func (h *httpBackend) Cache(request *http.Request, bodySize int, checkRequestHeadersFunc checkRequestHeadersFunc, checkHeadersFunc checkHeadersFunc, cacheDir string, cacheExpiration time.Duration) (*Response, error) {
+func (h *httpBackend) Cache(request *http.Request, bodySize int, checkRequestHeadersFunc checkRequestHeadersFunc, checkResponseHeadersFunc checkResponseHeadersFunc, cacheDir string, cacheExpiration time.Duration) (*Response, error) {
 	if cacheDir == "" || request.Method != "GET" || request.Header.Get("Cache-Control") == "no-cache" {
-		return h.Do(request, bodySize, checkRequestHeadersFunc, checkHeadersFunc)
+		return h.Do(request, bodySize, checkRequestHeadersFunc, checkResponseHeadersFunc)
 	}
 	sum := sha1.Sum([]byte(request.URL.String()))
 	hash := hex.EncodeToString(sum[:])
@@ -148,12 +148,12 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkRequestHea
 		resp := new(Response)
 		err := gob.NewDecoder(file).Decode(resp)
 		file.Close()
-		checkHeadersFunc(request, resp.StatusCode, *resp.Headers)
+		checkResponseHeadersFunc(request, resp.StatusCode, *resp.Headers)
 		if resp.StatusCode < 500 {
 			return resp, err
 		}
 	}
-	resp, err := h.Do(request, bodySize, checkRequestHeadersFunc, checkHeadersFunc)
+	resp, err := h.Do(request, bodySize, checkRequestHeadersFunc, checkResponseHeadersFunc)
 	if err != nil || resp.StatusCode >= 500 {
 		return resp, err
 	}
@@ -174,7 +174,7 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkRequestHea
 	return resp, os.Rename(filename+"~", filename)
 }
 
-func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeadersFunc checkRequestHeadersFunc, checkHeadersFunc checkHeadersFunc) (*Response, error) {
+func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeadersFunc checkRequestHeadersFunc, checkResponseHeadersFunc checkResponseHeadersFunc) (*Response, error) {
 	r := h.GetMatchingRule(request.URL.Host)
 	if r != nil {
 		r.waitChan <- true
@@ -200,7 +200,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 	if res.Request != nil {
 		finalRequest = res.Request
 	}
-	if !checkHeadersFunc(finalRequest, res.StatusCode, res.Header) {
+	if !checkResponseHeadersFunc(finalRequest, res.StatusCode, res.Header) {
 		// closing res.Body (see defer above) without reading it aborts
 		// the download
 		return nil, ErrAbortedAfterHeaders
