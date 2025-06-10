@@ -1884,3 +1884,23 @@ func TestCollectorPostRetryUnseekable(t *testing.T) {
 		t.Error("OnResponse Retry was called but BodyUnseekable")
 	}
 }
+
+func TestCheckRequestHeadersFunc(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+	try := false
+
+	c := NewCollector()
+
+	c.OnRequestHeaders(func(r *Request) {
+		try = true
+		r.Abort()
+	})
+	c.OnScraped(func(r *Response) {
+		try = false
+	})
+	c.Visit(ts.URL)
+	if try == false {
+		t.Error("TestCheckRequestHeadersFunc failed")
+	}
+}
