@@ -42,7 +42,7 @@ type XMLElement struct {
 }
 
 // NewXMLElementFromHTMLNode creates a XMLElement from a html.Node.
-func NewXMLElementFromHTMLNode(resp *Response, s *html.Node, idx int) *XMLElement {
+func NewXMLElementFromHTMLNode(resp *Response, s *html.Node) *XMLElement {
 	return &XMLElement{
 		Name:       s.Data,
 		Request:    resp.Request,
@@ -51,7 +51,6 @@ func NewXMLElementFromHTMLNode(resp *Response, s *html.Node, idx int) *XMLElemen
 		DOM:        s,
 		attributes: s.Attr,
 		isHTML:     true,
-		Index:      idx,
 	}
 }
 
