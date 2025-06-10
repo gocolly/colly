@@ -76,7 +76,6 @@ func UnmarshalHTML(v interface{}, s *goquery.Selection, structMap map[string]str
 			if err := unmarshalAttr(s, attrV, st.Field(i)); err != nil {
 				return err
 			}
-
 		}
 	}
 
