@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gocolly/colly/v2"
 )
@@ -38,6 +39,8 @@ func main() {
 		// Cache responses to prevent multiple download of pages
 		// even if the collector is restarted
 		colly.CacheDir("./coursera_cache"),
+		// Cached responses older than the specified duration will be refreshed
+		colly.CacheExpiration(24*time.Hour),
 	)
 
 	// Create another collector to scrape course details

@@ -44,7 +44,7 @@ type mainPageData struct {
 									Width  int `json:"width"`
 									Height int `json:"height"`
 								} `json:"dimensions"`
-							} `json::node"`
+							} `json:node"`
 						} `json:"edges"`
 						PageInfo pageInfo `json:"page_info"`
 					} `json:"edge_owner_to_timeline_media"`
