@@ -37,6 +37,8 @@ type XMLElement struct {
 	// based on how the XMLElement was created.
 	DOM    interface{}
 	isHTML bool
+	// Index stores the position of the current element within all the elements matched by an OnXML callback
+	Index int
 }
 
 // NewXMLElementFromHTMLNode creates a XMLElement from a html.Node.
