@@ -209,7 +209,10 @@ var collectorCounter uint32
 type key int
 
 // ProxyURLKey is the context key for the request proxy address.
-const ProxyURLKey key = iota
+const (
+	ProxyURLKey key = iota
+	CheckRevisitKey
+)
 
 var (
 	// ErrForbiddenDomain is the error thrown if visiting
@@ -667,7 +670,8 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	// note: once 1.13 is minimum supported Go version,
 	// replace this with http.NewRequestWithContext
-	req = req.WithContext(c.Context)
+	req = req.WithContext(context.WithValue(c.Context, CheckRevisitKey, checkRevisit))
+
 	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
 		return err
 	}
@@ -1477,7 +1481,9 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 				return err
 			}
 			if visited {
-				return &AlreadyVisitedError{req.URL}
+				if checkRevisit, ok := req.Context().Value(CheckRevisitKey).(bool); !ok || checkRevisit {
+					return &AlreadyVisitedError{req.URL}
+				}
 			}
 			err = c.store.Visited(uHash)
 			if err != nil {
