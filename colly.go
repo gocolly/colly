@@ -1422,6 +1422,7 @@ func (c *Collector) Clone() *Collector {
 		AllowedDomains:         c.AllowedDomains,
 		AllowURLRevisit:        c.AllowURLRevisit,
 		CacheDir:               c.CacheDir,
+		CacheExpiration:	c.CacheExpiration,
 		DetectCharset:          c.DetectCharset,
 		DisallowedDomains:      c.DisallowedDomains,
 		ID:                     atomic.AddUint32(&collectorCounter, 1),
