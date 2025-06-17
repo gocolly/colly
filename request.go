@@ -91,6 +91,11 @@ func (r *Request) Abort() {
 	r.abort = true
 }
 
+// IsAbort returns true if the request has been aborted
+func (r *Request) IsAbort() bool {
+	return r.abort
+}
+
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
 // AbsoluteURL returns empty string if the URL chunk is a fragment or
 // could not be parsed
