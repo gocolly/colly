@@ -501,7 +501,7 @@ func (c *Collector) Init() {
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData)
-	c.IgnoreRobotsTxt = true
+	c.IgnoreRobotsTxt = false
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
 	c.Context = context.Background()
@@ -1570,7 +1570,6 @@ func createMultipartReader(boundary string, data map[string][]byte) io.Reader {
 	}
 	buffer.WriteString(dashBoundary + "--\n\n")
 	return bytes.NewReader(buffer.Bytes())
-
 }
 
 // randomBoundary was borrowed from
