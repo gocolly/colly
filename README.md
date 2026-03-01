@@ -32,10 +32,11 @@ With Colly you can easily extract structured data from websites, which can be us
 ## Example
 
 ```go
+package main
 
 import (
 	"fmt"
-
+    
 	"github.com/gocolly/colly/v2"
 )
 
@@ -59,8 +60,11 @@ See [examples folder](https://github.com/gocolly/colly/tree/master/_examples) fo
 
 ## Installation
 
-`go get github.com/gocolly/colly/v2`
+Add colly to your `go.mod` file:
 
+```
+`go get github.com/gocolly/colly/v2`
+```
 
 ## Bugs
 
