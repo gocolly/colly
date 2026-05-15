@@ -28,6 +28,8 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2074,5 +2076,163 @@ func TestIssue745GzipURLWith404Response(t *testing.T) {
 	// with status 404, not a gzip decompression error
 	if responseStatusCode != 404 {
 		t.Errorf("Expected status code 404, got %d", responseStatusCode)
+	}
+}
+
+// TestSharedLimitRule_AInitThenBInit_ANotStuck verifies that sharing a single
+// *LimitRule across multiple Collectors does not deadlock the in-flight
+// requests of an earlier Collector when a later Collector calls Limit().
+//
+// Scenario:
+//  1. Collector A calls Limit(rule), then issues several requests that occupy
+//     slots in rule.waitChan.
+//  2. Collector B calls Limit(rule), which invokes rule.Init() again.
+//  3. A's pending handlers are released; A.Wait() must return.
+//
+// Without the `if r.waitChan == nil` guard in (*LimitRule).Init(), step 2
+// rebuilds rule.waitChan with a brand-new empty channel. The fetch goroutines
+// that A had already in flight then receive from the new (empty) channel in
+// their `defer <-r.waitChan`, blocking forever — A.Wait() deadlocks.
+func TestSharedLimitRule_AInitThenBInit_ANotStuck(t *testing.T) {
+	release := make(chan struct{})
+	var inHandler int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&inHandler, 1)
+		<-release
+	}))
+	defer srv.Close()
+
+	rule := &LimitRule{DomainGlob: "*", Parallelism: 2}
+
+	// A initializes the rule first and dispatches enough requests to occupy
+	// every slot in waitChan.
+	a := NewCollector(Async(true), AllowURLRevisit())
+	if err := a.Limit(rule); err != nil {
+		t.Fatalf("a.Limit: %v", err)
+	}
+	for i := 0; i < 4; i++ {
+		_ = a.Visit(fmt.Sprintf("%s/a/%d", srv.URL, i))
+	}
+
+	// Wait until at least Parallelism requests are actually inside the
+	// handler — at that point they have already pushed into waitChan.
+	deadline := time.Now().Add(3 * time.Second)
+	for atomic.LoadInt64(&inHandler) < 2 {
+		if time.Now().After(deadline) {
+			close(release)
+			t.Fatalf("timed out waiting for A's requests to reach the handler, got=%d",
+				atomic.LoadInt64(&inHandler))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// B initializes the same rule. Without the guard this rebuilds waitChan
+	// and orphans A's already-acquired slots.
+	b := NewCollector(Async(true), AllowURLRevisit())
+	if err := b.Limit(rule); err != nil {
+		t.Fatalf("b.Limit: %v", err)
+	}
+	_ = b
+
+	// Let A's in-flight handlers return; their defers will run <-r.waitChan.
+	close(release)
+
+	done := make(chan struct{})
+	go func() {
+		a.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		// A returned cleanly — the guard preserved A's waitChan.
+	case <-time.After(10 * time.Second):
+		t.Fatalf("A.Wait() timed out: A is stuck because B.Limit rebuilt rule.waitChan")
+	}
+}
+
+// TestSharedLimitRuleRace exercises (*LimitRule).Init() under concurrent
+// access by having two Collectors call Limit(rule) on the same *LimitRule
+// from separate goroutines. Designed to be run with `go test -race`.
+//
+// Without the lock inside Init(), the two goroutines race on
+// compiledRegexp / compiledGlob / waitChan assignment, which the race
+// detector flags. With the lock, Init() serializes and the idempotency
+// guard ensures only the first caller initializes the rule; the second
+// is a no-op.
+//
+// This test only asserts the absence of a data race — successful return
+// under `-race` is the pass condition. It does not exercise request
+// flow; see TestSharedLimitRule_AInitThenBInit_ANotStuck for that.
+func TestSharedLimitRuleRace(t *testing.T) {
+	rule := &LimitRule{DomainGlob: "*", Parallelism: 2}
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	for range 2 {
+		go func() {
+			defer wg.Done()
+			a := NewCollector()
+			_ = a.Limit(rule)
+		}()
+	}
+	wg.Wait()
+}
+
+// TestLimitRuleClone verifies that Clone copies every exported field, leaves
+// unexported state zeroed, and produces a rule that is independent of the
+// original (mutating one must not affect the other, and Init on the clone
+// must not touch the source's compiled state or waitChan).
+func TestLimitRuleClone(t *testing.T) {
+	orig := &LimitRule{
+		DomainRegexp: `^example\.com$`,
+		DomainGlob:   "*.example.com",
+		Delay:        250 * time.Millisecond,
+		RandomDelay:  500 * time.Millisecond,
+		Parallelism:  4,
+	}
+	if err := orig.Init(); err != nil {
+		t.Fatalf("orig.Init() failed: %v", err)
+	}
+
+	clone := orig.Clone()
+
+	if clone == orig {
+		t.Fatal("Clone returned the same pointer as the source")
+	}
+	if clone.DomainRegexp != orig.DomainRegexp ||
+		clone.DomainGlob != orig.DomainGlob ||
+		clone.Delay != orig.Delay ||
+		clone.RandomDelay != orig.RandomDelay ||
+		clone.Parallelism != orig.Parallelism {
+		t.Fatalf("exported fields not copied: got %+v want %+v", clone, orig)
+	}
+	if clone.waitChan != nil {
+		t.Error("clone.waitChan should be nil, got non-nil")
+	}
+	if clone.compiledRegexp != nil {
+		t.Error("clone.compiledRegexp should be nil, got non-nil")
+	}
+	if clone.compiledGlob != nil {
+		t.Error("clone.compiledGlob should be nil, got non-nil")
+	}
+
+	clone.DomainGlob = "*.other.com"
+	clone.Parallelism = 99
+	if orig.DomainGlob != "*.example.com" || orig.Parallelism != 4 {
+		t.Fatalf("mutating clone affected source: %+v", orig)
+	}
+
+	origWaitChan := orig.waitChan
+	origCompiled := orig.compiledRegexp
+	if err := clone.Init(); err != nil {
+		t.Fatalf("clone.Init() failed: %v", err)
+	}
+	if clone.waitChan == nil {
+		t.Error("clone.waitChan should be initialized after Init")
+	}
+	if clone.waitChan == orig.waitChan {
+		t.Error("clone.Init() should produce its own waitChan, not share the source's")
+	}
+	if orig.waitChan != origWaitChan || orig.compiledRegexp != origCompiled {
+		t.Error("clone.Init() must not mutate the source's unexported state")
 	}
 }
