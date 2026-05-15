@@ -67,7 +67,9 @@ type LimitRule struct {
 
 // Init initializes the private members of LimitRule
 func (r *LimitRule) Init() error {
-	r.waitChan = make(chan bool, max(r.Parallelism, 1))
+	if r.waitChan == nil {
+		r.waitChan = make(chan bool, max(r.Parallelism, 1))
+	}
 	hasPattern := false
 	if r.DomainRegexp != "" {
 		c, err := regexp.Compile(r.DomainRegexp)
