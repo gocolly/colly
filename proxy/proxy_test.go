@@ -58,3 +58,37 @@ func TestRoundRobinProxySwitcher_PropagatesProxyURL(t *testing.T) {
 		t.Fatal("OnResponse never fired")
 	}
 }
+
+// TestRoundRobinProxySwitcher_ProxyURLOnError ensures the chosen proxy URL
+// is still recorded when the request fails before any response headers
+// arrive (e.g. dial refused) — so OnError can report which proxy was tried.
+func TestRoundRobinProxySwitcher_ProxyURLOnError(t *testing.T) {
+	ln := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	dead := ln.URL
+	ln.Close() // guarantees dial refused on dead
+
+	rp, err := RoundRobinProxySwitcher(dead)
+	if err != nil {
+		t.Fatalf("RoundRobinProxySwitcher: %v", err)
+	}
+	c := colly.NewCollector(colly.IgnoreRobotsTxt())
+	c.SetProxyFunc(rp)
+
+	var called bool
+	c.OnError(func(r *colly.Response, _ error) {
+		called = true
+		if r.Request.ProxyURL != dead {
+			t.Errorf("Request.ProxyURL = %q, want %q", r.Request.ProxyURL, dead)
+		}
+		if r.ProxyURL != dead {
+			t.Errorf("Response.ProxyURL = %q, want %q", r.ProxyURL, dead)
+		}
+	})
+
+	if err := c.Visit("http://example.com/"); err == nil {
+		t.Fatal("expected Visit to fail")
+	}
+	if !called {
+		t.Fatal("OnError never fired")
+	}
+}

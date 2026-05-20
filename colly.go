@@ -208,7 +208,15 @@ var collectorCounter uint32
 // other packages.
 type key int
 
-// ProxyURLKey is the context key for the request proxy address.
+// ProxyURLKey is the context key for the per-request proxy URL holder
+// (a *string shared across the request and any clone Go's http.Client may
+// fork during Do, so the value survives forkReq on the error path).
+//
+// ProxyFunc implementations should write the chosen proxy via this pattern:
+//
+//	if h, _ := req.Context().Value(colly.ProxyURLKey).(*string); h != nil {
+//	    *h = chosen.String()
+//	}
 const (
 	ProxyURLKey key = iota
 	CheckRevisitKey
@@ -673,7 +681,9 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	// note: once 1.13 is minimum supported Go version,
 	// replace this with http.NewRequestWithContext
-	req = req.WithContext(context.WithValue(c.Context, CheckRevisitKey, checkRevisit))
+	req = req.WithContext(context.WithValue(
+		context.WithValue(c.Context, CheckRevisitKey, checkRevisit),
+		ProxyURLKey, new(string)))
 
 	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
 		return err
@@ -724,19 +734,21 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req = hTrace.WithTrace(req)
 	}
 	origURL := req.URL
+	// Read the per-request *string holder set by the ProxyFunc. Called twice:
+	// inside checkResponseHeadersFunc so OnResponseHeaders sees it, and again
+	// after Cache returns so the error path (where the headers callback
+	// never fires) still surfaces the proxy URL.
+	syncProxyURL := func(r *http.Request) {
+		if h, _ := r.Context().Value(ProxyURLKey).(*string); h != nil && *h != "" {
+			request.ProxyURL = *h
+		}
+	}
 	checkResponseHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
 		if req.URL != origURL {
 			request.URL = req.URL
 			request.Headers = &req.Header
 		}
-		// Read ProxyURLKey here, not after Cache returns. http.Client with a
-		// non-zero Timeout calls forkReq() before Transport.RoundTrip, so the
-		// ProxyFunc's *pr = *pr.WithContext(ctx) mutation lands on the fork.
-		// The fork is what gets surfaced as res.Request → finalRequest →
-		// this callback's req argument, so the context value is visible here.
-		if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
-			request.ProxyURL = proxyURL
-		}
+		syncProxyURL(req)
 		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, ProxyURL: request.ProxyURL, StatusCode: statusCode, Headers: &headers})
 		return !request.abort
 	}
@@ -745,6 +757,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		return !request.abort
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, checkRequestHeadersFunc, checkResponseHeadersFunc, c.CacheDir, c.CacheExpiration)
+	syncProxyURL(req)
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
