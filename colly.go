@@ -1330,13 +1330,11 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	}
 	if response == nil {
 		response = &Response{
-			Request:  request,
-			Ctx:      ctx,
-			ProxyURL: request.ProxyURL,
+			Request: request,
+			Ctx:     ctx,
 		}
-	} else {
-		response.ProxyURL = request.ProxyURL
 	}
+	response.ProxyURL = request.ProxyURL
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("error", request.ID, c.ID, map[string]string{
 			"url":    request.URL.String(),
