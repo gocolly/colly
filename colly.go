@@ -729,7 +729,15 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 			request.URL = req.URL
 			request.Headers = &req.Header
 		}
-		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
+		// Read ProxyURLKey here, not after Cache returns. http.Client with a
+		// non-zero Timeout calls forkReq() before Transport.RoundTrip, so the
+		// ProxyFunc's *pr = *pr.WithContext(ctx) mutation lands on the fork.
+		// The fork is what gets surfaced as res.Request → finalRequest →
+		// this callback's req argument, so the context value is visible here.
+		if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
+			request.ProxyURL = proxyURL
+		}
+		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, ProxyURL: request.ProxyURL, StatusCode: statusCode, Headers: &headers})
 		return !request.abort
 	}
 	checkRequestHeadersFunc := func(req *http.Request) bool {
@@ -737,9 +745,6 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		return !request.abort
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, checkRequestHeadersFunc, checkResponseHeadersFunc, c.CacheDir, c.CacheExpiration)
-	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
-		request.ProxyURL = proxyURL
-	}
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
@@ -747,6 +752,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	response.Ctx = ctx
 	response.Request = request
 	response.Trace = hTrace
+	response.ProxyURL = request.ProxyURL
 
 	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
 	if err != nil {
@@ -1324,9 +1330,12 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	}
 	if response == nil {
 		response = &Response{
-			Request: request,
-			Ctx:     ctx,
+			Request:  request,
+			Ctx:      ctx,
+			ProxyURL: request.ProxyURL,
 		}
+	} else {
+		response.ProxyURL = request.ProxyURL
 	}
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("error", request.ID, c.ID, map[string]string{
