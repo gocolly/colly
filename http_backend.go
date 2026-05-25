@@ -63,11 +63,25 @@ type LimitRule struct {
 	waitChan       chan bool
 	compiledRegexp *regexp.Regexp
 	compiledGlob   glob.Glob
+	lock           sync.Mutex
 }
 
-// Init initializes the private members of LimitRule
+// Init initializes the private members of LimitRule.
+//
+// Init is idempotent: once a LimitRule has been successfully initialized,
+// subsequent calls are no-ops. This makes it safe to share a single
+// *LimitRule across multiple Collectors via Collector.Limit — without this,
+// the second Collector's Limit() call would (a) replace waitChan and
+// orphan the first Collector's already-acquired slots, deadlocking its
+// in-flight requests' defer <-r.waitChan, and (b) race with concurrent
+// Match() reads of compiledRegexp / compiledGlob.
 func (r *LimitRule) Init() error {
-	r.waitChan = make(chan bool, max(r.Parallelism, 1))
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	if r.waitChan != nil {
+		return nil
+	}
 	hasPattern := false
 	if r.DomainRegexp != "" {
 		c, err := regexp.Compile(r.DomainRegexp)
@@ -88,7 +102,22 @@ func (r *LimitRule) Init() error {
 	if !hasPattern {
 		return ErrNoPattern
 	}
+	r.waitChan = make(chan bool, max(r.Parallelism, 1))
 	return nil
+}
+
+// Clone returns a shallow copy of the LimitRule containing only its
+// exported fields. Unexported state (waitChan, compiled patterns, lock)
+// is left zero so the returned rule is independent of the original and
+// must be re-initialized via Init before use.
+func (r *LimitRule) Clone() *LimitRule {
+	return &LimitRule{
+		DomainRegexp: r.DomainRegexp,
+		DomainGlob:   r.DomainGlob,
+		Delay:        r.Delay,
+		RandomDelay:  r.RandomDelay,
+		Parallelism:  r.Parallelism,
+	}
 }
 
 func (h *httpBackend) Init(jar http.CookieJar) {
