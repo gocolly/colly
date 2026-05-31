@@ -75,6 +75,36 @@ func TestQueue(t *testing.T) {
 	}
 }
 
+func TestAddRequestAfterRunReturned(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(serverHandler))
+	defer server.Close()
+
+	q, err := New(1, &InMemoryQueueStorage{MaxSize: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := colly.NewCollector()
+	if err := q.AddURL(server.URL + "/delay?t=0s"); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Run(c); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- q.AddURL(server.URL + "/delay?t=0s")
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("AddURL after Run returned: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("AddURL blocked after Run returned (see #740)")
+	}
+}
+
 func serverHandler(w http.ResponseWriter, req *http.Request) {
 	if !serverRoute(w, req) {
 		shutdown(w)
