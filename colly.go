@@ -1127,7 +1127,16 @@ func (c *Collector) SetProxy(proxyURL string) error {
 // The proxy type is determined by the URL scheme. "http"
 // and "socks5" are supported. If the scheme is empty,
 // "http" is assumed.
-func (c *Collector) SetProxyFunc(p ProxyFunc) {
+func (c *Collector) SetProxyFunc(f ProxyFunc) {
+
+	var p ProxyFunc = func(pr *http.Request) (*url.URL, error) {
+		u, e := f(pr)
+		if h, _ := pr.Context().Value(ProxyURLKey).(*string); h != nil && u != nil {
+			*h = u.String()
+		}
+		return u, e
+	}
+
 	t, ok := c.backend.Client.Transport.(*http.Transport)
 	if c.backend.Client.Transport != nil && ok {
 		t.Proxy = p
