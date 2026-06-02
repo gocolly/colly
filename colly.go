@@ -1420,7 +1420,7 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 // HTTP backend, robots.txt cache and cookie jar are shared
 // between collectors.
 func (c *Collector) Clone() *Collector {
-	return &Collector{
+	d := &Collector{
 		AllowedDomains:         c.AllowedDomains,
 		AllowURLRevisit:        c.AllowURLRevisit,
 		CacheDir:               c.CacheDir,
@@ -1455,6 +1455,19 @@ func (c *Collector) Clone() *Collector {
 		robotsMap:              c.robotsMap,
 		wg:                     &sync.WaitGroup{},
 	}
+	// The cloned collector must own its CheckRedirect function so that
+	// settings like AllowURLRevisit are read from the clone, not the
+	// parent.  We keep everything else (Transport, Jar, Timeout, …)
+	// shared by making a shallow copy of the parent's http.Client and
+	// replacing only CheckRedirect.
+	cloneClient := *c.backend.Client
+	cloneClient.CheckRedirect = d.checkRedirectFunc()
+	d.backend = &httpBackend{
+		LimitRules: c.backend.LimitRules,
+		Client:     &cloneClient,
+		lock:       c.backend.lock,
+	}
+	return d
 }
 
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {

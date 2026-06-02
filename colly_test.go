@@ -2236,3 +2236,51 @@ func TestLimitRuleClone(t *testing.T) {
 		t.Error("clone.Init() must not mutate the source's unexported state")
 	}
 }
+
+// TestCloneAllowURLRevisitIndependent verifies that AllowURLRevisit on a
+// cloned Collector is honoured independently of the parent Collector.
+//
+// Previously Clone() shared the parent's http.Client and therefore the
+// parent's CheckRedirect function, which closes over the parent collector.
+// A redirect on the clone would therefore evaluate the *parent's*
+// AllowURLRevisit field instead of the clone's, causing "already visited"
+// errors even when the clone set AllowURLRevisit = true.
+func TestCloneAllowURLRevisitIndependent(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	// Parent does NOT allow revisits.
+	parent := NewCollector()
+
+	// Clone DOES allow revisits.
+	clone := parent.Clone()
+	clone.AllowURLRevisit = true
+
+	redirectURL := ts.URL + "/redirect"
+	finalURL := ts.URL + "/redirected/"
+
+	requestCount := make(map[string]int)
+	clone.OnRequest(func(r *Request) {
+		requestCount[r.URL.String()]++
+	})
+
+	responseCount := make(map[string]int)
+	clone.OnResponse(func(r *Response) {
+		responseCount[r.Request.URL.String()]++
+	})
+
+	// Visit the redirect URL twice; each visit should reach the final
+	// destination without triggering an "already visited" error.
+	for i := 0; i < 2; i++ {
+		if err := clone.Visit(redirectURL); err != nil {
+			t.Fatalf("visit %d: unexpected error: %v", i+1, err)
+		}
+	}
+
+	if requestCount[redirectURL] != 2 {
+		t.Errorf("redirect URL visited %d times, want 2", requestCount[redirectURL])
+	}
+	if responseCount[finalURL] != 2 {
+		t.Errorf("final URL visited %d times, want 2", responseCount[finalURL])
+	}
+}
