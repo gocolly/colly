@@ -2259,9 +2259,14 @@ func TestCloneAllowURLRevisitIndependent(t *testing.T) {
 	redirectURL := ts.URL + "/redirect"
 	finalURL := ts.URL + "/redirected/"
 
-	visited := make(map[string]int)
+	requestCount := make(map[string]int)
 	clone.OnRequest(func(r *Request) {
-		visited[r.URL.String()]++
+		requestCount[r.URL.String()]++
+	})
+
+	responseCount := make(map[string]int)
+	clone.OnResponse(func(r *Response) {
+		responseCount[r.Request.URL.String()]++
 	})
 
 	// Visit the redirect URL twice; each visit should reach the final
@@ -2272,10 +2277,10 @@ func TestCloneAllowURLRevisitIndependent(t *testing.T) {
 		}
 	}
 
-	if visited[redirectURL] != 2 {
-		t.Errorf("redirect URL visited %d times, want 2", visited[redirectURL])
+	if requestCount[redirectURL] != 2 {
+		t.Errorf("redirect URL visited %d times, want 2", requestCount[redirectURL])
 	}
-	if visited[finalURL] != 2 {
-		t.Errorf("final URL visited %d times, want 2", visited[finalURL])
+	if responseCount[finalURL] != 2 {
+		t.Errorf("final URL visited %d times, want 2", responseCount[finalURL])
 	}
 }
