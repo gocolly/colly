@@ -749,6 +749,35 @@ func TestCollectorURLRevisit(t *testing.T) {
 	}
 }
 
+func TestCollectorCloneRedirectUsesCloneRevisitSetting(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/target", http.StatusFound)
+	})
+	mux.HandleFunc("/target", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	parent := NewCollector()
+	if err := parent.Visit(ts.URL + "/target"); err != nil {
+		t.Fatal(err)
+	}
+
+	clone := parent.Clone()
+	clone.AllowURLRevisit = true
+
+	err := clone.Visit(ts.URL + "/redirect")
+	if err != nil {
+		var alreadyVisited *AlreadyVisitedError
+		if errors.As(err, &alreadyVisited) {
+			t.Fatalf("clone redirect used parent AllowURLRevisit=false: %v", err)
+		}
+		t.Fatal(err)
+	}
+}
+
 func TestCollectorPostRevisit(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
