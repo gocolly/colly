@@ -1285,6 +1285,43 @@ func TestRobotsWhenDisallowedWithQueryParameter(t *testing.T) {
 	}
 }
 
+func TestRobotsFetchErrorCallsOnError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("plain HTTP server should not receive successful HTTPS request for %s", r.URL.Path)
+	}))
+	defer ts.Close()
+
+	c := NewCollector()
+	c.IgnoreRobotsTxt = false
+
+	var onErrorCalled bool
+	var onErrorRequestURL string
+	c.OnError(func(resp *Response, err error) {
+		onErrorCalled = true
+		if err == nil {
+			t.Error("OnError got nil error")
+		}
+		if resp != nil && resp.Request != nil && resp.Request.URL != nil {
+			onErrorRequestURL = resp.Request.URL.String()
+		}
+	})
+
+	targetURL := strings.Replace(ts.URL, "http://", "https://", 1) + "/target"
+	err := c.Visit(targetURL)
+	if err == nil {
+		t.Fatal("Visit error got nil, expected robots.txt fetch error")
+	}
+	if !errors.Is(err, ErrRobotsTxtFetchFailed) {
+		t.Errorf("Visit error got %#v, expected ErrRobotsTxtFetchFailed", err)
+	}
+	if !onErrorCalled {
+		t.Fatal("OnError was not called for robots.txt fetch error")
+	}
+	if onErrorRequestURL != targetURL {
+		t.Errorf("OnError request URL got %q, expected %q", onErrorRequestURL, targetURL)
+	}
+}
+
 func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
