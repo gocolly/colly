@@ -208,15 +208,7 @@ var collectorCounter uint32
 // other packages.
 type key int
 
-// ProxyURLKey is the context key for the per-request proxy URL holder
-// (a *string shared across the request and any clone Go's http.Client may
-// fork during Do, so the value survives forkReq on the error path).
-//
-// ProxyFunc implementations should write the chosen proxy via this pattern:
-//
-//	if h, _ := req.Context().Value(colly.ProxyURLKey).(*string); h != nil {
-//	    *h = chosen.String()
-//	}
+// ProxyURLKey is the context key for the request proxy address.
 const (
 	ProxyURLKey key = iota
 	CheckRevisitKey
@@ -681,6 +673,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	// note: once 1.13 is minimum supported Go version,
 	// replace this with http.NewRequestWithContext
+	// Place a *string holder in the context so the proxy URL chosen by the
+	// ProxyFunc survives net/http's send() forkReq (triggered by Client.Timeout).
+	// The fork shallow-copies the request and shares the context pointer,
+	// so pointer writes through the holder remain visible on the original req.
 	req = req.WithContext(context.WithValue(
 		context.WithValue(c.Context, CheckRevisitKey, checkRevisit),
 		ProxyURLKey, new(string)))
@@ -734,10 +730,10 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req = hTrace.WithTrace(req)
 	}
 	origURL := req.URL
-	// Read the per-request *string holder set by the ProxyFunc. Called twice:
-	// inside checkResponseHeadersFunc so OnResponseHeaders sees it, and again
-	// after Cache returns so the error path (where the headers callback
-	// never fires) still surfaces the proxy URL.
+	// Read the per-request proxy URL holder set by the ProxyFunc wrapper.
+	// Called twice: inside checkResponseHeadersFunc so OnResponseHeaders sees
+	// it, and again after Cache returns so the error path (where the headers
+	// callback never fires) still surfaces the proxy URL.
 	syncProxyURL := func(r *http.Request) {
 		if h, _ := r.Context().Value(ProxyURLKey).(*string); h != nil && *h != "" {
 			request.ProxyURL = *h
@@ -1130,11 +1126,18 @@ func (c *Collector) SetProxy(proxyURL string) error {
 func (c *Collector) SetProxyFunc(f ProxyFunc) {
 
 	var p ProxyFunc = func(pr *http.Request) (*url.URL, error) {
-		u, e := f(pr)
-		if h, _ := pr.Context().Value(ProxyURLKey).(*string); h != nil && u != nil {
-			*h = u.String()
+		// Capture the context before invoking the user's f. Legacy custom
+		// ProxyFuncs may do *pr = *pr.WithContext(WithValue(..., ProxyURLKey, "...")),
+		// which shadows the holder on pr but leaves the original chain (and
+		// our *string holder) reachable through origCtx.
+		origCtx := pr.Context()
+		proxyURL, err := f(pr)
+		if proxyURL != nil {
+			if h, _ := origCtx.Value(ProxyURLKey).(*string); h != nil {
+				*h = proxyURL.String()
+			}
 		}
-		return u, e
+		return proxyURL, err
 	}
 
 	t, ok := c.backend.Client.Transport.(*http.Transport)
