@@ -58,7 +58,9 @@ type Collector struct {
 	UserAgent string
 	// Custom headers for the request
 	Headers *http.Header
-	// MaxDepth limits the recursion depth of visited URLs.
+	// MaxDepth limits the 1-based recursion depth of visited URLs.
+	// Direct Collector requests have depth 1, and requests made from another
+	// Request have their parent's depth plus 1.
 	// Set it to 0 for infinite recursion (default).
 	MaxDepth int
 	// AllowedDomains is a domain whitelist.
@@ -341,7 +343,7 @@ func Headers(headers map[string]string) CollectorOption {
 	}
 }
 
-// MaxDepth limits the recursion depth of visited URLs.
+// MaxDepth limits the 1-based recursion depth of visited URLs.
 func MaxDepth(depth int) CollectorOption {
 	return func(c *Collector) {
 		c.MaxDepth = depth

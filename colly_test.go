@@ -1762,6 +1762,32 @@ func TestCollectorDepth(t *testing.T) {
 	}
 }
 
+func TestCollectorRequestDepthValues(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector(MaxDepth(2), AllowURLRevisit())
+	var depths []int
+
+	c.OnResponse(func(resp *Response) {
+		depths = append(depths, resp.Request.Depth)
+		if len(depths) == 1 {
+			if err := resp.Request.Visit(ts.URL); err != nil {
+				t.Errorf("Failed to visit child request: %v", err)
+			}
+		}
+	})
+
+	if err := c.Visit(ts.URL); err != nil {
+		t.Fatalf("Failed to visit root request: %v", err)
+	}
+
+	expectedDepths := []int{1, 2}
+	if !reflect.DeepEqual(depths, expectedDepths) {
+		t.Fatalf("Invalid request depths: %v (expected %v)", depths, expectedDepths)
+	}
+}
+
 func TestCollectorRequests(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()

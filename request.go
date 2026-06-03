@@ -33,7 +33,9 @@ type Request struct {
 	Host string
 	// Ctx is a context between a Request and a Response
 	Ctx *Context
-	// Depth is the number of the parents of the request
+	// Depth is the 1-based depth of the request. Requests made directly
+	// through a Collector have depth 1, and requests made from another
+	// Request have their parent's depth plus 1.
 	Depth int
 	// Method is the HTTP method of the request
 	Method string

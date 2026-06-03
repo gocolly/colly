@@ -9,9 +9,9 @@ import (
 func main() {
 	// Instantiate default collector
 	c := colly.NewCollector(
-		// MaxDepth is 1, so only the links on the scraped page
-		// is visited, and no further links are followed
-		colly.MaxDepth(1),
+		// MaxDepth is 2, so the start URL and links on its page
+		// are visited, and no further links are followed
+		colly.MaxDepth(2),
 	)
 
 	// On every a element which has href attribute call callback
