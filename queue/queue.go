@@ -101,16 +101,18 @@ func (q *Queue) AddURL(URL string) error {
 // AddRequest adds a new Request to the queue
 func (q *Queue) AddRequest(r *colly.Request) error {
 	q.mut.Lock()
-	waken := q.wake != nil
+	wake := q.wake
 	q.mut.Unlock()
-	if !waken {
-		return q.storeRequest(r)
-	}
 	err := q.storeRequest(r)
 	if err != nil {
 		return err
 	}
-	q.wake <- struct{}{}
+	if wake != nil {
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
+	}
 	return nil
 }
 
@@ -136,7 +138,7 @@ func (q *Queue) Run(c *colly.Collector) error {
 		q.mut.Unlock()
 		panic("cannot call duplicate Queue.Run")
 	}
-	q.wake = make(chan struct{})
+	q.wake = make(chan struct{}, 1)
 	q.running = true
 	q.mut.Unlock()
 
@@ -147,7 +149,12 @@ func (q *Queue) Run(c *colly.Collector) error {
 	}
 	go q.loop(c, requestc, complete, errc)
 	defer close(requestc)
-	return <-errc
+	err := <-errc
+	q.mut.Lock()
+	q.wake = nil
+	q.running = false
+	q.mut.Unlock()
+	return err
 }
 
 // Stop will stop the running queue
