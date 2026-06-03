@@ -730,22 +730,12 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		req = hTrace.WithTrace(req)
 	}
 	origURL := req.URL
-	// Read the per-request proxy URL holder set by the ProxyFunc wrapper.
-	// Called twice: inside checkResponseHeadersFunc so OnResponseHeaders sees
-	// it, and again after Cache returns so the error path (where the headers
-	// callback never fires) still surfaces the proxy URL.
-	syncProxyURL := func(r *http.Request) {
-		if h, _ := r.Context().Value(ProxyURLKey).(*string); h != nil && *h != "" {
-			request.ProxyURL = *h
-		}
-	}
 	checkResponseHeadersFunc := func(req *http.Request, statusCode int, headers http.Header) bool {
 		if req.URL != origURL {
 			request.URL = req.URL
 			request.Headers = &req.Header
 		}
-		syncProxyURL(req)
-		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, ProxyURL: request.ProxyURL, StatusCode: statusCode, Headers: &headers})
+		c.handleOnResponseHeaders(&Response{Ctx: ctx, Request: request, StatusCode: statusCode, Headers: &headers})
 		return !request.abort
 	}
 	checkRequestHeadersFunc := func(req *http.Request) bool {
@@ -753,7 +743,9 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		return !request.abort
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, checkRequestHeadersFunc, checkResponseHeadersFunc, c.CacheDir, c.CacheExpiration)
-	syncProxyURL(req)
+	if proxyURL, ok := req.Context().Value(ProxyURLKey).(*string); ok {
+		request.ProxyURL = *proxyURL
+	}
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
 	}
