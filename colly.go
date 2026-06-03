@@ -1351,7 +1351,6 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 			Ctx:     ctx,
 		}
 	}
-	response.ProxyURL = request.ProxyURL
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("error", request.ID, c.ID, map[string]string{
 			"url":    request.URL.String(),
@@ -1363,6 +1362,9 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	}
 	if response.Ctx == nil {
 		response.Ctx = request.Ctx
+	}
+	if response.ProxyURL == "" {
+		response.ProxyURL = request.ProxyURL
 	}
 	for _, f := range c.errorCallbacks {
 		f(response, err)
