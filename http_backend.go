@@ -232,9 +232,6 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 	}
 
 	var bodyReader io.Reader = res.Body
-	if bodySize > 0 {
-		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
-	}
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || (strings.HasSuffix(strings.ToLower(finalRequest.URL.Path), ".xml.gz") && res.StatusCode >= 200 && res.StatusCode < 300)) {
 		// Even if URL contains .xml.gz, it doesn't mean that we get gzip
@@ -258,6 +255,15 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 		default:
 			return nil, err
 		}
+	}
+	// Cap the *decompressed* read so a gzip-bombed response (a small
+	// compressed body that expands to many GBs) cannot blow up memory.
+	// The previous implementation wrapped LimitReader around res.Body
+	// before gzip.NewReader, which only bounded the compressed bytes —
+	// useless against a bomb. Wrapping here also bounds non-gzip bodies
+	// just like before, since bodyReader is still res.Body in that case.
+	if bodySize > 0 {
+		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
 	body, err := io.ReadAll(bodyReader)
 	if err != nil {

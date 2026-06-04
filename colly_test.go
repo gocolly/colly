@@ -2236,3 +2236,64 @@ func TestLimitRuleClone(t *testing.T) {
 		t.Error("clone.Init() must not mutate the source's unexported state")
 	}
 }
+
+// TestMaxBodySizeCapsDecompressedGzipBody guards against a gzip-bomb DoS:
+// a small compressed body that expands to many GBs of zeros. The previous
+// implementation wrapped LimitReader around the *compressed* stream, so
+// MaxBodySize bounded network bytes only — the decompressed read was
+// unlimited and could exhaust memory. The fix wraps LimitReader after the
+// gzip decoder so the decompressed read is bounded.
+//
+// This test serves ~1 KiB of gzip-compressed zeros that expand to 1 MiB,
+// sets MaxBodySize to a value smaller than the decompressed payload, and
+// asserts the received body is capped at MaxBodySize. Without the fix,
+// resp.Body would carry the full 1 MiB of zeros.
+func TestMaxBodySizeCapsDecompressedGzipBody(t *testing.T) {
+	const (
+		decompressedSize = 1 << 20 // 1 MiB
+		maxBodySize      = 4 << 10 // 4 KiB cap
+	)
+
+	// Pre-compute the gzip-compressed payload (~1 KiB after deflate, since
+	// the source is all zeros — a textbook compression-bomb shape).
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write(make([]byte, decompressedSize)); err != nil {
+		t.Fatalf("gzip write: %v", err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatalf("gzip close: %v", err)
+	}
+	if buf.Len() >= maxBodySize {
+		t.Fatalf("test setup: compressed size %d should be much smaller than maxBodySize %d", buf.Len(), maxBodySize)
+	}
+	gzipped := buf.Bytes()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(gzipped)
+	}))
+	defer ts.Close()
+
+	c := NewCollector(MaxBodySize(maxBodySize))
+	// Bypass net/http's automatic transparent gunzipping so our backend
+	// hits the gzip decode path. Without this, http.Transport decompresses
+	// internally and Content-Encoding is removed before we see the body.
+	c.WithTransport(&http.Transport{DisableCompression: true})
+
+	var gotLen int
+	c.OnResponse(func(r *Response) {
+		gotLen = len(r.Body)
+	})
+
+	if err := c.Visit(ts.URL); err != nil {
+		t.Fatalf("Visit: %v", err)
+	}
+	if gotLen == 0 {
+		t.Fatal("OnResponse never fired or body was empty")
+	}
+	if gotLen > maxBodySize {
+		t.Fatalf("body length %d exceeds MaxBodySize %d — gzip bomb not capped", gotLen, maxBodySize)
+	}
+}
