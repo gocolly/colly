@@ -1417,10 +1417,13 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 }
 
 // Clone creates an exact copy of a Collector without callbacks.
-// HTTP backend, robots.txt cache and cookie jar are shared
-// between collectors.
+// The visited-URL store, robots.txt cache, cookie jar and HTTP transport
+// are shared between collectors so cookies and the connection pool flow
+// across them. The *http.Client and the callback-protecting lock are
+// independent so per-collector settings like AllowURLRevisit take effect
+// on the clone's redirects without leaking back into the parent.
 func (c *Collector) Clone() *Collector {
-	return &Collector{
+	clone := &Collector{
 		AllowedDomains:         c.AllowedDomains,
 		AllowURLRevisit:        c.AllowURLRevisit,
 		CacheDir:               c.CacheDir,
@@ -1441,7 +1444,6 @@ func (c *Collector) Clone() *Collector {
 		TraceHTTP:              c.TraceHTTP,
 		Context:                c.Context,
 		store:                  c.store,
-		backend:                c.backend,
 		debugger:               c.debugger,
 		Async:                  c.Async,
 		redirectHandler:        c.redirectHandler,
@@ -1449,12 +1451,33 @@ func (c *Collector) Clone() *Collector {
 		htmlCallbacks:          make([]*htmlCallbackContainer, 0, 8),
 		xmlCallbacks:           make([]*xmlCallbackContainer, 0, 8),
 		scrapedCallbacks:       make([]ScrapedCallback, 0, 8),
-		lock:                   c.lock,
+		lock:                   &sync.RWMutex{},
 		requestCallbacks:       make([]RequestCallback, 0, 8),
 		responseCallbacks:      make([]ResponseCallback, 0, 8),
 		robotsMap:              c.robotsMap,
 		wg:                     &sync.WaitGroup{},
 	}
+
+	// Independent httpBackend + http.Client so CheckRedirect closes over
+	// the clone, not the parent. Without this, the redirect handler would
+	// evaluate the parent's AllowURLRevisit and filters, so toggling those
+	// on the clone has no effect on redirects.
+	//
+	// Transport, cookie jar and Timeout are kept shared so connection
+	// pooling and session cookies continue to flow between collectors.
+	// LimitRules are copied by value (the slice header) — each *LimitRule
+	// is still shared because LimitRule.Init is idempotent.
+	clone.backend = &httpBackend{
+		LimitRules: append([]*LimitRule(nil), c.backend.LimitRules...),
+		lock:       &sync.RWMutex{},
+		Client: &http.Client{
+			Transport:     c.backend.Client.Transport,
+			Jar:           c.backend.Client.Jar,
+			Timeout:       c.backend.Client.Timeout,
+			CheckRedirect: clone.checkRedirectFunc(),
+		},
+	}
+	return clone
 }
 
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
