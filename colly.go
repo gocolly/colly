@@ -1316,17 +1316,17 @@ func (c *Collector) handleOnXML(resp *Response) error {
 }
 
 func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx *Context) error {
-	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 203) {
-		return nil
-	}
-	if err == nil && response.StatusCode >= 203 {
-		err = errors.New(http.StatusText(response.StatusCode))
-	}
 	if response == nil {
 		response = &Response{
 			Request: request,
 			Ctx:     ctx,
 		}
+	}
+	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 203) {
+		return nil
+	}
+	if err == nil && response.StatusCode >= 203 {
+		err = errors.New(http.StatusText(response.StatusCode))
 	}
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("error", request.ID, c.ID, map[string]string{
