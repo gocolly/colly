@@ -2236,3 +2236,98 @@ func TestLimitRuleClone(t *testing.T) {
 		t.Error("clone.Init() must not mutate the source's unexported state")
 	}
 }
+
+// TestHandleOnErrorNilResponse verifies that handleOnError does not panic
+// when the response is nil. A backend may legitimately return (nil, err) on
+// transport failures (DNS lookup error, connection refused, context
+// cancellation), and may also return (nil, nil) in edge cases such as a
+// CheckResponseHeadersFunc aborting the request. Both must be handled
+// without dereferencing the nil response.
+func TestHandleOnErrorNilResponse(t *testing.T) {
+	reqURL, err := url.Parse("http://example.invalid/")
+	if err != nil {
+		t.Fatalf("parse url: %v", err)
+	}
+
+	transportErr := errors.New("dial tcp: lookup example.invalid: no such host")
+
+	cases := []struct {
+		name           string
+		err            error
+		wantCallback   bool
+		wantReturnsErr bool
+	}{
+		{
+			name:           "nil response with transport error",
+			err:            transportErr,
+			wantCallback:   true,
+			wantReturnsErr: true,
+		},
+		{
+			// The original handleOnError dereferenced response.StatusCode
+			// before checking response == nil. Short-circuit evaluation
+			// hid the panic when err was non-nil, but err == nil with a
+			// nil response (the path the nil-guard was clearly written
+			// to defend against) panicked.
+			name:           "nil response with nil error",
+			err:            nil,
+			wantCallback:   false,
+			wantReturnsErr: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := NewCollector()
+			ctx := NewContext()
+			request := &Request{URL: reqURL, Method: "GET", Ctx: ctx}
+
+			var gotResp *Response
+			var gotErr error
+			callbackCalled := false
+			c.OnError(func(r *Response, e error) {
+				callbackCalled = true
+				gotResp = r
+				gotErr = e
+			})
+
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("handleOnError panicked on nil response: %v", r)
+				}
+			}()
+
+			returned := c.handleOnError(nil, tc.err, request, ctx)
+
+			if tc.wantReturnsErr {
+				if returned == nil {
+					t.Fatal("expected handleOnError to return a non-nil error")
+				}
+				if tc.err != nil && returned.Error() != tc.err.Error() {
+					t.Errorf("expected returned err %q, got %q", tc.err, returned)
+				}
+			} else if returned != nil {
+				t.Errorf("expected handleOnError to return nil, got %v", returned)
+			}
+
+			if callbackCalled != tc.wantCallback {
+				t.Errorf("OnError callback invoked=%v, want %v", callbackCalled, tc.wantCallback)
+			}
+
+			if tc.wantCallback {
+				if gotResp == nil {
+					t.Fatal("OnError callback received nil response; expected a synthesized Response")
+				}
+				if gotResp.Request != request {
+					t.Error("synthesized Response.Request should be set to the original request")
+				}
+				if gotResp.Ctx != ctx {
+					t.Error("synthesized Response.Ctx should be set to the original context")
+				}
+				if gotErr == nil || gotErr.Error() != tc.err.Error() {
+					t.Errorf("OnError callback received unexpected err: %v", gotErr)
+				}
+			}
+		})
+	}
+}
