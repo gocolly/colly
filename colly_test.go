@@ -2236,3 +2236,52 @@ func TestLimitRuleClone(t *testing.T) {
 		t.Error("clone.Init() must not mutate the source's unexported state")
 	}
 }
+
+// TestCloneAllowURLRevisitIndependent verifies that AllowURLRevisit on a
+// cloned Collector takes effect during redirects, independently of the
+// parent's setting.
+//
+// Previously Clone() reused the parent's *http.Client, including its
+// CheckRedirect closure — and that closure captures the *parent*
+// Collector. As a result, the clone's CheckRedirect evaluated the
+// parent's AllowURLRevisit field, so toggling AllowURLRevisit on the
+// clone had no effect on redirects: visiting a redirect endpoint twice
+// failed with "already visited" even though the clone allowed revisits.
+func TestCloneAllowURLRevisitIndependent(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	parent := NewCollector()
+	clone := parent.Clone()
+	clone.AllowURLRevisit = true
+
+	redirectURL := ts.URL + "/redirect"
+	finalURL := ts.URL + "/redirected/"
+
+	requestCount := make(map[string]int)
+	clone.OnRequest(func(r *Request) {
+		requestCount[r.URL.String()]++
+	})
+	responseCount := make(map[string]int)
+	clone.OnResponse(func(r *Response) {
+		responseCount[r.Request.URL.String()]++
+	})
+
+	for i := 0; i < 2; i++ {
+		if err := clone.Visit(redirectURL); err != nil {
+			t.Fatalf("visit %d: unexpected error: %v", i+1, err)
+		}
+	}
+	if requestCount[redirectURL] != 2 {
+		t.Errorf("redirect URL visited %d times, want 2", requestCount[redirectURL])
+	}
+	if responseCount[finalURL] != 2 {
+		t.Errorf("final URL visited %d times, want 2", responseCount[finalURL])
+	}
+
+	// Parent should keep its original (default false) AllowURLRevisit and
+	// not gain revisit semantics just because the clone toggled it.
+	if parent.AllowURLRevisit {
+		t.Error("parent.AllowURLRevisit was mutated by setting it on the clone")
+	}
+}
