@@ -2236,3 +2236,27 @@ func TestLimitRuleClone(t *testing.T) {
 		t.Error("clone.Init() must not mutate the source's unexported state")
 	}
 }
+
+func TestRequestMarshalRoundtripHost(t *testing.T) {
+	c := NewCollector()
+	u, _ := url.Parse("http://example.com/foo")
+	req := &Request{
+		Method:    "GET",
+		URL:       u,
+		Host:      "vhost.example.com",
+		Ctx:       NewContext(),
+		Headers:   &http.Header{},
+		collector: c,
+	}
+	data, err := req.Marshal()
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	got, err := c.UnmarshalRequest(data)
+	if err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got.Host != "vhost.example.com" {
+		t.Errorf("Host not preserved: got %q want %q", got.Host, "vhost.example.com")
+	}
+}

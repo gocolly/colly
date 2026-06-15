@@ -628,6 +628,7 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 		Ctx:       ctx,
 		ID:        c.requestCount.Add(1),
 		Headers:   &req.Headers,
+		Host:      req.Host,
 		collector: c,
 	}, nil
 }
