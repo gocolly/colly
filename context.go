@@ -91,9 +91,8 @@ func (c *Context) Clone() *Context {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	newCtx := NewContext()
-	c.ForEach(func(key string, value interface{}) interface{} {
-		newCtx.Put(key, value)
-		return nil
-	})
+	for k, v := range c.contextMap {
+		newCtx.contextMap[k] = v
+	}
 	return newCtx
 }

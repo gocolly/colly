@@ -16,7 +16,9 @@ package colly
 
 import (
 	"strconv"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestContextIteration(t *testing.T) {
@@ -35,6 +37,52 @@ func TestContextIteration(t *testing.T) {
 		if v != ctx.GetAny(strconv.Itoa(v)).(int) {
 			t.Fatal("value not equal")
 		}
+	}
+}
+
+func TestContextCloneConcurrentWrite(t *testing.T) {
+	ctx := NewContext()
+	for i := 0; i < 50; i++ {
+		ctx.Put(strconv.Itoa(i), i)
+	}
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	for w := 0; w < 4; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					ctx.Put("x", 1)
+				}
+			}
+		}()
+	}
+	for c := 0; c < 8; c++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = ctx.Clone()
+				}
+			}
+		}()
+	}
+	time.Sleep(time.Second)
+	close(done)
+	finished := make(chan struct{})
+	go func() { wg.Wait(); close(finished) }()
+	select {
+	case <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Clone deadlocked on recursive read lock")
 	}
 }
 
