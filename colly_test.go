@@ -1318,6 +1318,34 @@ func TestRobotsWhenDisallowedWithQueryParameter(t *testing.T) {
 	}
 }
 
+func TestRobotsQueryStringOrderPreserved(t *testing.T) {
+	// Disallow rule includes a query string. robots.txt path matching is an
+	// ordered, opaque-string comparison, so a URL whose query keys are in a
+	// different order than alphabetical must still match the rule. colly must
+	// not re-sort the query string before matching.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			w.Write([]byte("User-agent: *\nDisallow: /p?z=\n"))
+			return
+		}
+		w.Write([]byte("ok"))
+	}))
+	defer ts.Close()
+
+	c := NewCollector()
+	c.IgnoreRobotsTxt = false
+
+	c.OnResponse(func(resp *Response) {
+		t.Fatalf("Received response, URL should have been blocked: %d", resp.StatusCode)
+	})
+
+	// Query keys are intentionally not in alphabetical order.
+	err := c.Visit(ts.URL + "/p?z=1&a=2")
+	if err == nil || err.Error() != "URL blocked by robots.txt" {
+		t.Fatalf("expected URL to be blocked by robots.txt, got: %v", err)
+	}
+}
+
 func TestIgnoreRobotsWhenDisallowed(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
