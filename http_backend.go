@@ -254,6 +254,12 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 					return nil, err
 				}
 				defer bodyReader.(*gzip.Reader).Close()
+				// We have decompressed the body manually, so the stored
+				// response headers must no longer advertise the original
+				// encoding or the compressed length. Mirror net/http's
+				// behaviour when it transparently decompresses a response.
+				res.Header.Del("Content-Encoding")
+				res.Header.Del("Content-Length")
 			}
 		default:
 			return nil, err
