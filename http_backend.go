@@ -171,11 +171,18 @@ func (h *httpBackend) Cache(request *http.Request, bodySize int, checkRequestHea
 
 	if file, err := os.Open(filename); err == nil {
 		resp := new(Response)
-		err := gob.NewDecoder(file).Decode(resp)
+		derr := gob.NewDecoder(file).Decode(resp)
 		file.Close()
-		checkResponseHeadersFunc(request, resp.StatusCode, *resp.Headers)
-		if resp.StatusCode < 500 {
-			return resp, err
+		if derr == nil && resp.Headers != nil {
+			checkResponseHeadersFunc(request, resp.StatusCode, *resp.Headers)
+			if resp.StatusCode < 500 {
+				return resp, nil
+			}
+		} else {
+			// The cache file is corrupt or truncated (e.g. interrupted
+			// write, disk full, external tampering). Remove it and fall
+			// through to a live fetch instead of panicking.
+			_ = os.Remove(filename)
 		}
 	}
 	resp, err := h.Do(request, bodySize, checkRequestHeadersFunc, checkResponseHeadersFunc)
