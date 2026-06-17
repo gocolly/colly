@@ -1814,6 +1814,34 @@ func TestCollectorRequests(t *testing.T) {
 	}
 }
 
+func TestCollectorRequestsAsyncOvershoot(t *testing.T) {
+	var served atomic.Int32
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		served.Add(1)
+		w.Write([]byte("ok"))
+	}))
+	defer ts.Close()
+
+	maxRequests := uint32(5)
+	c := NewCollector(
+		MaxRequests(maxRequests),
+		AllowURLRevisit(),
+		Async(true),
+	)
+
+	// Fire many concurrent visits. Without an atomic reservation at the
+	// synchronous gate, all of them pass the MaxRequests check before any
+	// fetch increments the counter, overshooting the limit.
+	for i := 0; i < 50; i++ {
+		c.Visit(ts.URL)
+	}
+	c.Wait()
+
+	if got := served.Load(); got > int32(maxRequests) {
+		t.Errorf("served %d requests, must not exceed MaxRequests=%d", got, maxRequests)
+	}
+}
+
 func TestCollectorContext(t *testing.T) {
 	// "/slow" takes 1 second to return the response.
 	// If context does abort the transfer after 0.5 seconds as it should,
