@@ -2270,6 +2270,39 @@ func TestLimitRuleClone(t *testing.T) {
 	}
 }
 
+// TestLimitRuleNegativeRandomDelay verifies that a negative RandomDelay does
+// not panic. RandomDelay is an exported time.Duration that users set directly;
+// the delay path feeds it to rand.Int63n, which panics for any argument <= 0.
+// In Async mode that panic happens inside the fetch goroutine and crashes the
+// process so Wait never returns. A negative RandomDelay must be treated as no
+// random delay.
+func TestLimitRuleNegativeRandomDelay(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewCollector(Async(true))
+	if err := c.Limit(&LimitRule{DomainGlob: "*", RandomDelay: -1 * time.Second}); err != nil {
+		t.Fatalf("Limit: %v", err)
+	}
+
+	if err := c.Visit(srv.URL); err != nil {
+		t.Fatalf("Visit: %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		c.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Wait() timed out: a negative RandomDelay likely panicked the fetch goroutine")
+	}
+}
+
 func TestRequestMarshalRoundtripHost(t *testing.T) {
 	c := NewCollector()
 	u, _ := url.Parse("http://example.com/foo")
