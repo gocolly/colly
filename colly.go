@@ -835,6 +835,11 @@ func (c *Collector) checkFilters(URL, domain string) error {
 }
 
 func (c *Collector) isDomainAllowed(domain string) bool {
+	// A trailing-dot FQDN (e.g. "example.com.") refers to the same host as
+	// "example.com" but would not be string-equal to a configured domain,
+	// letting it bypass DisallowedDomains and be wrongly blocked by
+	// AllowedDomains.
+	domain = strings.TrimSuffix(domain, ".")
 	if slices.Contains(c.DisallowedDomains, domain) {
 		return false
 	}
