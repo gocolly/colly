@@ -1317,10 +1317,10 @@ func (c *Collector) handleOnXML(resp *Response) error {
 }
 
 func (c *Collector) handleOnError(response *Response, err error, request *Request, ctx *Context) error {
-	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 203) {
+	if err == nil && (c.ParseHTTPErrorResponse || response.StatusCode < 300) {
 		return nil
 	}
-	if err == nil && response.StatusCode >= 203 {
+	if err == nil && response.StatusCode >= 300 {
 		err = errors.New(http.StatusText(response.StatusCode))
 	}
 	if response == nil {

@@ -180,6 +180,10 @@ func newUnstartedTestServer() *httptest.Server {
 		w.Write([]byte("<p>error</p>"))
 	})
 
+	mux.HandleFunc("/no_content", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(204)
+	})
+
 	mux.HandleFunc("/user_agent", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte(r.Header.Get("User-Agent")))
@@ -586,6 +590,35 @@ func TestCollectorVisit(t *testing.T) {
 
 	if !onScrapedCalled {
 		t.Error("Failed to call OnScraped callback")
+	}
+}
+
+func TestCollectorVisitNoContent(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	onResponseCalled := false
+	onErrorCalled := false
+
+	c.OnResponse(func(r *Response) {
+		onResponseCalled = true
+		if r.StatusCode != 204 {
+			t.Errorf("Wrong response code: %d", r.StatusCode)
+		}
+	})
+	c.OnError(func(r *Response, err error) {
+		onErrorCalled = true
+	})
+
+	c.Visit(ts.URL + "/no_content")
+
+	if onErrorCalled {
+		t.Error("OnError called for 204 No Content response")
+	}
+	if !onResponseCalled {
+		t.Error("OnResponse not called for 204 No Content response")
 	}
 }
 
