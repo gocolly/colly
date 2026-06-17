@@ -53,14 +53,16 @@ type Request struct {
 }
 
 type serializableRequest struct {
-	URL     string
-	Method  string
-	Depth   int
-	Body    []byte
-	ID      uint32
-	Ctx     map[string]interface{}
-	Headers http.Header
-	Host    string
+	URL                       string
+	Method                    string
+	Depth                     int
+	Body                      []byte
+	ID                        uint32
+	Ctx                       map[string]interface{}
+	Headers                   http.Header
+	Host                      string
+	ProxyURL                  string
+	ResponseCharacterEncoding string
 }
 
 // New creates a new request with the context of the original request
@@ -183,15 +185,20 @@ func (r *Request) Marshal() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Restore the body so that Marshal is idempotent and the request
+		// remains usable (e.g. for a subsequent Do/Retry or Marshal call).
+		r.Body = bytes.NewReader(body)
 	}
 	sr := &serializableRequest{
-		URL:    r.URL.String(),
-		Host:   r.Host,
-		Method: r.Method,
-		Depth:  r.Depth,
-		Body:   body,
-		ID:     r.ID,
-		Ctx:    ctx,
+		URL:                       r.URL.String(),
+		Host:                      r.Host,
+		Method:                    r.Method,
+		Depth:                     r.Depth,
+		Body:                      body,
+		ID:                        r.ID,
+		Ctx:                       ctx,
+		ProxyURL:                  r.ProxyURL,
+		ResponseCharacterEncoding: r.ResponseCharacterEncoding,
 	}
 	if r.Headers != nil {
 		sr.Headers = *r.Headers
