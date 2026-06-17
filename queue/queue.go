@@ -165,7 +165,12 @@ func (q *Queue) loop(c *colly.Collector, requestc chan<- *colly.Request, complet
 			errc <- err
 			break
 		}
-		if size == 0 && active == 0 || !q.running {
+		// Read running under the mutex: Stop() and Run() write it while
+		// holding q.mut, so reading it unlocked here is a data race.
+		q.mut.Lock()
+		running := q.running
+		q.mut.Unlock()
+		if size == 0 && active == 0 || !running {
 			// Terminate when
 			//   1. No active requests
 			//   2. Empty queue

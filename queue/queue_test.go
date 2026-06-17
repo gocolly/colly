@@ -75,6 +75,39 @@ func TestQueue(t *testing.T) {
 	}
 }
 
+// TestQueueStopRace verifies that calling Stop() while Run() is processing
+// queued requests does not trigger a data race on the running field. The loop
+// previously read q.running without holding q.mut while Stop() and Run() wrote
+// it under the mutex. Run with -race to detect the regression.
+func TestQueueStopRace(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(serverHandler))
+	defer server.Close()
+
+	storage := &InMemoryQueueStorage{MaxSize: 100000}
+	q, err := New(10, storage)
+	if err != nil {
+		t.Fatalf("New() returned an error: %v", err)
+	}
+
+	for i := 0; i < 5000; i++ {
+		if err := q.AddURL(server.URL + "/delay?t=1ms"); err != nil {
+			t.Fatalf("AddURL() returned an error: %v", err)
+		}
+	}
+
+	c := colly.NewCollector(colly.AllowURLRevisit())
+
+	go func() {
+		// Stop the queue while Run() is processing the backlog.
+		time.Sleep(5 * time.Millisecond)
+		q.Stop()
+	}()
+
+	if err := q.Run(c); err != nil {
+		t.Fatalf("Queue.Run() returned an error: %v", err)
+	}
+}
+
 func serverHandler(w http.ResponseWriter, req *http.Request) {
 	if !serverRoute(w, req) {
 		shutdown(w)
