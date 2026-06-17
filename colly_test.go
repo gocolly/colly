@@ -2293,3 +2293,127 @@ func TestRequestMarshalRoundtripHost(t *testing.T) {
 		t.Errorf("Host not preserved: got %q want %q", got.Host, "vhost.example.com")
 	}
 }
+
+func TestRedirectStripsSensitiveHeaders(t *testing.T) {
+	// Target server records the credential headers it receives.
+	var (
+		mu       sync.Mutex
+		gotAuth  string
+		gotCooky string
+	)
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotAuth = r.Header.Get("Authorization")
+		gotCooky = r.Header.Get("Cookie")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	// Cross-host redirector: redirects to a different host:port (the target).
+	crossHost := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	defer crossHost.Close()
+
+	reset := func() {
+		mu.Lock()
+		gotAuth, gotCooky = "", ""
+		mu.Unlock()
+	}
+
+	// (a) cross-host redirect must strip both Authorization and Cookie.
+	func() {
+		reset()
+		c := NewCollector()
+		c.OnRequest(func(r *Request) {
+			r.Headers.Set("Authorization", "Bearer secret")
+			r.Headers.Set("Cookie", "session=secret")
+		})
+		c.Visit(crossHost.URL)
+		mu.Lock()
+		defer mu.Unlock()
+		if gotAuth != "" {
+			t.Errorf("cross-host redirect leaked Authorization: %q", gotAuth)
+		}
+		if gotCooky != "" {
+			t.Errorf("cross-host redirect leaked Cookie: %q", gotCooky)
+		}
+	}()
+
+	// (b) same-host different-port redirect must also strip (strict host:port).
+	func() {
+		reset()
+		samePortRedir := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, target.URL, http.StatusFound)
+		}))
+		defer samePortRedir.Close()
+		c := NewCollector()
+		c.OnRequest(func(r *Request) {
+			r.Headers.Set("Authorization", "Bearer secret")
+			r.Headers.Set("Cookie", "session=secret")
+		})
+		c.Visit(samePortRedir.URL)
+		mu.Lock()
+		defer mu.Unlock()
+		if gotAuth != "" || gotCooky != "" {
+			t.Errorf("different-port redirect leaked credentials: auth=%q cookie=%q", gotAuth, gotCooky)
+		}
+	}()
+
+	// (c) custom redirectHandler installed: stripping must STILL happen.
+	func() {
+		reset()
+		c := NewCollector()
+		c.SetRedirectHandler(func(req *http.Request, via []*http.Request) error {
+			return nil
+		})
+		c.OnRequest(func(r *Request) {
+			r.Headers.Set("Authorization", "Bearer secret")
+			r.Headers.Set("Cookie", "session=secret")
+		})
+		c.Visit(crossHost.URL)
+		mu.Lock()
+		defer mu.Unlock()
+		if gotAuth != "" || gotCooky != "" {
+			t.Errorf("custom redirectHandler bypassed stripping: auth=%q cookie=%q", gotAuth, gotCooky)
+		}
+	}()
+}
+
+func TestRedirectSameOriginKeepsHeaders(t *testing.T) {
+	var (
+		mu      sync.Mutex
+		gotAuth string
+		gotCook string
+	)
+	// Single server: redirects /from to /to on the same host:port.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/from":
+			http.Redirect(w, r, "/to", http.StatusFound)
+		case "/to":
+			mu.Lock()
+			gotAuth = r.Header.Get("Authorization")
+			gotCook = r.Header.Get("Cookie")
+			mu.Unlock()
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer ts.Close()
+
+	c := NewCollector()
+	c.OnRequest(func(r *Request) {
+		r.Headers.Set("Authorization", "Bearer secret")
+		r.Headers.Set("Cookie", "session=secret")
+	})
+	c.Visit(ts.URL + "/from")
+	mu.Lock()
+	defer mu.Unlock()
+	if gotAuth != "Bearer secret" {
+		t.Errorf("same-origin redirect dropped Authorization: got %q", gotAuth)
+	}
+	if gotCook != "session=secret" {
+		t.Errorf("same-origin redirect dropped Cookie: got %q", gotCook)
+	}
+}

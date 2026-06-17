@@ -1509,6 +1509,23 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 			}
 		}
 
+		lastRequest := via[len(via)-1]
+
+		// If the destination changed (host:port comparison is intentionally
+		// strict so a same-host different-port redirect is treated as
+		// cross-origin), strip sensitive credential headers so they are not
+		// leaked to a different origin. This runs unconditionally, including
+		// when a custom redirectHandler is set, so a custom handler can never
+		// re-enable the leak. Note: arbitrary caller-supplied auth headers
+		// (e.g. X-Api-Key) cannot be stripped generically and remain the
+		// caller's responsibility.
+		if req.URL.Host != lastRequest.URL.Host {
+			req.Header.Del("Authorization")
+			req.Header.Del("Cookie")
+			req.Header.Del("Cookie2")
+			req.Header.Del("Www-Authenticate")
+		}
+
 		if c.redirectHandler != nil {
 			return c.redirectHandler(req, via)
 		}
@@ -1516,13 +1533,6 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 		// Honor golangs default of maximum of 10 redirects
 		if len(via) >= 10 {
 			return http.ErrUseLastResponse
-		}
-
-		lastRequest := via[len(via)-1]
-
-		// If domain has changed, remove the Authorization-header if it exists
-		if req.URL.Host != lastRequest.URL.Host {
-			req.Header.Del("Authorization")
 		}
 
 		return nil
