@@ -2293,3 +2293,54 @@ func TestRequestMarshalRoundtripHost(t *testing.T) {
 		t.Errorf("Host not preserved: got %q want %q", got.Host, "vhost.example.com")
 	}
 }
+
+func TestManualGzipDecodeClearsStaleHeaders(t *testing.T) {
+	const payload = "hello gzip world"
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		if _, err := gz.Write([]byte(payload)); err != nil {
+			t.Errorf("gzip write failed: %v", err)
+		}
+		gz.Close()
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
+		w.WriteHeader(http.StatusOK)
+		w.Write(buf.Bytes())
+	}))
+	defer ts.Close()
+
+	var (
+		gotBody string
+		gotResp *Response
+	)
+	c := NewCollector()
+	c.OnRequest(func(r *Request) {
+		// Force manual decode by advertising gzip ourselves; Go's transport
+		// will not transparently decompress when Accept-Encoding is set
+		// explicitly.
+		r.Headers.Set("Accept-Encoding", "gzip")
+	})
+	c.OnResponse(func(resp *Response) {
+		gotBody = string(resp.Body)
+		gotResp = resp
+	})
+	if err := c.Visit(ts.URL); err != nil {
+		t.Fatalf("visit failed: %v", err)
+	}
+
+	if gotBody != payload {
+		t.Errorf("body not decompressed: got %q want %q", gotBody, payload)
+	}
+	if gotResp == nil {
+		t.Fatal("no response captured")
+	}
+	if ce := gotResp.Headers.Get("Content-Encoding"); ce != "" {
+		t.Errorf("Content-Encoding should be cleared after manual gzip decode, got %q", ce)
+	}
+	if cl := gotResp.Headers.Get("Content-Length"); cl != "" {
+		t.Errorf("Content-Length should be cleared after manual gzip decode, got %q", cl)
+	}
+}
