@@ -89,12 +89,20 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		if !detectCharset {
 			return nil
 		}
-		d := chardet.NewTextDetector()
-		r, err := d.DetectBest(r.Body)
-		if err != nil {
-			return err
+		// DetermineEncoding inspects the BOM, then the HTML <meta> charset
+		// declaration, and finally falls back to statistical detection. This
+		// is more reliable than chardet alone, which ignores the BOM and the
+		// <meta> tag and mislabels single-byte encodings.
+		_, name, _ := charset.DetermineEncoding(r.Body, contentType)
+		if name == "" {
+			d := chardet.NewTextDetector()
+			r, err := d.DetectBest(r.Body)
+			if err != nil {
+				return err
+			}
+			name = r.Charset
 		}
-		contentType = "text/plain; charset=" + r.Charset
+		contentType = "text/plain; charset=" + name
 	}
 	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
 		return nil

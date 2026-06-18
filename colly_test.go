@@ -753,6 +753,46 @@ func TestCollectorContentSniffing(t *testing.T) {
 	}
 }
 
+func TestCollectorDetectCharsetFromMeta(t *testing.T) {
+	// Body is encoded in windows-1251 and declares its charset only via a
+	// <meta http-equiv> tag. The HTTP Content-Type header has no charset, so
+	// detection must honor the <meta> declaration. "Прометей" in
+	// windows-1251 is the byte sequence below.
+	cyrillic := []byte{0xCF, 0xF0, 0xEE, 0xEC, 0xE5, 0xF2, 0xE5, 0xE9} // Прометей
+	body := []byte(`<!DOCTYPE html>
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1251">
+<title>`)
+	body = append(body, cyrillic...)
+	body = append(body, []byte(`</title></head><body>`)...)
+	body = append(body, cyrillic...)
+	body = append(body, []byte(`</body></html>`)...)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
+	}))
+	defer ts.Close()
+
+	c := NewCollector(DetectCharset())
+
+	called := false
+	c.OnResponse(func(r *Response) {
+		called = true
+		if !strings.Contains(string(r.Body), "Прометей") {
+			t.Errorf("decoded body does not contain expected Cyrillic text, got: %q", string(r.Body))
+		}
+	})
+
+	if err := c.Visit(ts.URL); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Error("OnResponse was not called")
+	}
+}
+
 func TestCollectorURLRevisit(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
