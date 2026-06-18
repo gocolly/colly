@@ -1136,6 +1136,40 @@ func TestRedirectWithDisallowedURLs(t *testing.T) {
 	c.Visit(ts.URL + "/redirect")
 }
 
+func TestCloneRedirectUsesCloneFilters(t *testing.T) {
+	var blockedReached atomic.Bool
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/a":
+			http.Redirect(w, r, "/blocked", http.StatusFound)
+		case "/blocked":
+			blockedReached.Store(true)
+			w.Write([]byte("blocked content"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	parent := NewCollector()
+	// Parent has no filters and would happily follow the redirect.
+
+	clone := parent.Clone()
+	clone.DisallowedURLFilters = []*regexp.Regexp{regexp.MustCompile("/blocked")}
+
+	clone.OnResponse(func(r *Response) {
+		if strings.HasSuffix(r.Request.URL.Path, "/blocked") {
+			t.Error("clone followed redirect to disallowed URL")
+		}
+	})
+
+	clone.Visit(ts.URL + "/a")
+
+	if blockedReached.Load() {
+		t.Error("clone reached /blocked despite its DisallowedURLFilters")
+	}
+}
+
 func TestBaseTag(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()

@@ -1421,7 +1421,7 @@ func (c *Collector) Cookies(URL string) []*http.Cookie {
 // HTTP backend, robots.txt cache and cookie jar are shared
 // between collectors.
 func (c *Collector) Clone() *Collector {
-	return &Collector{
+	clone := &Collector{
 		AllowedDomains:         c.AllowedDomains,
 		AllowURLRevisit:        c.AllowURLRevisit,
 		CacheDir:               c.CacheDir,
@@ -1442,7 +1442,6 @@ func (c *Collector) Clone() *Collector {
 		TraceHTTP:              c.TraceHTTP,
 		Context:                c.Context,
 		store:                  c.store,
-		backend:                c.backend,
 		debugger:               c.debugger,
 		Async:                  c.Async,
 		redirectHandler:        c.redirectHandler,
@@ -1456,6 +1455,28 @@ func (c *Collector) Clone() *Collector {
 		robotsMap:              c.robotsMap,
 		wg:                     &sync.WaitGroup{},
 	}
+
+	// The clone needs its own httpBackend so that its CheckRedirect closure is
+	// bound to the clone, not the parent. Otherwise the clone's filters,
+	// AllowURLRevisit and store would be ignored when following redirects.
+	// The underlying Transport, cookie jar and limit rules remain shared, so
+	// connection pooling and cookies still behave as documented.
+	clone.backend = &httpBackend{
+		LimitRules: c.backend.LimitRules,
+		lock:       c.backend.lock,
+	}
+	if c.backend.Client != nil {
+		clone.backend.Client = &http.Client{
+			Transport: c.backend.Client.Transport,
+			Jar:       c.backend.Client.Jar,
+			Timeout:   c.backend.Client.Timeout,
+		}
+	} else {
+		clone.backend.Client = &http.Client{}
+	}
+	clone.backend.Client.CheckRedirect = clone.checkRedirectFunc()
+
+	return clone
 }
 
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
