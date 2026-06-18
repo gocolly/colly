@@ -659,6 +659,43 @@ func TestCollectorVisitWithDisallowedDomains(t *testing.T) {
 	}
 }
 
+func TestCollectorIsDomainAllowedTrailingDot(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func() *Collector
+		domain    string
+		wantAllow bool
+	}{
+		{
+			name:      "disallowed domain blocked",
+			setup:     func() *Collector { return NewCollector(DisallowedDomains("example.com")) },
+			domain:    "example.com",
+			wantAllow: false,
+		},
+		{
+			name:      "disallowed domain blocked with trailing dot",
+			setup:     func() *Collector { return NewCollector(DisallowedDomains("example.com")) },
+			domain:    "example.com.",
+			wantAllow: false,
+		},
+		{
+			name:      "allowed domain permitted with trailing dot",
+			setup:     func() *Collector { return NewCollector(AllowedDomains("example.com")) },
+			domain:    "example.com.",
+			wantAllow: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := tt.setup()
+			if got := c.isDomainAllowed(tt.domain); got != tt.wantAllow {
+				t.Errorf("isDomainAllowed(%q) = %v, want %v", tt.domain, got, tt.wantAllow)
+			}
+		})
+	}
+}
+
 func TestCollectorVisitResponseHeaders(t *testing.T) {
 	ts := newTestServer()
 	defer ts.Close()
