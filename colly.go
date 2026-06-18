@@ -234,6 +234,8 @@ var (
 	ErrNoURLFiltersMatch = errors.New("No URLFilters match")
 	// ErrRobotsTxtBlocked is the error type for robots.txt errors
 	ErrRobotsTxtBlocked = errors.New("URL blocked by robots.txt")
+	// ErrRobotsTxtFetchFailed is the error type for robots.txt fetch failures
+	ErrRobotsTxtFetchFailed = errors.New("robots.txt fetch failed")
 	// ErrNoCookieJar is the error type for missing cookie jar
 	ErrNoCookieJar = errors.New("Cookie jar is not available")
 	// ErrNoPattern is the error type for LimitRules without patterns
@@ -677,6 +679,23 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	req = req.WithContext(context.WithValue(c.Context, CheckRevisitKey, checkRevisit))
 
 	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
+		if errors.Is(err, ErrRobotsTxtFetchFailed) {
+			if ctx == nil {
+				ctx = NewContext()
+			}
+			request := &Request{
+				URL:       req.URL,
+				Headers:   &req.Header,
+				Host:      req.Host,
+				Ctx:       ctx,
+				Depth:     depth,
+				Method:    method,
+				Body:      requestData,
+				collector: c,
+				ID:        c.requestCount.Add(1),
+			}
+			return c.handleOnError(nil, err, request, ctx)
+		}
 		return err
 	}
 	u = parsedURL.String()
@@ -877,13 +896,13 @@ func (c *Collector) checkRobots(u *url.URL) error {
 
 		resp, err := c.backend.Client.Do(req)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrRobotsTxtFetchFailed, err)
 		}
 		defer resp.Body.Close()
 
 		robot, err = robotstxt.FromResponse(resp)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrRobotsTxtFetchFailed, err)
 		}
 		c.lock.Lock()
 		c.robotsMap[u.Host] = robot
