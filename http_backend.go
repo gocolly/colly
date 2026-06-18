@@ -205,7 +205,7 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 		r.waitChan <- true
 		defer func(r *LimitRule) {
 			randomDelay := time.Duration(0)
-			if r.RandomDelay != 0 {
+			if r.RandomDelay > 0 {
 				randomDelay = time.Duration(rand.Int63n(int64(r.RandomDelay)))
 			}
 			time.Sleep(r.Delay + randomDelay)
