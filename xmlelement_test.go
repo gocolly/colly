@@ -16,6 +16,7 @@ package colly_test
 
 import (
 	"github.com/antchfx/htmlquery"
+	"github.com/antchfx/xmlquery"
 	"github.com/gocolly/colly/v2"
 	"reflect"
 	"strings"
@@ -119,5 +120,31 @@ func TestChildAttrs(t *testing.T) {
 		if !(attr == "list-item-1" || attr == "list-item-2") {
 			t.Fatalf("failed child attributes values test: %s != list-item-(1 or 2)", attr)
 		}
+	}
+}
+
+const xmlNamespacePage = `<root xmlns:ns="urn:example"><item ns:id="42" id="local">text</item></root>`
+
+func TestXMLNamespacedAttr(t *testing.T) {
+	resp := &colly.Response{StatusCode: 200, Body: []byte(xmlNamespacePage)}
+	doc, err := xmlquery.Parse(strings.NewReader(xmlNamespacePage))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	item := colly.NewXMLElementFromXMLNode(resp, xmlquery.FindOne(doc, "//item"))
+	if got := item.Attr("id"); got != "local" {
+		t.Fatalf(`Attr("id") = %q, want "local"`, got)
+	}
+	if got := item.Attr("ns:id"); got != "42" {
+		t.Fatalf(`Attr("ns:id") = %q, want "42"`, got)
+	}
+
+	root := colly.NewXMLElementFromXMLNode(resp, xmlquery.FindOne(doc, "/root"))
+	if got := root.ChildAttr("//item", "id"); got != "local" {
+		t.Fatalf(`ChildAttr("//item", "id") = %q, want "local"`, got)
+	}
+	if got := root.ChildAttr("//item", "ns:id"); got != "42" {
+		t.Fatalf(`ChildAttr("//item", "ns:id") = %q, want "42"`, got)
 	}
 }

@@ -67,6 +67,15 @@ func NewXMLElementFromXMLNode(resp *Response, s *xmlquery.Node) *XMLElement {
 	}
 }
 
+// xmlAttrName returns an xmlquery attribute's name as "prefix:local" when it is
+// namespaced, or its local name when it is not.
+func xmlAttrName(a xmlquery.Attr) string {
+	if a.Name.Space != "" {
+		return a.Name.Space + ":" + a.Name.Local
+	}
+	return a.Name.Local
+}
+
 // Attr returns the selected attribute of a HTMLElement or empty string
 // if no attribute found
 func (h *XMLElement) Attr(k string) string {
@@ -77,7 +86,17 @@ func (h *XMLElement) Attr(k string) string {
 			}
 		}
 	} else {
-		for _, a := range h.attributes.([]xmlquery.Attr) {
+		attrs := h.attributes.([]xmlquery.Attr)
+		// Prefer an exact match on the full "prefix:local" name so a namespaced
+		// attribute can be requested and is not confused with an unprefixed one
+		// sharing its local name.
+		for _, a := range attrs {
+			if xmlAttrName(a) == k {
+				return a.Value
+			}
+		}
+		// Fall back to the bare local name for backward compatibility.
+		for _, a := range attrs {
 			if a.Name.Local == k {
 				return a.Value
 			}
@@ -120,6 +139,11 @@ func (h *XMLElement) ChildAttr(xpathQuery, attrName string) string {
 		child := xmlquery.FindOne(h.DOM.(*xmlquery.Node), xpathQuery)
 		if child != nil {
 			for _, attr := range child.Attr {
+				if xmlAttrName(attr) == attrName {
+					return strings.TrimSpace(attr.Value)
+				}
+			}
+			for _, attr := range child.Attr {
 				if attr.Name.Local == attrName {
 					return strings.TrimSpace(attr.Value)
 				}
@@ -145,7 +169,7 @@ func (h *XMLElement) ChildAttrs(xpathQuery, attrName string) []string {
 	} else {
 		xmlquery.FindEach(h.DOM.(*xmlquery.Node), xpathQuery, func(i int, child *xmlquery.Node) {
 			for _, attr := range child.Attr {
-				if attr.Name.Local == attrName {
+				if xmlAttrName(attr) == attrName || attr.Name.Local == attrName {
 					res = append(res, strings.TrimSpace(attr.Value))
 				}
 			}
