@@ -100,17 +100,20 @@ func (q *Queue) AddURL(URL string) error {
 
 // AddRequest adds a new Request to the queue
 func (q *Queue) AddRequest(r *colly.Request) error {
-	q.mut.Lock()
-	waken := q.wake != nil
-	q.mut.Unlock()
-	if !waken {
-		return q.storeRequest(r)
-	}
-	err := q.storeRequest(r)
-	if err != nil {
+	if err := q.storeRequest(r); err != nil {
 		return err
 	}
-	q.wake <- struct{}{}
+	q.mut.Lock()
+	defer q.mut.Unlock()
+	if q.wake != nil {
+		// Wake the loop if it is running, but never block: the loop may
+		// have already exited (leaving wake set previously caused this
+		// send to block forever).
+		select {
+		case q.wake <- struct{}{}:
+		default:
+		}
+	}
 	return nil
 }
 
@@ -147,7 +150,14 @@ func (q *Queue) Run(c *colly.Collector) error {
 	}
 	go q.loop(c, requestc, complete, errc)
 	defer close(requestc)
-	return <-errc
+	err := <-errc
+	// Reset the lifecycle state so the queue can be run again and so that
+	// a late AddRequest does not block on a wake channel nobody reads.
+	q.mut.Lock()
+	q.wake = nil
+	q.running = false
+	q.mut.Unlock()
+	return err
 }
 
 // Stop will stop the running queue

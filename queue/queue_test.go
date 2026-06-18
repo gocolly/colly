@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"fmt"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -72,6 +73,62 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("wrong Queue implementation: "+
 			"items = %d, requests = %d, success = %d, failure = %d",
 			items, requests, success, failure)
+	}
+}
+
+// TestQueueRunReset verifies that after Run() returns the queue is left in a
+// reusable state: a late AddRequest must not block forever on the wake channel
+// and a second Run() must not panic with "cannot call duplicate Queue.Run".
+// Reference: https://github.com/gocolly/colly/issues/740
+func TestQueueRunReset(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(serverHandler))
+	defer server.Close()
+
+	storage := &InMemoryQueueStorage{MaxSize: 100000}
+	q, err := New(2, storage)
+	if err != nil {
+		t.Fatalf("New() returned an error: %v", err)
+	}
+
+	c := colly.NewCollector(colly.AllowURLRevisit())
+
+	if err := q.AddURL(server.URL + "/delay?t=1ms"); err != nil {
+		t.Fatalf("AddURL() returned an error: %v", err)
+	}
+	if err := q.Run(c); err != nil {
+		t.Fatalf("Queue.Run() returned an error: %v", err)
+	}
+
+	// A late AddRequest after Run() returned must not block forever.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = q.AddURL(server.URL + "/delay?t=1ms")
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("AddRequest after Run() blocked for more than 2 seconds")
+	}
+
+	// A second Run() must not panic.
+	runDone := make(chan error, 1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				runDone <- fmt.Errorf("second Run() panicked: %v", r)
+				return
+			}
+		}()
+		runDone <- q.Run(c)
+	}()
+	select {
+	case err := <-runDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second Queue.Run() did not return within 2 seconds")
 	}
 }
 
