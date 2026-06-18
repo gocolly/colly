@@ -15,15 +15,6 @@ With Colly you can easily extract structured data from websites, which can be us
 [![Twitter URL](https://img.shields.io/badge/twitter-follow-green.svg)](https://twitter.com/gocolly)
 
 
-## Sponsor
-
-**[Swiftproxy](https://www.swiftproxy.net/?ref=colly) – Enterprise Residential Proxy Infrastructure for Scalable Data Access**
-
-Swiftproxy is a high-performance residential proxy network designed for reliable large-scale data collection. Powered by an 80M+ IP pool across 195+ countries, it ensures stable, anonymous, and high-success-rate connections. It integrates seamlessly with tools like Colly to bypass IP blocks and anti-bot systems. Free trial available, plus use code PROXY90 for an exclusive discount.
-
-[![Swiftproxy](assets/swiftproxy.png)](https://www.swiftproxy.net/?ref=colly)
-
-
 ## Features
 
 -   Clean API
