@@ -679,16 +679,28 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
 		return err
 	}
+	// Atomically reserve a request slot at this synchronous point, before the
+	// (possibly asynchronous) fetch is dispatched. Reserving here, rather than
+	// relying on the racy Load check in requestCheck, guarantees that no more
+	// than MaxRequests requests are ever made even when many Visits run
+	// concurrently under Async mode. The reserved value also serves as the
+	// request's ID.
+	reqID := c.requestCount.Add(1)
+	if c.MaxRequests > 0 && reqID > c.MaxRequests {
+		// Undo the reservation: the slot is not used.
+		c.requestCount.Add(^uint32(0))
+		return ErrMaxRequests
+	}
 	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
-		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
+		go c.fetch(u, method, depth, requestData, ctx, hdr, req, reqID)
 		return nil
 	}
-	return c.fetch(u, method, depth, requestData, ctx, hdr, req)
+	return c.fetch(u, method, depth, requestData, ctx, hdr, req, reqID)
 }
 
-func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request) error {
+func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ctx *Context, hdr http.Header, req *http.Request, reqID uint32) error {
 	defer c.wg.Done()
 	if ctx == nil {
 		ctx = NewContext()
@@ -702,7 +714,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		Method:    method,
 		Body:      requestData,
 		collector: c,
-		ID:        c.requestCount.Add(1),
+		ID:        reqID,
 	}
 
 	if req.Header.Get("Accept") == "" {
