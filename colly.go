@@ -621,15 +621,17 @@ func (c *Collector) UnmarshalRequest(r []byte) (*Request, error) {
 	}
 
 	return &Request{
-		Method:    req.Method,
-		URL:       u,
-		Depth:     req.Depth,
-		Body:      bytes.NewReader(req.Body),
-		Ctx:       ctx,
-		ID:        c.requestCount.Add(1),
-		Headers:   &req.Headers,
-		Host:      req.Host,
-		collector: c,
+		Method:                    req.Method,
+		URL:                       u,
+		Depth:                     req.Depth,
+		Body:                      bytes.NewReader(req.Body),
+		Ctx:                       ctx,
+		ID:                        c.requestCount.Add(1),
+		Headers:                   &req.Headers,
+		Host:                      req.Host,
+		ProxyURL:                  req.ProxyURL,
+		ResponseCharacterEncoding: req.ResponseCharacterEncoding,
+		collector:                 c,
 	}, nil
 }
 

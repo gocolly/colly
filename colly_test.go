@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -2291,5 +2292,94 @@ func TestRequestMarshalRoundtripHost(t *testing.T) {
 	}
 	if got.Host != "vhost.example.com" {
 		t.Errorf("Host not preserved: got %q want %q", got.Host, "vhost.example.com")
+	}
+}
+
+func TestRequestMarshalIsIdempotent(t *testing.T) {
+	c := NewCollector()
+	u, _ := url.Parse("http://example.com/foo")
+	req := &Request{
+		Method:    "POST",
+		URL:       u,
+		Ctx:       NewContext(),
+		Headers:   &http.Header{},
+		Body:      bytes.NewReader([]byte("payload-body")),
+		collector: c,
+	}
+
+	first, err := req.Marshal()
+	if err != nil {
+		t.Fatalf("first marshal failed: %v", err)
+	}
+	second, err := req.Marshal()
+	if err != nil {
+		t.Fatalf("second marshal failed: %v", err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Errorf("Marshal is not idempotent:\nfirst:  %s\nsecond: %s", first, second)
+	}
+
+	// The original body must remain readable after Marshal.
+	if req.Body == nil {
+		t.Fatal("request body was destroyed by Marshal")
+	}
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		t.Fatalf("reading body after marshal failed: %v", err)
+	}
+	if string(body) != "payload-body" {
+		t.Errorf("body not preserved after Marshal: got %q want %q", string(body), "payload-body")
+	}
+}
+
+func TestRequestMarshalRoundtripFidelity(t *testing.T) {
+	c := NewCollector()
+	u, _ := url.Parse("http://example.com/foo")
+	ctx := NewContext()
+	ctx.Put("k", "v")
+	headers := http.Header{}
+	headers.Set("X-Test", "yes")
+	req := &Request{
+		Method:                    "POST",
+		URL:                       u,
+		Host:                      "vhost.example.com",
+		Depth:                     3,
+		Ctx:                       ctx,
+		Headers:                   &headers,
+		Body:                      bytes.NewReader([]byte("payload-body")),
+		ProxyURL:                  "http://proxy.example.com:8080",
+		ResponseCharacterEncoding: "windows-1252",
+		collector:                 c,
+	}
+
+	data, err := req.Marshal()
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	got, err := c.UnmarshalRequest(data)
+	if err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+
+	if got.ProxyURL != "http://proxy.example.com:8080" {
+		t.Errorf("ProxyURL not preserved: got %q", got.ProxyURL)
+	}
+	if got.ResponseCharacterEncoding != "windows-1252" {
+		t.Errorf("ResponseCharacterEncoding not preserved: got %q", got.ResponseCharacterEncoding)
+	}
+	if got.Method != "POST" {
+		t.Errorf("Method not preserved: got %q", got.Method)
+	}
+	if got.Depth != 3 {
+		t.Errorf("Depth not preserved: got %d", got.Depth)
+	}
+	if got.Host != "vhost.example.com" {
+		t.Errorf("Host not preserved: got %q", got.Host)
+	}
+	if got.Headers.Get("X-Test") != "yes" {
+		t.Errorf("Headers not preserved: got %q", got.Headers.Get("X-Test"))
+	}
+	if got.Ctx.Get("k") != "v" {
+		t.Errorf("Ctx not preserved: got %q", got.Ctx.Get("k"))
 	}
 }
