@@ -897,7 +897,11 @@ func (c *Collector) checkRobots(u *url.URL) error {
 
 	eu := u.EscapedPath()
 	if u.RawQuery != "" {
-		eu += "?" + u.Query().Encode()
+		// robots.txt path matching treats the path+query as an ordered,
+		// opaque string. u.Query().Encode() alphabetically re-sorts the
+		// query keys, which can prevent Disallow rules that include a query
+		// string from matching. Use the on-wire query verbatim instead.
+		eu += "?" + u.RawQuery
 	}
 	if !uaGroup.Test(eu) {
 		return ErrRobotsTxtBlocked
