@@ -212,6 +212,7 @@ type key int
 const (
 	ProxyURLKey key = iota
 	CheckRevisitKey
+	redirectCollectorKey
 )
 
 // The prefix for environment variables of Colly settings
@@ -674,7 +675,9 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	// note: once 1.13 is minimum supported Go version,
 	// replace this with http.NewRequestWithContext
-	req = req.WithContext(context.WithValue(c.Context, CheckRevisitKey, checkRevisit))
+	reqCtx := context.WithValue(c.Context, CheckRevisitKey, checkRevisit)
+	reqCtx = context.WithValue(reqCtx, redirectCollectorKey, c)
+	req = req.WithContext(reqCtx)
 
 	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
 		return err
@@ -1460,73 +1463,80 @@ func (c *Collector) Clone() *Collector {
 
 func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
-		if err := c.checkFilters(req.URL.String(), req.URL.Hostname()); err != nil {
-			return fmt.Errorf("Not following redirect to %q: %w", req.URL, err)
+		if requestCollector, ok := req.Context().Value(redirectCollectorKey).(*Collector); ok {
+			return requestCollector.checkRedirect(req, via)
 		}
-
-		// Page may set cookies and respond with a redirect to itself.
-		// Some example of such redirect "cycles":
-		//
-		// example.com -(set cookie)-> example.com
-		// example.com -> auth.example.com -(set cookie)-> example.com
-		// www.example.com -> example.com -(set cookie)-> example.com
-		//
-		// We must not return "already visited" error in such cases.
-		// So ignore redirect cycles when checking for URL revisit.
-		redirectCycle := false
-		normalizedURL := normalizeURL(req.URL.String())
-		for _, viaReq := range via {
-			viaURL := normalizeURL(viaReq.URL.String())
-			if viaURL == normalizedURL {
-				redirectCycle = true
-				break
-			}
-		}
-
-		if !c.AllowURLRevisit && !redirectCycle {
-			var body io.ReadCloser
-			if req.GetBody != nil {
-				var err error
-				body, err = req.GetBody()
-				if err != nil {
-					return err
-				}
-				defer body.Close()
-			}
-			uHash := requestHash(req.URL.String(), body)
-			visited, err := c.store.IsVisited(uHash)
-			if err != nil {
-				return err
-			}
-			if visited {
-				if checkRevisit, ok := req.Context().Value(CheckRevisitKey).(bool); !ok || checkRevisit {
-					return &AlreadyVisitedError{req.URL}
-				}
-			}
-			err = c.store.Visited(uHash)
-			if err != nil {
-				return err
-			}
-		}
-
-		if c.redirectHandler != nil {
-			return c.redirectHandler(req, via)
-		}
-
-		// Honor golangs default of maximum of 10 redirects
-		if len(via) >= 10 {
-			return http.ErrUseLastResponse
-		}
-
-		lastRequest := via[len(via)-1]
-
-		// If domain has changed, remove the Authorization-header if it exists
-		if req.URL.Host != lastRequest.URL.Host {
-			req.Header.Del("Authorization")
-		}
-
-		return nil
+		return c.checkRedirect(req, via)
 	}
+}
+
+func (c *Collector) checkRedirect(req *http.Request, via []*http.Request) error {
+	if err := c.checkFilters(req.URL.String(), req.URL.Hostname()); err != nil {
+		return fmt.Errorf("Not following redirect to %q: %w", req.URL, err)
+	}
+
+	// Page may set cookies and respond with a redirect to itself.
+	// Some example of such redirect "cycles":
+	//
+	// example.com -(set cookie)-> example.com
+	// example.com -> auth.example.com -(set cookie)-> example.com
+	// www.example.com -> example.com -(set cookie)-> example.com
+	//
+	// We must not return "already visited" error in such cases.
+	// So ignore redirect cycles when checking for URL revisit.
+	redirectCycle := false
+	normalizedURL := normalizeURL(req.URL.String())
+	for _, viaReq := range via {
+		viaURL := normalizeURL(viaReq.URL.String())
+		if viaURL == normalizedURL {
+			redirectCycle = true
+			break
+		}
+	}
+
+	if !c.AllowURLRevisit && !redirectCycle {
+		var body io.ReadCloser
+		if req.GetBody != nil {
+			var err error
+			body, err = req.GetBody()
+			if err != nil {
+				return err
+			}
+			defer body.Close()
+		}
+		uHash := requestHash(req.URL.String(), body)
+		visited, err := c.store.IsVisited(uHash)
+		if err != nil {
+			return err
+		}
+		if visited {
+			if checkRevisit, ok := req.Context().Value(CheckRevisitKey).(bool); !ok || checkRevisit {
+				return &AlreadyVisitedError{req.URL}
+			}
+		}
+		err = c.store.Visited(uHash)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.redirectHandler != nil {
+		return c.redirectHandler(req, via)
+	}
+
+	// Honor golangs default of maximum of 10 redirects
+	if len(via) >= 10 {
+		return http.ErrUseLastResponse
+	}
+
+	lastRequest := via[len(via)-1]
+
+	// If domain has changed, remove the Authorization-header if it exists
+	if req.URL.Host != lastRequest.URL.Host {
+		req.Header.Del("Authorization")
+	}
+
+	return nil
 }
 
 func (c *Collector) parseSettingsFromEnv() {
