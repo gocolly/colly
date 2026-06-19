@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -72,6 +73,45 @@ func TestQueue(t *testing.T) {
 		t.Fatalf("wrong Queue implementation: "+
 			"items = %d, requests = %d, success = %d, failure = %d",
 			items, requests, success, failure)
+	}
+}
+
+func TestAddRequestAfterRunReturns(t *testing.T) {
+	q, err := New(1, &InMemoryQueueStorage{MaxSize: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Run(colly.NewCollector()); err != nil {
+		t.Fatalf("Queue.Run() returned an error: %v", err)
+	}
+
+	u, err := url.Parse("http://example.test/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- q.AddRequest(&colly.Request{
+			URL:    u,
+			Method: "GET",
+		})
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("AddRequest() returned an error: %v", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("AddRequest() blocked after Queue.Run() returned")
+	}
+
+	size, err := q.Size()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != 1 {
+		t.Fatalf("queue size = %d, want 1", size)
 	}
 }
 
