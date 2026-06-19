@@ -16,7 +16,9 @@ package colly
 
 import (
 	"strconv"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestContextIteration(t *testing.T) {
@@ -56,5 +58,47 @@ func TestContextClone(t *testing.T) {
 		if v != ctx.GetAny(strconv.Itoa(v)).(int) {
 			t.Fatal("value not equal")
 		}
+	}
+}
+
+// TestContextCloneConcurrentWriter exercises Context.Clone while another
+// goroutine continuously writes to the same Context. The previous
+// implementation called c.ForEach inside its own RLock, taking a second
+// RLock on the same mutex; once a writer was queued between those two
+// RLock calls, sync.RWMutex starved the second RLock to prevent writer
+// starvation, deadlocking Clone. The test fails by timing out.
+func TestContextCloneConcurrentWriter(t *testing.T) {
+	ctx := NewContext()
+	for i := 0; i < 100; i++ {
+		ctx.Put(strconv.Itoa(i), i)
+	}
+
+	const iterations = 500
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterations; i++ {
+			clone := ctx.Clone()
+			if got := len(clone.ForEach(func(string, interface{}) interface{} { return nil })); got < 100 {
+				t.Errorf("clone lost entries: got %d, want >=100", got)
+				return
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterations; i++ {
+			ctx.Put("writer", i)
+		}
+	}()
+
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Context.Clone deadlocked under a concurrent writer")
 	}
 }

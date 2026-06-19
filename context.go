@@ -90,10 +90,13 @@ func (c *Context) ForEach(fn func(k string, v interface{}) interface{}) []interf
 func (c *Context) Clone() *Context {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
+	// Iterate c.contextMap directly instead of via ForEach. ForEach takes
+	// c.lock.RLock again, which deadlocks once a writer is queued between
+	// the two RLock calls — sync.RWMutex deliberately starves additional
+	// readers while a writer is waiting to prevent writer starvation.
 	newCtx := NewContext()
-	c.ForEach(func(key string, value interface{}) interface{} {
-		newCtx.Put(key, value)
-		return nil
-	})
+	for k, v := range c.contextMap {
+		newCtx.contextMap[k] = v
+	}
 	return newCtx
 }
