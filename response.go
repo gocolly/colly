@@ -66,14 +66,7 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 	if len(r.Body) == 0 {
 		return nil
 	}
-	if defaultEncoding != "" {
-		tmpBody, err := encodeBytes(r.Body, "text/plain; charset="+defaultEncoding)
-		if err != nil {
-			return err
-		}
-		r.Body = tmpBody
-		return nil
-	}
+
 	contentType := strings.ToLower(r.Headers.Get("Content-Type"))
 
 	if strings.Contains(contentType, "image/") ||
@@ -82,6 +75,15 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		strings.Contains(contentType, "font/") {
 		// These MIME types should not have textual data.
 
+		return nil
+	}
+
+	if defaultEncoding != "" {
+		tmpBody, err := encodeBytes(r.Body, "text/plain; charset="+defaultEncoding)
+		if err != nil {
+			return err
+		}
+		r.Body = tmpBody
 		return nil
 	}
 
