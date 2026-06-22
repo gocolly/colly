@@ -674,7 +674,13 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	}
 	// note: once 1.13 is minimum supported Go version,
 	// replace this with http.NewRequestWithContext
-	req = req.WithContext(context.WithValue(c.Context, CheckRevisitKey, checkRevisit))
+	// Place a *string holder in the context so the proxy URL chosen by the
+	// ProxyFunc survives net/http's send() forkReq (triggered by Client.Timeout).
+	// The fork shallow-copies the request and shares the context pointer,
+	// so pointer writes through the holder remain visible on the original req.
+	req = req.WithContext(context.WithValue(
+		context.WithValue(c.Context, CheckRevisitKey, checkRevisit),
+		ProxyURLKey, new(string)))
 
 	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
 		return err
@@ -738,8 +744,8 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 		return !request.abort
 	}
 	response, err := c.backend.Cache(req, c.MaxBodySize, checkRequestHeadersFunc, checkResponseHeadersFunc, c.CacheDir, c.CacheExpiration)
-	if proxyURL, ok := req.Context().Value(ProxyURLKey).(string); ok {
-		request.ProxyURL = proxyURL
+	if proxyURL, ok := req.Context().Value(ProxyURLKey).(*string); ok {
+		request.ProxyURL = *proxyURL
 	}
 	if err := c.handleOnError(response, err, request, ctx); err != nil {
 		return err
@@ -748,6 +754,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	response.Ctx = ctx
 	response.Request = request
 	response.Trace = hTrace
+	response.ProxyURL = request.ProxyURL
 
 	err = response.fixCharset(c.DetectCharset, request.ResponseCharacterEncoding)
 	if err != nil {
@@ -1109,7 +1116,23 @@ func (c *Collector) SetProxy(proxyURL string) error {
 // The proxy type is determined by the URL scheme. "http"
 // and "socks5" are supported. If the scheme is empty,
 // "http" is assumed.
-func (c *Collector) SetProxyFunc(p ProxyFunc) {
+func (c *Collector) SetProxyFunc(f ProxyFunc) {
+
+	var p ProxyFunc = func(pr *http.Request) (*url.URL, error) {
+		// Capture the context before invoking the user's f. Legacy custom
+		// ProxyFuncs may do *pr = *pr.WithContext(WithValue(..., ProxyURLKey, "...")),
+		// which shadows the holder on pr but leaves the original chain (and
+		// our *string holder) reachable through origCtx.
+		origCtx := pr.Context()
+		proxyURL, err := f(pr)
+		if proxyURL != nil {
+			if h, _ := origCtx.Value(ProxyURLKey).(*string); h != nil {
+				*h = proxyURL.String()
+			}
+		}
+		return proxyURL, err
+	}
+
 	t, ok := c.backend.Client.Transport.(*http.Transport)
 	if c.backend.Client.Transport != nil && ok {
 		t.Proxy = p
@@ -1340,6 +1363,9 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	}
 	if response.Ctx == nil {
 		response.Ctx = request.Ctx
+	}
+	if response.ProxyURL == "" {
+		response.ProxyURL = request.ProxyURL
 	}
 	for _, f := range c.errorCallbacks {
 		f(response, err)
