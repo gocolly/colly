@@ -261,7 +261,12 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 	}
 	body, err := io.ReadAll(bodyReader)
 	if err != nil {
-		return nil, err
+		// Some servers close gzip streams early while still sending useful
+		// response bytes. Match browser/curl tolerance for unknown-length
+		// responses by returning the bytes already read.
+		if err != io.ErrUnexpectedEOF || res.ContentLength != -1 {
+			return nil, err
+		}
 	}
 	return &Response{
 		StatusCode: res.StatusCode,
