@@ -56,6 +56,12 @@ var ffVersions = []float32{
 	111.0,
 	112.0,
 	113.0,
+	114.0,
+	115.0,
+	116.0,
+	117.0,
+	118.0,
+	119.0,
 }
 
 var chromeVersions = []string{
@@ -211,6 +217,101 @@ var chromeVersions = []string{
 	// https://chromereleases.googleblog.com/2023/05/stable-channel-update-for-desktop_8.html
 	"113.0.5672.92",
 	"113.0.5672.93",
+
+	// https://chromereleases.googleblog.com/2023/05/stable-channel-update-for-desktop_16.html
+	"113.0.5672.126",
+	"113.0.5672.127",
+
+	// https://chromereleases.googleblog.com/2023/05/stable-channel-update-for-desktop_30.html
+	"114.0.5735.90/91",
+	"114.0.5735.91",
+
+	// https://chromereleases.googleblog.com/2023/06/stable-channel-update-for-desktop.html
+	"114.0.5735.106",
+	"114.0.5735.110",
+
+	// https://chromereleases.googleblog.com/2023/06/stable-channel-update-for-desktop_13.html
+	"114.0.5735.133",
+	"114.0.5735.134",
+
+	// https://chromereleases.googleblog.com/2023/06/stable-channel-update-for-desktop_26.html
+	"114.0.5735.198",
+	"114.0.5735.199",
+
+	// https://chromereleases.googleblog.com/2023/07/stable-channel-update-for-desktop.html
+	"115.0.5790.98",
+	"115.0.5790.99",
+
+	// https://chromereleases.googleblog.com/2023/07/stable-channel-update-for-desktop_20.html
+	"115.0.5790.102",
+
+	// https://chromereleases.googleblog.com/2023/07/stable-channel-update-for-desktop_25.html
+	"115.0.5790.110",
+	"115.0.5790.114",
+
+	// https://chromereleases.googleblog.com/2023/08/stable-channel-update-for-desktop.html
+	"115.0.5790.170",
+	"115.0.5790.171",
+
+	// https://chromereleases.googleblog.com/2023/08/stable-channel-update-for-desktop_15.html
+	"116.0.5845.96",
+	"116.0.5845.97",
+
+	// https://chromereleases.googleblog.com/2023/08/chrome-desktop-stable-update.html
+	"116.0.5845.110",
+	"116.0.5845.111",
+
+	// https://chromereleases.googleblog.com/2023/08/stable-channel-update-for-desktop_29.html
+	"116.0.5845.140",
+	"116.0.5845.141",
+
+	// https://chromereleases.googleblog.com/2023/09/stable-channel-update-for-desktop.html
+	"116.0.5845.179",
+	"116.0.5845.180",
+
+	// https://chromereleases.googleblog.com/2023/09/stable-channel-update-for-desktop_11.html
+	"116.0.5845.187",
+	"116.0.5845.188",
+
+	// https://chromereleases.googleblog.com/2023/09/stable-channel-update-for-desktop_12.html
+	"117.0.5938.62",
+	"117.0.5938.63",
+
+	// https://chromereleases.googleblog.com/2023/09/stable-channel-update-for-desktop_15.html
+	"117.0.5938.88",
+	"117.0.5938.89",
+
+	// https://chromereleases.googleblog.com/2023/09/stable-channel-update-for-desktop_21.html
+	"117.0.5938.92",
+
+	// https://chromereleases.googleblog.com/2023/09/stable-channel-update-for-desktop_27.html
+	"117.0.5938.132",
+
+	// https://chromereleases.googleblog.com/2023/10/stable-channel-update-for-desktop.html
+	"117.0.5938.149",
+	"117.0.5938.150",
+
+	// https://chromereleases.googleblog.com/2023/10/stable-channel-update-for-desktop_10.html
+	"118.0.5993.70",
+	"118.0.5993.71",
+
+	// https://chromereleases.googleblog.com/2023/10/stable-channel-update-for-desktop_17.html
+	"118.0.5993.88",
+	"118.0.5993.89",
+
+	// https://chromereleases.googleblog.com/2023/10/stable-channel-update-for-desktop_19.html
+	"118.0.5993.96",
+
+	// https://chromereleases.googleblog.com/2023/10/stable-channel-update-for-desktop_24.html
+	"118.0.5993.117",
+	"118.0.5993.118",
+
+	// https://chromereleases.googleblog.com/2023/10/stable-channel-update-for-desktop_31.html
+	"119.0.6045.105",
+	"119.0.6045.106",
+
+	// https://chromereleases.googleblog.com/2023/11/stable-channel-update-for-desktop.html
+	"119.0.6045.123",
 }
 
 var edgeVersions = []string{
@@ -231,6 +332,12 @@ var edgeVersions = []string{
 	"111.0.0.0,111.0.1661.41",
 	"112.0.0.0,112.0.1722.34",
 	"113.0.0.0,113.0.1774.3",
+	"114.0.0.0,114.0.1823.37",
+	"115.0.0.0,115.0.1901.183",
+	"116.0.0.0,116.0.1938.54",
+	"117.0.0.0,117.0.2045.31",
+	"118.0.0.0,118.0.2088.46",
+	"119.0.0.0,119.0.2151.44",
 }
 
 var operaVersions = []string{
@@ -273,6 +380,75 @@ var operaVersions = []string{
 	"112.0.5615.165,98.0.4759.15",
 	"112.0.5615.165,98.0.4759.21",
 	"112.0.5615.165,98.0.4759.39",
+
+	// https://blogs.opera.com/desktop/changelog-for-99/
+	"113.0.5672.64,99.0.4788.5",
+	"113.0.5672.93,99.0.4788.9",
+	"113.0.5672.127,99.0.4788.13",
+	"113.0.5672.127,99.0.4788.31",
+	"113.0.5672.127,99.0.4788.47",
+	"113.0.5672.127,99.0.4788.65",
+	"113.0.5672.127,99.0.4788.77",
+	"113.0.5672.127,99.0.4788.88",
+
+	// https://blogs.opera.com/desktop/changelog-for-100/
+	"114.0.5720.4,100.0.4809.0",
+	"114.0.5735.9,100.0.4815.0",
+	"114.0.5735.9,100.0.4815.2",
+	"114.0.5735.110,100.0.4815.13",
+	"114.0.5735.199,100.0.4815.30",
+	"114.0.5735.199,100.0.4815.47",
+	"114.0.5735.199,100.0.4815.54",
+	"114.0.5735.199,100.0.4815.76",
+
+	// https://blogs.opera.com/desktop/changelog-for-101/
+	"115.0.5790.3,101.0.4843.0",
+	"115.0.5790.3,101.0.4843.5",
+	"115.0.5790.40,101.0.4843.10",
+	"115.0.5790.40,101.0.4843.13",
+	"115.0.5790.75,101.0.4843.19",
+	"115.0.5790.102,101.0.4843.25",
+	"115.0.5790.102,101.0.4843.33",
+	"115.0.5790.171,101.0.4843.43",
+	"115.0.5790.171,101.0.4843.58",
+
+	// https://blogs.opera.com/desktop/changelog-for-102/
+	"116.0.5829.0,102.0.4871.0",
+	"116.0.5845.42,102.0.4879.0",
+	"116.0.5845.42,102.0.4880.6",
+	"116.0.5845.62,102.0.4880.10",
+	"116.0.5845.97,102.0.4880.16",
+	"116.0.5845.97,102.0.4880.28",
+	"116.0.5845.141,102.0.4880.33",
+	"116.0.5845.141,102.0.4880.38",
+	"116.0.5845.141,102.0.4880.40",
+	"116.0.5845.141,102.0.4880.46",
+	"116.0.5845.141,102.0.4880.51",
+	"116.0.5845.141,102.0.4880.56",
+	"116.0.5845.141,102.0.4880.70",
+	"116.0.5845.141,102.0.4880.78",
+
+	// https://blogs.opera.com/desktop/changelog-for-103/
+	"117.0.5897.3,103.0.4920.0",
+	"117.0.5938.0,103.0.4928.0",
+	"117.0.5938.132,103.0.4928.16",
+	"117.0.5938.132,103.0.4928.26",
+	"117.0.5938.132,103.0.4928.34",
+
+	// https://blogs.opera.com/desktop/changelog-for-104/
+	"118.0.5993.11,104.0.4944.3",
+	"118.0.5993.11,104.0.4944.10",
+	"118.0.5993.71,104.0.4944.18",
+	"118.0.5993.71,104.0.4944.23",
+	"118.0.5993.71,104.0.4944.28",
+	"118.0.5993.96,104.0.4944.33",
+	"118.0.5993.118,104.0.4944.36",
+	"118.0.5993.118,104.0.4944.54",
+
+	// https://blogs.opera.com/desktop/changelog-for-105/
+	"119.0.6034.6,105.0.4963.0",
+	"119.0.6045.9,105.0.4970.6",
+	"119.0.6045.105,105.0.4970.10",
 }
 
 var pixel7AndroidVersions = []string{
