@@ -1888,6 +1888,89 @@ func BenchmarkOnResponse(b *testing.B) {
 	}
 }
 
+func TestRequestHashNormalizedMatchesRequestHash(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		body string
+	}{
+		{
+			name: "adds trailing slash",
+			raw:  "https://example.com",
+		},
+		{
+			name: "keeps path and query",
+			raw:  "https://example.com/articles/12345?category=scraping",
+		},
+		{
+			name: "normalizes single percent sign",
+			raw:  "https://example.com/100%",
+		},
+		{
+			name: "preserves post body",
+			raw:  "https://example.com/login",
+			body: "name=colly",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsedWhatwgURL, err := urlParser.Parse(tt.raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			parsedURL, err := url.Parse(parsedWhatwgURL.Href(false))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got := requestHashNormalized(parsedURL.String(), strings.NewReader(tt.body))
+			want := requestHash(tt.raw, strings.NewReader(tt.body))
+			if got != want {
+				t.Fatalf("requestHashNormalized() = %d, want %d", got, want)
+			}
+		})
+	}
+}
+
+type benchmarkStorage struct{}
+
+func (benchmarkStorage) Init() error {
+	return nil
+}
+
+func (benchmarkStorage) Visited(uint64) error {
+	return nil
+}
+
+func (benchmarkStorage) IsVisited(uint64) (bool, error) {
+	return false, nil
+}
+
+func (benchmarkStorage) Cookies(*url.URL) string {
+	return ""
+}
+
+func (benchmarkStorage) SetCookies(*url.URL, string) {}
+
+func BenchmarkRequestCheck(b *testing.B) {
+	c := NewCollector()
+	c.store = benchmarkStorage{}
+
+	u, err := url.Parse("https://example.com/articles/12345?category=scraping")
+	if err != nil {
+		b.Fatal(err)
+	}
+	urlString := u.String()
+
+	b.ReportAllocs()
+	for n := 0; n < b.N; n++ {
+		if err := c.requestCheck(u, urlString, "GET", nil, 1, true); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func requireSessionCookieSimple(handler http.Handler) http.Handler {
 	const cookieName = "session_id"
 

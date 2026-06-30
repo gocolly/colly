@@ -676,10 +676,10 @@ func (c *Collector) scrape(u, method string, depth int, requestData io.Reader, c
 	// replace this with http.NewRequestWithContext
 	req = req.WithContext(context.WithValue(c.Context, CheckRevisitKey, checkRevisit))
 
-	if err := c.requestCheck(parsedURL, method, req.GetBody, depth, checkRevisit); err != nil {
+	u = parsedURL.String()
+	if err := c.requestCheck(parsedURL, u, method, req.GetBody, depth, checkRevisit); err != nil {
 		return err
 	}
-	u = parsedURL.String()
 	c.wg.Add(1)
 	if c.Async {
 		go c.fetch(u, method, depth, requestData, ctx, hdr, req)
@@ -771,8 +771,7 @@ func (c *Collector) fetch(u, method string, depth int, requestData io.Reader, ct
 	return err
 }
 
-func (c *Collector) requestCheck(parsedURL *url.URL, method string, getBody func() (io.ReadCloser, error), depth int, checkRevisit bool) error {
-	u := parsedURL.String()
+func (c *Collector) requestCheck(parsedURL *url.URL, u, method string, getBody func() (io.ReadCloser, error), depth int, checkRevisit bool) error {
 	if c.MaxDepth > 0 && c.MaxDepth < depth {
 		return ErrMaxDepth
 	}
@@ -804,7 +803,7 @@ func (c *Collector) requestCheck(parsedURL *url.URL, method string, getBody func
 			}
 			defer body.Close()
 		}
-		uHash := requestHash(u, body)
+		uHash := requestHashNormalized(u, body)
 		visited, err := c.store.IsVisited(uHash)
 		if err != nil {
 			return err
@@ -1493,7 +1492,7 @@ func (c *Collector) checkRedirectFunc() func(req *http.Request, via []*http.Requ
 				}
 				defer body.Close()
 			}
-			uHash := requestHash(req.URL.String(), body)
+			uHash := requestHashNormalized(normalizedURL, body)
 			visited, err := c.store.IsVisited(uHash)
 			if err != nil {
 				return err
@@ -1667,10 +1666,14 @@ func normalizeURL(u string) string {
 }
 
 func requestHash(url string, body io.Reader) uint64 {
-	h := fnv.New64a()
 	// reparse the url to fix ambiguities such as
 	// "http://example.com" vs "http://example.com/"
-	io.WriteString(h, normalizeURL(url))
+	return requestHashNormalized(normalizeURL(url), body)
+}
+
+func requestHashNormalized(url string, body io.Reader) uint64 {
+	h := fnv.New64a()
+	io.WriteString(h, url)
 	if body != nil {
 		io.Copy(h, body)
 	}
