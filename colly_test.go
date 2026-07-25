@@ -2210,6 +2210,84 @@ func TestSharedLimitRuleRace(t *testing.T) {
 	wg.Wait()
 }
 
+// TestCallbackRegistrationRace verifies that callbacks can be registered while
+// requests are being processed. Run with the race detector.
+func TestCallbackRegistrationRace(t *testing.T) {
+	const iterations = 1000
+
+	tests := []struct {
+		name     string
+		register func(*Collector)
+		handle   func(*Collector)
+	}{
+		{
+			name:     "request",
+			register: func(c *Collector) { c.OnRequest(func(*Request) {}) },
+			handle:   func(c *Collector) { c.handleOnRequest(&Request{}) },
+		},
+		{
+			name:     "request headers",
+			register: func(c *Collector) { c.OnRequestHeaders(func(*Request) {}) },
+			handle:   func(c *Collector) { c.handleOnRequestHeaders(&Request{}) },
+		},
+		{
+			name:     "response headers",
+			register: func(c *Collector) { c.OnResponseHeaders(func(*Response) {}) },
+			handle:   func(c *Collector) { c.handleOnResponseHeaders(&Response{}) },
+		},
+		{
+			name:     "response",
+			register: func(c *Collector) { c.OnResponse(func(*Response) {}) },
+			handle:   func(c *Collector) { c.handleOnResponse(&Response{}) },
+		},
+		{
+			name:     "error",
+			register: func(c *Collector) { c.OnError(func(*Response, error) {}) },
+			handle: func(c *Collector) {
+				request := &Request{Ctx: NewContext()}
+				c.handleOnError(&Response{Request: request}, errors.New("test"), request, request.Ctx)
+			},
+		},
+		{
+			name:     "scraped",
+			register: func(c *Collector) { c.OnScraped(func(*Response) {}) },
+			handle:   func(c *Collector) { c.handleOnScraped(&Response{}) },
+		},
+		{
+			name:     "string",
+			register: func(c *Collector) { c.OnRequest(func(*Request) {}) },
+			handle:   func(c *Collector) { _ = c.String() },
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			c := NewCollector()
+			start := make(chan struct{})
+			var wg sync.WaitGroup
+			wg.Add(2)
+
+			go func() {
+				defer wg.Done()
+				<-start
+				for range iterations {
+					test.register(c)
+				}
+			}()
+			go func() {
+				defer wg.Done()
+				<-start
+				for range iterations {
+					test.handle(c)
+				}
+			}()
+
+			close(start)
+			wg.Wait()
+		})
+	}
+}
+
 // TestLimitRuleClone verifies that Clone copies every exported field, leaves
 // unexported state zeroed, and produces a rule that is independent of the
 // original (mutating one must not affect the other, and Init on the clone

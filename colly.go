@@ -908,14 +908,21 @@ func (c *Collector) checkRobots(u *url.URL) error {
 // String is the text representation of the collector.
 // It contains useful debug information about the collector's internals
 func (c *Collector) String() string {
+	c.lock.RLock()
+	requestCallbacks := len(c.requestCallbacks)
+	htmlCallbacks := len(c.htmlCallbacks)
+	responseCallbacks := len(c.responseCallbacks)
+	errorCallbacks := len(c.errorCallbacks)
+	c.lock.RUnlock()
+
 	return fmt.Sprintf(
 		"Requests made: %d (%d responses) | Callbacks: OnRequest: %d, OnHTML: %d, OnResponse: %d, OnError: %d",
 		c.requestCount.Load(),
 		c.responseCount.Load(),
-		len(c.requestCallbacks),
-		len(c.htmlCallbacks),
-		len(c.responseCallbacks),
-		len(c.errorCallbacks),
+		requestCallbacks,
+		htmlCallbacks,
+		responseCallbacks,
+		errorCallbacks,
 	)
 }
 
@@ -1137,7 +1144,10 @@ func (c *Collector) handleOnRequest(r *Request) {
 			"url": r.URL.String(),
 		}))
 	}
-	for _, f := range c.requestCallbacks {
+	c.lock.RLock()
+	callbacks := slices.Clone(c.requestCallbacks)
+	c.lock.RUnlock()
+	for _, f := range callbacks {
 		f(r)
 	}
 }
@@ -1149,7 +1159,10 @@ func (c *Collector) handleOnResponse(r *Response) {
 			"status": http.StatusText(r.StatusCode),
 		}))
 	}
-	for _, f := range c.responseCallbacks {
+	c.lock.RLock()
+	callbacks := slices.Clone(c.responseCallbacks)
+	c.lock.RUnlock()
+	for _, f := range callbacks {
 		f(r)
 	}
 }
@@ -1161,17 +1174,24 @@ func (c *Collector) handleOnResponseHeaders(r *Response) {
 			"status": http.StatusText(r.StatusCode),
 		}))
 	}
-	for _, f := range c.responseHeadersCallbacks {
+	c.lock.RLock()
+	callbacks := slices.Clone(c.responseHeadersCallbacks)
+	c.lock.RUnlock()
+	for _, f := range callbacks {
 		f(r)
 	}
 }
+
 func (c *Collector) handleOnRequestHeaders(r *Request) {
 	if c.debugger != nil {
 		c.debugger.Event(createEvent("requestHeaders", r.ID, c.ID, map[string]string{
 			"url": r.URL.String(),
 		}))
 	}
-	for _, f := range c.requestHeadersCallbacks {
+	c.lock.RLock()
+	callbacks := slices.Clone(c.requestHeadersCallbacks)
+	c.lock.RUnlock()
+	for _, f := range callbacks {
 		f(r)
 	}
 }
@@ -1341,7 +1361,10 @@ func (c *Collector) handleOnError(response *Response, err error, request *Reques
 	if response.Ctx == nil {
 		response.Ctx = request.Ctx
 	}
-	for _, f := range c.errorCallbacks {
+	c.lock.RLock()
+	callbacks := slices.Clone(c.errorCallbacks)
+	c.lock.RUnlock()
+	for _, f := range callbacks {
 		f(response, err)
 	}
 	return err
@@ -1368,7 +1391,10 @@ func (c *Collector) handleOnScraped(r *Response) {
 			"url": r.Request.URL.String(),
 		}))
 	}
-	for _, f := range c.scrapedCallbacks {
+	c.lock.RLock()
+	callbacks := slices.Clone(c.scrapedCallbacks)
+	c.lock.RUnlock()
+	for _, f := range callbacks {
 		f(r)
 	}
 
