@@ -90,7 +90,7 @@ type Collector struct {
 	CacheDir string
 	// IgnoreRobotsTxt allows the Collector to ignore any restrictions set by
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
-	// information.
+	// information.  It defaults to false, meaning robots.txt is respected.
 	IgnoreRobotsTxt bool
 	// Async turns on asynchronous network communication. Use Collector.Wait() to
 	// be sure all requests have been finished.
