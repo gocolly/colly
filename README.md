@@ -39,6 +39,19 @@ Access real-time data from search engines such as Google, Bing, YouTube, Amazon,
 
 [![SerpApi](assets/serpapi.png)](https://serpapi.com/colly)
 
+
+### [SX.ORG](https://sx.org/?c=COLLY): High-Speed High-Trust Proxies Built for Scraping & Automation at Any Scale
+
+- 240+ Locations to choose from
+- 120M+ IPs - Clean & Frequently Refreshed
+- All proxy types: mobile, residential, data-center
+- Extremely High-Trust - secure from bans
+- Flexible pricing –pay-as-you-goor unlimited trafficoptions
+
+Free trialfor new users - use promocode **COLLY** to claim 3GB of proxy
+
+[![SX.ORG](assets/sx.jpg)](https://sx.org/?c=COLLY)
+
 ## Features
 
 -   Clean API
