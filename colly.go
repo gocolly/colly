@@ -91,7 +91,7 @@ type Collector struct {
 	CacheDir string
 	// IgnoreRobotsTxt allows the Collector to ignore any restrictions set by
 	// the target host's robots.txt file.  See http://www.robotstxt.org/ for more
-	// information.
+	// information.  It defaults to false, meaning robots.txt is respected.
 	IgnoreRobotsTxt bool
 	// Async turns on asynchronous network communication. Use Collector.Wait() to
 	// be sure all requests have been finished.
@@ -504,7 +504,7 @@ func (c *Collector) Init() {
 	c.wg = &sync.WaitGroup{}
 	c.lock = &sync.RWMutex{}
 	c.robotsMap = make(map[string]*robotstxt.RobotsData)
-	c.IgnoreRobotsTxt = true
+	c.IgnoreRobotsTxt = false
 	c.ID = atomic.AddUint32(&collectorCounter, 1)
 	c.TraceHTTP = false
 	c.Context = context.Background()
@@ -1587,7 +1587,6 @@ func createMultipartReader(boundary string, data map[string][]byte) io.Reader {
 	}
 	buffer.WriteString(dashBoundary + "--\n\n")
 	return bytes.NewReader(buffer.Bytes())
-
 }
 
 // multipartFieldNameEscaper escapes a field name for use in a
