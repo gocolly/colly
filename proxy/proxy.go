@@ -15,7 +15,6 @@
 package proxy
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"sync/atomic"
@@ -31,9 +30,9 @@ type roundRobinSwitcher struct {
 func (r *roundRobinSwitcher) GetProxy(pr *http.Request) (*url.URL, error) {
 	index := atomic.AddUint32(&r.index, 1) - 1
 	u := r.proxyURLs[index%uint32(len(r.proxyURLs))]
-
-	ctx := context.WithValue(pr.Context(), colly.ProxyURLKey, u.String())
-	*pr = *pr.WithContext(ctx)
+	// SetProxyFunc wraps this and writes the chosen proxy URL through the
+	// *string holder in the request context, so GetProxy itself only needs
+	// to return the *url.URL.
 	return u, nil
 }
 
