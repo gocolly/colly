@@ -73,7 +73,6 @@ func (h *HTMLElement) ChildText(goquerySelector string) string {
 func (h *HTMLElement) ChildTexts(goquerySelector string) []string {
 	var res []string
 	h.DOM.Find(goquerySelector).Each(func(_ int, s *goquery.Selection) {
-
 		res = append(res, strings.TrimSpace(s.Text()))
 	})
 	return res
