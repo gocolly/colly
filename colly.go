@@ -62,9 +62,13 @@ type Collector struct {
 	// Set it to 0 for infinite recursion (default).
 	MaxDepth int
 	// AllowedDomains is a domain whitelist.
+	// DNS names are matched case-insensitively; trailing dots remain significant.
+	// IPv6 literals, including zone identifiers, are matched exactly.
 	// Leave it blank to allow any domains to be visited
 	AllowedDomains []string
 	// DisallowedDomains is a domain blacklist.
+	// DNS names are matched case-insensitively; trailing dots remain significant.
+	// IPv6 literals, including zone identifiers, are matched exactly.
 	DisallowedDomains []string
 	// DisallowedURLFilters is a list of regular expressions which restricts
 	// visiting URLs. If any of the rules matches to a URL the
@@ -357,6 +361,8 @@ func MaxRequests(max uint32) CollectorOption {
 }
 
 // AllowedDomains sets the domain whitelist used by the Collector.
+// DNS names are matched case-insensitively; trailing dots remain significant.
+// IPv6 literals, including zone identifiers, are matched exactly.
 func AllowedDomains(domains ...string) CollectorOption {
 	return func(c *Collector) {
 		c.AllowedDomains = domains
@@ -371,6 +377,8 @@ func ParseHTTPErrorResponse() CollectorOption {
 }
 
 // DisallowedDomains sets the domain blacklist used by the Collector.
+// DNS names are matched case-insensitively; trailing dots remain significant.
+// IPv6 literals, including zone identifiers, are matched exactly.
 func DisallowedDomains(domains ...string) CollectorOption {
 	return func(c *Collector) {
 		c.DisallowedDomains = domains
@@ -835,13 +843,22 @@ func (c *Collector) checkFilters(URL, domain string) error {
 }
 
 func (c *Collector) isDomainAllowed(domain string) bool {
-	if slices.Contains(c.DisallowedDomains, domain) {
+	// Preserve exact matching for IPv6 literals: zone identifiers may be
+	// case-sensitive.
+	isIPv6 := strings.Contains(domain, ":")
+	matches := func(configured string) bool {
+		if isIPv6 {
+			return configured == domain
+		}
+		return strings.EqualFold(configured, domain)
+	}
+	if slices.ContainsFunc(c.DisallowedDomains, matches) {
 		return false
 	}
 	if c.AllowedDomains == nil || len(c.AllowedDomains) == 0 {
 		return true
 	}
-	return slices.Contains(c.AllowedDomains, domain)
+	return slices.ContainsFunc(c.AllowedDomains, matches)
 }
 
 func (c *Collector) checkRobots(u *url.URL) error {
