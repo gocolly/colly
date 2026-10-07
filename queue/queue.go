@@ -110,7 +110,10 @@ func (q *Queue) AddRequest(r *colly.Request) error {
 	if err != nil {
 		return err
 	}
-	q.wake <- struct{}{}
+	select {
+	case q.wake <- struct{}{}:
+	default:
+	}
 	return nil
 }
 
@@ -136,7 +139,7 @@ func (q *Queue) Run(c *colly.Collector) error {
 		q.mut.Unlock()
 		panic("cannot call duplicate Queue.Run")
 	}
-	q.wake = make(chan struct{})
+	q.wake = make(chan struct{}, 1)
 	q.running = true
 	q.mut.Unlock()
 
