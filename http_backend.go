@@ -62,7 +62,7 @@ type LimitRule struct {
 	Parallelism    int
 	waitChan       chan bool
 	compiledRegexp *regexp.Regexp
-	compiledGlob   glob.Glob
+	compiledGlob   *glob.Pattern
 	lock           sync.Mutex
 }
 
