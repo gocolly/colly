@@ -42,8 +42,12 @@ func TestQueue(t *testing.T) {
 		put()
 		storage.AddRequest([]byte("error request"))
 	}
+	// The test server only serves /delay and hijacks every other route, so a
+	// robots.txt probe would fail and abort each request before OnRequest.
+	// This test covers queue mechanics, not robots.txt handling.
 	c := colly.NewCollector(
 		colly.AllowURLRevisit(),
+		colly.IgnoreRobotsTxt(),
 	)
 	c.OnRequest(func(req *colly.Request) {
 		atomic.AddUint32(&requests, 1)
