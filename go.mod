@@ -8,7 +8,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/antchfx/htmlquery v1.3.5
 	github.com/antchfx/xmlquery v1.5.0
-	github.com/gobwas/glob v0.2.3
+	github.com/gobwas/glob v1.0.0
 	github.com/gocolly/colly v1.2.0
 	github.com/jawher/mow.cli v1.1.0
 	github.com/kennygrant/sanitize v1.2.4
