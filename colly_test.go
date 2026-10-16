@@ -2352,3 +2352,61 @@ func TestEscapeMultipartFieldNamePreservesInvalidUTF8(t *testing.T) {
 		t.Errorf("escapeMultipartFieldName replaced invalid UTF-8 with U+FFFD: %q", escaped)
 	}
 }
+func TestMaxBodySizeAfterDecompression(t *testing.T) {
+	// 2 MiB of data compresses to a few KiB, well under the wire limit.
+	big := bytes.Repeat([]byte("a"), 2*1024*1024)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ww := gzip.NewWriter(w)
+		defer ww.Close()
+		ww.Write(big)
+	}))
+	defer ts.Close()
+
+	const limit = 1024 * 1024 // 1 MiB
+	c := NewCollector(MaxBodySize(limit))
+	var bodyLen int
+	c.OnResponse(func(r *Response) {
+		bodyLen = len(r.Body)
+	})
+	err := c.Visit(ts.URL + "/bomb.xml.gz")
+	if err != nil {
+		t.Fatalf("Visit failed: %v", err)
+	}
+	if bodyLen > limit {
+		t.Errorf("response body = %d bytes, exceeds MaxBodySize %d (decompression bomb not limited)", bodyLen, limit)
+	}
+	if bodyLen == 0 {
+		t.Errorf("response body is empty, expected up to %d bytes", limit)
+	}
+}
+
+// TestMaxBodySizeAllowsCompressedResponseWithinLimit verifies that a
+// compressed response whose decompressed body is under MaxBodySize is not
+// truncated by capping the compressed stream. gzip has ~18 bytes of
+// header/footer overhead, so an 8-byte plain body compresses to more bytes
+// than a 10-byte limit even though its decompressed size is under it.
+func TestMaxBodySizeAllowsCompressedResponseWithinLimit(t *testing.T) {
+	small := []byte("abcdefgh") // 8 bytes, under the 10-byte limit
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ww := gzip.NewWriter(w)
+		defer ww.Close()
+		ww.Write(small)
+	}))
+	defer ts.Close()
+
+	const limit = 10 // above the 8-byte body, below the compressed stream size
+	c := NewCollector(MaxBodySize(limit))
+	var body []byte
+	c.OnResponse(func(r *Response) {
+		body = r.Body
+	})
+	err := c.Visit(ts.URL + "/small.xml.gz")
+	if err != nil {
+		t.Fatalf("Visit failed: %v", err)
+	}
+	if !bytes.Equal(body, small) {
+		t.Errorf("expected decompressed body %q, got %q (compressed stream was truncated)", small, body)
+	}
+}

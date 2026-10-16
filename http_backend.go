@@ -232,9 +232,6 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 	}
 
 	var bodyReader io.Reader = res.Body
-	if bodySize > 0 {
-		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
-	}
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || (strings.HasSuffix(strings.ToLower(finalRequest.URL.Path), ".xml.gz") && res.StatusCode >= 200 && res.StatusCode < 300)) {
 		// Even if URL contains .xml.gz, it doesn't mean that we get gzip
@@ -258,6 +255,14 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 		default:
 			return nil, err
 		}
+	}
+	if bodySize > 0 {
+		// Limit the final response body after any decompression: MaxBodySize
+		// applies to the body handed to callbacks, not to the compressed
+		// bytes. A small gzip payload could otherwise expand past the limit
+		// (CWE-409), while capping the compressed stream would truncate
+		// legitimate responses whose decompressed body is under the limit.
+		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
 	body, err := io.ReadAll(bodyReader)
 	if err != nil {
