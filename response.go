@@ -89,12 +89,16 @@ func (r *Response) fixCharset(detectCharset bool, defaultEncoding string) error 
 		if !detectCharset {
 			return nil
 		}
-		d := chardet.NewTextDetector()
-		r, err := d.DetectBest(r.Body)
-		if err != nil {
-			return err
+		if _, name, _ := charset.DetermineEncoding(r.Body, contentType); name != "" {
+			contentType = "text/plain; charset=" + name
+		} else {
+			d := chardet.NewTextDetector()
+			det, err := d.DetectBest(r.Body)
+			if err != nil {
+				return err
+			}
+			contentType = "text/plain; charset=" + det.Charset
 		}
-		contentType = "text/plain; charset=" + r.Charset
 	}
 	if strings.Contains(contentType, "utf-8") || strings.Contains(contentType, "utf8") {
 		return nil
