@@ -42,6 +42,9 @@ type Response struct {
 	// Trace contains the HTTPTrace for the request. Will only be set by the
 	// collector if Collector.TraceHTTP is set to true.
 	Trace *HTTPTrace
+	// ProxyURL is the proxy address that handled the request, mirrored from
+	// Request.ProxyURL for convenience.
+	ProxyURL string
 }
 
 // Save writes response body to disk
