@@ -534,6 +534,14 @@ func TestNoAcceptHeader(t *testing.T) {
 }
 
 func TestNewCollector(t *testing.T) {
+	t.Run("Defaults", func(t *testing.T) {
+		c := NewCollector()
+
+		if c.IgnoreRobotsTxt {
+			t.Fatal("c.IgnoreRobotsTxt = true, want false")
+		}
+	})
+
 	t.Run("Functional Options", func(t *testing.T) {
 		for name, test := range newCollectorTests {
 			t.Run(name, test)
@@ -1317,6 +1325,25 @@ func TestRobotsWhenDisallowedWithQueryParameter(t *testing.T) {
 	err := c.Visit(ts.URL + "/allowed?q=1")
 	if err.Error() != "URL blocked by robots.txt" {
 		t.Fatalf("wrong error message: %v", err)
+	}
+}
+
+// TestRobotsDisallowedByDefault guards the default itself: the other robots
+// tests set Collector.IgnoreRobotsTxt explicitly, so none of them would catch
+// the default flipping back to ignoring robots.txt.
+func TestRobotsDisallowedByDefault(t *testing.T) {
+	ts := newTestServer()
+	defer ts.Close()
+
+	c := NewCollector()
+
+	c.OnResponse(func(resp *Response) {
+		t.Fatalf("Received response: %d", resp.StatusCode)
+	})
+
+	err := c.Visit(ts.URL + "/disallowed")
+	if err != ErrRobotsTxtBlocked {
+		t.Fatalf("wrong error: %v, want %v", err, ErrRobotsTxtBlocked)
 	}
 }
 
