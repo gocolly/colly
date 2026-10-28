@@ -30,8 +30,10 @@ func main() {
 	})
 
 	for i := 0; i < 5; i++ {
+		ctx := colly.NewContext()
+		ctx.Put("num", i)
 		// Add URLs to the queue
-		q.AddURL(fmt.Sprintf("%s?n=%d", url, i))
+		q.AddURL(fmt.Sprintf("%s?n=%d", url, i), colly.WithRequestContext(ctx))
 	}
 	// Consume URLs
 	q.Run(c)

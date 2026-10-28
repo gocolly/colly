@@ -78,7 +78,7 @@ func (q *Queue) IsEmpty() bool {
 }
 
 // AddURL adds a new URL to the queue
-func (q *Queue) AddURL(URL string) error {
+func (q *Queue) AddURL(URL string, opts ...colly.RequestOpt) error {
 	u, err := urlParser.Parse(URL)
 	if err != nil {
 		return err
@@ -87,10 +87,8 @@ func (q *Queue) AddURL(URL string) error {
 	if err != nil {
 		return err
 	}
-	r := &colly.Request{
-		URL:    u2,
-		Method: "GET",
-	}
+	r := colly.NewRequest(u2, opts...)
+
 	d, err := r.Marshal()
 	if err != nil {
 		return err
