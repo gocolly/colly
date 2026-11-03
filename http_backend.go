@@ -19,6 +19,7 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
+	"errors"
 	"io"
 	"math/rand"
 	"net/http"
@@ -235,6 +236,9 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 	if bodySize > 0 {
 		bodyReader = io.LimitReader(bodyReader, int64(bodySize))
 	}
+	// decompressed records whether the body goes through a gzip reader, either
+	// net/http's transparent one or the one set up below.
+	decompressed := res.Uncompressed
 	contentEncoding := strings.ToLower(res.Header.Get("Content-Encoding"))
 	if !res.Uncompressed && (strings.Contains(contentEncoding, "gzip") || (contentEncoding == "" && strings.Contains(strings.ToLower(res.Header.Get("Content-Type")), "gzip")) || (strings.HasSuffix(strings.ToLower(finalRequest.URL.Path), ".xml.gz") && res.StatusCode >= 200 && res.StatusCode < 300)) {
 		// Even if URL contains .xml.gz, it doesn't mean that we get gzip
@@ -254,13 +258,14 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 					return nil, err
 				}
 				defer bodyReader.(*gzip.Reader).Close()
+				decompressed = true
 			}
 		default:
 			return nil, err
 		}
 	}
 	body, err := io.ReadAll(bodyReader)
-	if err != nil {
+	if err != nil && !isTruncatedCompressedBody(err, decompressed, body) {
 		return nil, err
 	}
 	return &Response{
@@ -268,6 +273,16 @@ func (h *httpBackend) Do(request *http.Request, bodySize int, checkRequestHeader
 		Body:       body,
 		Headers:    &res.Header,
 	}, nil
+}
+
+// isTruncatedCompressedBody reports whether err only means that a compressed
+// body ended before the end of its gzip stream, after part of it had been
+// decompressed. Some servers send such bodies (see issue #511). Browsers and
+// curl show the content they could decompress instead of failing, so colly
+// keeps it too. A truncated body that is not compressed still returns the
+// error.
+func isTruncatedCompressedBody(err error, decompressed bool, body []byte) bool {
+	return decompressed && len(body) > 0 && errors.Is(err, io.ErrUnexpectedEOF)
 }
 
 func (h *httpBackend) Limit(rule *LimitRule) error {

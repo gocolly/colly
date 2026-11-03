@@ -29,6 +29,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -2350,5 +2351,72 @@ func TestEscapeMultipartFieldNamePreservesInvalidUTF8(t *testing.T) {
 	// using ContainsRune, which would itself decode the invalid bytes.
 	if bytes.Contains([]byte(escaped), []byte{0xEF, 0xBF, 0xBD}) {
 		t.Errorf("escapeMultipartFieldName replaced invalid UTF-8 with U+FFFD: %q", escaped)
+	}
+}
+
+// truncatedGzip returns the first half of a gzip stream of body, so the
+// deflate stream ends early but the HTTP transfer itself is complete.
+func truncatedGzip(t *testing.T, body []byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	if _, err := zw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()[:buf.Len()/2]
+}
+
+func TestTruncatedGzipBodyKeepsDecompressedContent(t *testing.T) {
+	page := []byte("<html><body>" + strings.Repeat("<p>colly issue 511</p>", 20000) + "</body></html>")
+	gz := truncatedGzip(t, page)
+
+	mux := http.NewServeMux()
+	// net/http decompresses this one transparently.
+	mux.HandleFunc("/content-encoding", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Length", strconv.Itoa(len(gz)))
+		w.Write(gz)
+	})
+	// colly decompresses this one itself.
+	mux.HandleFunc("/sitemap.xml.gz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", strconv.Itoa(len(gz)))
+		w.Write(gz)
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	for _, path := range []string{"/content-encoding", "/sitemap.xml.gz"} {
+		t.Run(path, func(t *testing.T) {
+			c := NewCollector()
+			var body []byte
+			c.OnResponse(func(r *Response) {
+				body = r.Body
+			})
+			if err := c.Visit(ts.URL + path); err != nil {
+				t.Fatalf("Visit returned %v, want the decompressed part of the body", err)
+			}
+			if len(body) == 0 {
+				t.Fatal("got an empty body")
+			}
+			if !bytes.HasPrefix(page, body) {
+				t.Fatalf("body is not a prefix of the page: %.60q", body)
+			}
+		})
+	}
+}
+
+func TestTruncatedPlainBodyReturnsError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "1000")
+		w.Write([]byte("<html><body>only part of the page"))
+	}))
+	defer ts.Close()
+
+	c := NewCollector()
+	if err := c.Visit(ts.URL); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("Visit returned %v, want %v", err, io.ErrUnexpectedEOF)
 	}
 }
